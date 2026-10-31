@@ -19,3 +19,9 @@ htmlcov/
 .idea/
 .vscode/
 .eco.bak/
+
+# Generated Artifacts
+synthetic_data.csv
+ground_truth.json
+evaluation_report.json
+evaluation_summary.md

@@ -1,5 +1,7 @@
 # Copyright 2026 Lightibulb
+
 """Endpoints for incident management."""
+
 import sqlite3
 from typing import Annotated
 
@@ -11,24 +13,6 @@ from ecofac.incidents.lifecycle import InvalidStateTransitionError, transition_i
 
 router = APIRouter()
 
-
-def _transition_and_fetch(
-    conn: sqlite3.Connection,
-    incident_id: str,
-    new_status: str,
-    reason: str | None = None,
-) -> IncidentResponse:
-    """Apply a lifecycle transition, mapping domain errors to HTTP codes."""
-    try:
-        transition_incident(conn, incident_id, new_status, reason=reason)
-    except InvalidStateTransitionError as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-    cursor = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,))
-    return IncidentResponse(**dict(cursor.fetchone()))
-
-
 @router.get("/incidents", tags=["Incidents"])
 def list_incidents(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -38,7 +22,6 @@ def list_incidents(
     """List incidents."""
     cursor = conn.execute("SELECT * FROM incidents LIMIT ? OFFSET ?", (limit, offset))
     return [IncidentResponse(**dict(row)) for row in cursor.fetchall()]
-
 
 @router.get("/incidents/{incident_id}", tags=["Incidents"])
 def get_incident(
@@ -52,15 +35,22 @@ def get_incident(
         raise HTTPException(status_code=404, detail="Incident not found")
     return IncidentResponse(**dict(row))
 
-
 @router.post("/incidents/{incident_id}/review", tags=["Incidents"])
 def review_incident(
     incident_id: str,
+    payload: IncidentActionRequest,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> IncidentResponse:
-    """Transition an incident to UNDER_REVIEW (requires DETECTED)."""
-    return _transition_and_fetch(conn, incident_id, "UNDER_REVIEW")
+    """Transition an incident to UNDER_REVIEW."""
+    try:
+        transition_incident(conn, incident_id, "UNDER_REVIEW", reason=payload.reason)
+    except InvalidStateTransitionError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
+    cursor = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,))
+    return IncidentResponse(**dict(cursor.fetchone()))
 
 @router.post("/incidents/{incident_id}/acknowledge", tags=["Incidents"])
 def acknowledge_incident(
@@ -68,19 +58,16 @@ def acknowledge_incident(
     payload: IncidentActionRequest,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> IncidentResponse:
-    """Transition an incident to ACKNOWLEDGED (requires UNDER_REVIEW)."""
-    return _transition_and_fetch(conn, incident_id, "ACKNOWLEDGED", reason=payload.reason)
+    """Transition an incident to ACKNOWLEDGED."""
+    try:
+        transition_incident(conn, incident_id, "ACKNOWLEDGED", reason=payload.reason)
+    except InvalidStateTransitionError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
-
-@router.post("/incidents/{incident_id}/resolve", tags=["Incidents"])
-def resolve_incident(
-    incident_id: str,
-    payload: IncidentActionRequest,
-    conn: Annotated[sqlite3.Connection, Depends(get_db)],
-) -> IncidentResponse:
-    """Transition an incident to RESOLVED (requires ACKNOWLEDGED, reason required)."""
-    return _transition_and_fetch(conn, incident_id, "RESOLVED", reason=payload.reason)
-
+    cursor = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,))
+    return IncidentResponse(**dict(cursor.fetchone()))
 
 @router.post("/incidents/{incident_id}/dismiss", tags=["Incidents"])
 def dismiss_incident(
@@ -88,9 +75,50 @@ def dismiss_incident(
     payload: IncidentActionRequest,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> IncidentResponse:
-    """Transition an incident to DISMISSED (requires UNDER_REVIEW, reason required)."""
-    return _transition_and_fetch(conn, incident_id, "DISMISSED", reason=payload.reason)
+    """Transition an incident to DISMISSED."""
+    try:
+        transition_incident(conn, incident_id, "DISMISSED", reason=payload.reason)
+    except InvalidStateTransitionError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
+    cursor = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,))
+    return IncidentResponse(**dict(cursor.fetchone()))
+
+@router.post("/incidents/{incident_id}/resolve", tags=["Incidents"])
+def resolve_incident(
+    incident_id: str,
+    payload: IncidentActionRequest,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> IncidentResponse:
+    """Transition an incident to RESOLVED."""
+    try:
+        transition_incident(conn, incident_id, "RESOLVED", reason=payload.reason)
+    except InvalidStateTransitionError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    cursor = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,))
+    return IncidentResponse(**dict(cursor.fetchone()))
+
+@router.post("/incidents/{incident_id}/unresolve", tags=["Incidents"])
+def unresolve_incident(
+    incident_id: str,
+    payload: IncidentActionRequest,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> IncidentResponse:
+    """Transition an incident to UNRESOLVED."""
+    try:
+        transition_incident(conn, incident_id, "UNRESOLVED", reason=payload.reason)
+    except InvalidStateTransitionError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+    cursor = conn.execute("SELECT * FROM incidents WHERE id = ?", (incident_id,))
+    return IncidentResponse(**dict(cursor.fetchone()))
 
 @router.get("/incidents/{incident_id}/evidence", tags=["Incidents"])
 def get_evidence(

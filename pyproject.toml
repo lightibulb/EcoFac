@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2",
     "uvicorn",
     "python-multipart",
+    "jinja2",
 ]
 
 [project.optional-dependencies]
@@ -39,23 +40,12 @@ src = ["src"]
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = [
-    "D",        # pydocstyle (docstring rules)
-    "COM812",   # formatter conflict
-    "ISC001",   # formatter conflict
-    "ANN401",   # dynamically typed Any
-    "PLR0913", # Too many arguments (dataclasses)
-    "TRY301", # Abstract raise to inner function
-    "S608",  # SQL injection false positive (we use parameterized queries)
-    "B008",  # FastAPI Depends() uses function calls in default args
-        "PLR0912", # Too many branches
-        "PLR0915", # Too many statements
-        "C901",    # Too complex
-    "PTH123",  # Path.open()
-    "T201",    # print()
-    "PLR2004", # Magic values
-    "S311",    # random()
-    "INP",      # implicit namespace package
+    "D", "COM812", "ISC001", "ANN401", "CPY", "INP", "PLR0913", 
+    "TRY301", "S608", "PTH123", "T201", "PLR2004", "S311", "B008",
 ]
+
+[tool.ruff.lint.isort]
+known-first-party = ["ecofac", "evaluation", "simulator"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "PLR2004", "ANN", "D", "E501"]
@@ -71,9 +61,3 @@ addopts = ["-ra", "--import-mode=importlib"]
 testpaths = ["tests"]
 pythonpath = ["src", "."]
 markers = ["slow", "integration"]
-
-[tool.ruff.lint.flake8-copyright]
-notice-rgx = "^# Copyright \\d{4} Lightibulb"
-
-[tool.ruff.lint.isort]
-known-first-party = ["ecofac", "evaluation", "simulator"]
