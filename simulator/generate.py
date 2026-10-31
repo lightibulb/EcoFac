@@ -6,6 +6,7 @@ import csv
 import datetime as dt
 import json
 import math
+import pathlib
 import random
 
 
@@ -30,7 +31,6 @@ def generate_data(
         for m in range(1, meters_per_bldg + 1):
             meter_id = f"m{b}-{m}"
 
-            # Base characteristics
             base_load = random.uniform(10.0, 50.0)
             seasonal_amp = random.uniform(5.0, 15.0)
 
@@ -46,15 +46,12 @@ def generate_data(
                     ts = current_date + dt.timedelta(hours=hour)
                     ts_str = ts.isoformat().replace("+00:00", "Z")
 
-                    # Base load + seasonal + daily schedule + noise
                     seasonal = math.sin(2 * math.pi * day / 90) * seasonal_amp
                     schedule = 5.0 if not is_weekend and 8 <= hour <= 18 else 0.0
                     noise = random.gauss(0, 1.0)
 
                     value = base_load + seasonal + schedule + noise
 
-                    # Anomaly injection (spikes). Non-positive values cannot
-                    # form a detectable spike, so they are never labeled.
                     if random.random() < anomaly_prob and value > 0:
                         value *= random.uniform(1.5, 3.0)
                         ground_truth.append({
@@ -72,25 +69,22 @@ def generate_data(
                         "unit": "kWh",
                     })
 
-    # Inject missing data (drop 1% of rows randomly)
     readings = [r for r in readings if random.random() > 0.01]
-
-    # Inject duplicates (duplicate 1% of rows)
     duplicates = random.sample(readings, int(len(readings) * 0.01))
     readings.extend(duplicates)
-
-    # Shuffle to mix duplicates and missing data
     random.shuffle(readings)
 
-    # Write CSV
+    path = pathlib.Path(filename)
     fields = ["timestamp", "building_id", "meter_id", "energy_value", "unit"]
-    with open(filename, "w", newline="", encoding="utf-8") as f:
+
+    with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(readings)
 
-    # Write Ground Truth
-    with open(filename.replace(".csv", "_ground_truth.json"), "w", encoding="utf-8") as f:
+    # Ensure ground_truth.json is always written in the same directory
+    gt_path = path.parent / "ground_truth.json"
+    with gt_path.open("w", encoding="utf-8") as f:
         json.dump(ground_truth, f, indent=2)
 
     print(

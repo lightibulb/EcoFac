@@ -71,7 +71,7 @@ def generate_demo_data(
     # 1. Generate data using a safe temporary directory
     with tempfile.TemporaryDirectory() as tmpdir:
         filepath = pathlib.Path(tmpdir) / "synthetic_data.csv"
-        generate_data(filename=filepath)
+        generate_data(filename=str(filepath))
 
         with open(filepath, encoding="utf-8") as f:
             csv_content = f.read()
