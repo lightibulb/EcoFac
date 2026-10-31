@@ -83,7 +83,8 @@ def analyze_meter(
                 "anomaly_id": anomaly.id,
                 "incident_id": incident_id,
                 "detector": anomaly.detector_name,
-                "severity": anomaly.severity
+                "severity": anomaly.severity,
+                "gated_by_quality": not anomaly.is_data_quality_eligible,
             })
 
     if not results:
