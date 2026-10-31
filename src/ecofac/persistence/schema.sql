@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS energy_readings (
     batch_id TEXT NOT NULL,
     is_valid INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL,
+    raw_value TEXT,
     FOREIGN KEY (meter_id) REFERENCES meters(id),
     FOREIGN KEY (source_id) REFERENCES data_sources(id),
     FOREIGN KEY (batch_id) REFERENCES import_batches(id),
