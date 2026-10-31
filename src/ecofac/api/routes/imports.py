@@ -1,6 +1,9 @@
 # Copyright 2026 Lightibulb
+
 """Endpoints for CSV imports."""
+
 import dataclasses
+import datetime as dt
 import json
 import sqlite3
 from typing import Annotated
@@ -10,12 +13,10 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from ecofac.api.dependencies import get_db
 from ecofac.api.schemas import ImportBatchResponse, ImportSummaryResponse
 from ecofac.ingestion.pipeline import ingest_csv
-from ecofac.timeutil import now_z
 
 router = APIRouter()
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
-
 
 @router.post("/imports", tags=["Imports"])
 async def upload_csv(
@@ -28,39 +29,42 @@ async def upload_csv(
     content = await file.read()
     if len(content) > MAX_FILE_SIZE:
         raise HTTPException(status_code=413, detail="File too large")
+
     try:
         text = content.decode("utf-8")
     except UnicodeDecodeError as e:
         raise HTTPException(status_code=400, detail="File must be UTF-8 encoded") from e
 
-    # Ensure the batch exists before ingestion to satisfy foreign keys.
-    # NOTE: INSERT OR IGNORE does NOT swallow FK violations, so the source
-    # must be validated BEFORE the insert or an unknown source_id crashes
-    # with an unhandled IntegrityError (500) instead of a clean 400.
-    known_source = conn.execute(
-        "SELECT 1 FROM data_sources WHERE id = ?", (source_id,)
-    ).fetchone()
-    if known_source is None:
-        raise HTTPException(status_code=400, detail="Invalid source_id")
+    now = dt.datetime.now(dt.UTC).isoformat()
+
+    # Auto-create the data source to prevent foreign key errors
+    conn.execute(
+        "INSERT OR IGNORE INTO data_sources (id, name, source_type, created_at) "
+        "VALUES (?, ?, 'csv', ?)",
+        (source_id, source_id, now)
+    )
+
+    # Ensure the batch exists
     conn.execute(
         "INSERT OR IGNORE INTO import_batches (id, source_id, status, imported_at) "
-        "VALUES (?, ?, ?, ?)",
-        (batch_id, source_id, "started", now_z()),
+        "VALUES (?, ?, 'started', ?)",
+        (batch_id, source_id, now)
     )
 
     try:
         summary = ingest_csv(conn, text, source_id, batch_id, max_size_mb=5.0)
+
         conn.execute(
             "UPDATE import_batches SET status = 'completed', summary_json = ? WHERE id = ?",
-            (json.dumps(dataclasses.asdict(summary)), batch_id),
+            (json.dumps(dataclasses.asdict(summary)), batch_id)
         )
+
         return ImportSummaryResponse(**dataclasses.asdict(summary))
     except ValueError as e:
         conn.execute(
             "UPDATE import_batches SET status = 'failed' WHERE id = ?", (batch_id,)
         )
         raise HTTPException(status_code=400, detail=str(e)) from e
-
 
 @router.get("/imports/{batch_id}", tags=["Imports"])
 def get_import(

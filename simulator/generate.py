@@ -10,6 +10,7 @@ import random
 
 
 def generate_data(
+    filename: str = "synthetic_data.csv",
     days: int = 90,
     buildings: int = 5,
     meters_per_bldg: int = 2,
@@ -82,13 +83,13 @@ def generate_data(
 
     # Write CSV
     fields = ["timestamp", "building_id", "meter_id", "energy_value", "unit"]
-    with open("synthetic_data.csv", "w", newline="", encoding="utf-8") as f:
+    with open(filename, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(readings)
 
     # Write Ground Truth
-    with open("ground_truth.json", "w", encoding="utf-8") as f:
+    with open(filename.replace(".csv", "_ground_truth.json"), "w", encoding="utf-8") as f:
         json.dump(ground_truth, f, indent=2)
 
     print(

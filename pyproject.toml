@@ -28,11 +28,11 @@ dev = [
 [tool.setuptools]
 package-dir = { "" = "src" }
 
+# Include the simulator and evaluation folders in the build
 [tool.setuptools.packages.find]
-where = ["src"]
-exclude = ["tests*", "simulator*", "evaluation*"]
+where = ["src", "."]
+include = ["ecofac*", "simulator*", "evaluation*"]
 
-# THIS IS THE CRUCIAL FIX: Include templates and static files in the package
 [tool.setuptools.package-data]
 ecofac = ["templates/*.html", "static/*"]
 

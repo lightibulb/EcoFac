@@ -2,7 +2,9 @@
 
 """Endpoints for the web dashboard."""
 
+import os
 import sqlite3
+import tempfile
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -64,8 +66,16 @@ def generate_demo_data(
     conn: Annotated[sqlite3.Connection, Depends(get_db)]
 ) -> dict:
     """Trigger the synthetic data generator, seed metadata, and ingest."""
-    generate_data()
 
+    # 1. Generate data using a safe temporary directory
+    with tempfile.TemporaryDirectory() as tmpdir:
+        filepath = os.path.join(tmpdir, "synthetic_data.csv")
+        generate_data(filename=filepath)
+
+        with open(filepath, encoding="utf-8") as f:
+            csv_content = f.read()
+
+    # 2. Seed metadata
     now = "2026-01-01T00:00:00Z"
     conn.execute(
         "INSERT OR IGNORE INTO organizations (id, name, created_at) "
@@ -98,9 +108,7 @@ def generate_demo_data(
         (batch_id, now)
     )
 
-    with open("synthetic_data.csv", encoding="utf-8") as f:
-        csv_content = f.read()
-
+    # 3. Ingest
     summary = ingest_csv(conn, csv_content, "s1", batch_id)
 
     return {
