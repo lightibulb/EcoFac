@@ -10,6 +10,7 @@ import random
 
 
 def generate_data(
+    *,
     filename: str = "synthetic_data.csv",
     days: int = 90,
     buildings: int = 5,

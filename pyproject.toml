@@ -25,13 +25,10 @@ dev = [
     "ruff>=0.8",
 ]
 
+# Explicitly map the packages so setuptools doesn't get confused by the src layout
 [tool.setuptools]
-package-dir = { "" = "src" }
-
-# Include the simulator and evaluation folders in the build
-[tool.setuptools.packages.find]
-where = ["src", "."]
-include = ["ecofac*", "simulator*", "evaluation*"]
+packages = ["ecofac", "simulator", "evaluation"]
+package-dir = { "ecofac" = "src/ecofac", "simulator" = "simulator", "evaluation" = "evaluation" }
 
 [tool.setuptools.package-data]
 ecofac = ["templates/*.html", "static/*"]
@@ -46,7 +43,7 @@ select = ["ALL"]
 ignore = [
     "D", "COM812", "ISC001", "ANN401", "CPY", "INP", "PLR0913", 
     "TRY301", "S608", "PTH123", "T201", "PLR2004", "S311", "B008",
-    "C901", "PLR0912", "PLR0915",
+    "C901", "PLR0912", "PLR0915", "PLR0917",
 ]
 
 [tool.ruff.lint.isort]

@@ -2,7 +2,8 @@
 
 """Endpoints for the web dashboard."""
 
-import os
+
+import pathlib
 import sqlite3
 import tempfile
 from typing import Annotated
@@ -69,7 +70,7 @@ def generate_demo_data(
 
     # 1. Generate data using a safe temporary directory
     with tempfile.TemporaryDirectory() as tmpdir:
-        filepath = os.path.join(tmpdir, "synthetic_data.csv")
+        filepath = pathlib.Path(tmpdir) / "synthetic_data.csv"
         generate_data(filename=filepath)
 
         with open(filepath, encoding="utf-8") as f:
