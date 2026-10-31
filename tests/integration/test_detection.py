@@ -105,8 +105,13 @@ def test_missing_readings_quality_impact(db_conn):
     # Delete the reading at hour 23 to create a gap right before the target
     db_conn.execute("DELETE FROM energy_readings WHERE id = 'r-1-23'")
 
-    # Insert one reading at day 0 to maintain the 24-item window
-    _insert_series(db_conn, [10.0], start_hour=23, day=0)
+    # Insert a filler reading from the previous day to maintain the 24-item window
+    r = EnergyReading(
+        id="r-0", meter_id="m1", timestamp_utc="2025-12-31T23:00:00Z",
+        value=10.0, unit="kWh", source_id="s1", batch_id="ib1",
+        is_valid=True, created_at="2026-01-01T00:00:00Z"
+    )
+    insert_reading(db_conn, r)
 
     _insert_series(db_conn, [100.0], start_hour=0, day=2)
 

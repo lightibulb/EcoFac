@@ -54,7 +54,9 @@ def detect_rolling_baseline(
 
     observed = target["value"]
     deviation = observed - mean
-    z_score = deviation / stdev if stdev > 0 else 0.0
+    if stdev == 0.0:
+        stdev = ZERO_MAD_EPSILON
+    z_score = deviation / stdev
 
     if abs(z_score) < ROLLING_Z_THRESHOLD:
         return None
