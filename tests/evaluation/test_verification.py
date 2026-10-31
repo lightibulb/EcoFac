@@ -6,9 +6,9 @@ import datetime as dt
 import sqlite3
 
 import pytest
-from evaluation.verification import verify_intervention
 
 from ecofac.persistence.database import init_db
+from evaluation.verification import verify_intervention
 
 
 @pytest.fixture
