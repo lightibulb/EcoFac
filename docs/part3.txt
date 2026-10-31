@@ -36,5 +36,4 @@ Created pure Python dataclasses for all 11 requested entities. Created a raw SQL
 
 · CI Runtime: The integration tests use tmp_path to verify persistence. Python's tempfile behavior is generally robust, but if the GitHub Actions runner blocks file writes to /tmp, the test could fail.
 
-9. The exact next step.
-Run the bash script, push the changes, and confirm the CI is green. Once confirmed, await further instructions for Part 4 (Synthetic Data & Ingestion).
+

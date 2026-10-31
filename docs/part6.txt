@@ -35,5 +35,4 @@ Created detection/anomaly.py containing the rolling baseline and robust MAD dete
 · Epsilon substitution for Zero MAD: When MAD is 0 (constant data), using 1e-6 means any deviation triggers an anomaly. This is mathematically sound for deterministic energy data, but could cause alert fatigue if the meter naturally fluctuates by 0.01.
 · Percentage deviation division by zero: Handled by returning None if expected <= 0.
 
-9. The exact next step.
-Run the script, push to GitHub, and confirm both CI jobs pass. Once confirmed, reply and I will proceed to Part 7 (Incident Lifecycle and Verification).
+

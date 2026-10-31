@@ -36,5 +36,4 @@ Not executed locally. As requested, Python was not installed locally to run the 
 - CI Environment Drift: If GitHub Actions updates ubuntu-latest to a version where Python 3.11 is not pre-installed or behaves unexpectedly with setup-python, the workflow might need version pins. 
 - Ruff strictness: select = ["ALL"] is very strict. The initial files are configured to pass, but as code is added in Part 3, it may flag violations until explicitly ignored or fixed.
 
-9. The exact next step.
-Run bash bootstrap.sh in your terminal, review the files with git status, and push to GitHub. Once you do, observe the actual CI results. I am stopping here and will not proceed to Part 3 until you confirm the CI passes or provide the failure logs.
+

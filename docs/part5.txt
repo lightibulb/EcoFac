@@ -33,5 +33,4 @@ Created a data quality assessment engine that queries the energy_readings and da
 
 · Timezone edge cases: The staleness check uses dt.datetime.fromisoformat(latest_obs). If a reading was somehow stored without timezone info (violating the ingestion rule), this would throw a naive datetime error. Because ingestion enforces UTC, this is currently safe, but is a brittle assumption.
 
-9. The exact next step.
-Run the bash script, push to GitHub, and verify both CI jobs pass. Once confirmed, await Part 6 (Statistical Baselines & Anomaly Detection).
+

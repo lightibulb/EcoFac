@@ -77,5 +77,4 @@ The CI failure logs (pytest and ruff).
 
 · None. The exact CI errors have been addressed.
 
-9. The exact next step.
-Run the script, push the changes, and confirm both CI jobs turn green. Once they do, reply with confirmation for Part 5 (Data Quality Assessment).
+

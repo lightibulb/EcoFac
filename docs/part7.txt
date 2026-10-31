@@ -34,5 +34,4 @@ Implemented the EvidenceBuilder which compiles a reproducible JSON payload for e
 
 · Evidence JSON Size: If a detector used a very large window (e.g., window_size=8760 for a full year), the JSON string containing all historical readings could become quite large in the SQLite database. For the current MVP, this is acceptable.
 
-9. The exact next step.
-Run the bash script, push to GitHub, and confirm both CI jobs pass. Once confirmed, reply and await Part 8 (REST API and Documentation).
+
