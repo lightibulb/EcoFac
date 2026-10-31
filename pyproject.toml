@@ -42,6 +42,7 @@ ignore = [
     "COM812",   # formatter conflict
     "ISC001",   # formatter conflict
     "ANN401",   # dynamically typed Any
+    "PLR0913", # Too many arguments (dataclasses)
     "INP",      # implicit namespace package
 ]
 
