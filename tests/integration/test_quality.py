@@ -3,7 +3,6 @@
 """Integration tests for the data quality engine."""
 
 import datetime as dt
-import sqlite3
 
 import pytest
 
@@ -34,7 +33,7 @@ def db_conn():
     conn.close()
 
 
-def _insert_reading(conn, reading_id, ts, value, is_valid=True):
+def _insert_reading(conn, reading_id, ts, value, *, is_valid=True):
     r = EnergyReading(
         id=reading_id, meter_id="m1", timestamp_utc=ts,
         value=value, unit="kWh", source_id="s1", batch_id="ib1",
