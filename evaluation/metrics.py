@@ -48,29 +48,30 @@ def evaluate_detection(
     false_positives = len(pred_set - truth_set)
     false_negatives = len(truth_set - pred_set)
 
-    if (true_positives + false_positives) > 0:
-        precision = true_positives / (true_positives + false_positives)
-    else:
-        precision = 0.0
+    precision = (
+        true_positives / (true_positives + false_positives)
+        if (true_positives + false_positives) > 0
+        else 0.0
+    )
+    recall = (
+        true_positives / (true_positives + false_negatives)
+        if (true_positives + false_negatives) > 0
+        else 0.0
+    )
+    f1 = (
+        2 * (precision * recall) / (precision + recall)
+        if (precision + recall) > 0
+        else 0.0
+    )
 
-    if (true_positives + false_negatives) > 0:
-        recall = true_positives / (true_positives + false_negatives)
-    else:
-        recall = 0.0
-
-    if (precision + recall) > 0:
-        f1 = 2 * (precision * recall) / (precision + recall)
-    else:
-        f1 = 0.0
-
-    # For simplicity, we just compute the single operating point PR-AUC here
     pr_auc = precision * recall
 
     weeks = days / 7.0
-    if buildings > 0:
-        false_alerts_per_week = false_positives / (buildings * weeks)
-    else:
-        false_alerts_per_week = 0.0
+    false_alerts_per_week = (
+        false_positives / (buildings * weeks)
+        if buildings > 0
+        else 0.0
+    )
 
     return {
         "precision": round(precision, 3),
