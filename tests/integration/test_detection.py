@@ -6,7 +6,7 @@ import datetime as dt
 
 import pytest
 
-from ecofac.detection.anomaly import detect_rolling_baseline, detect_robust_mad
+from ecofac.detection.anomaly import detect_robust_mad, detect_rolling_baseline
 from ecofac.domain.models import EnergyReading
 from ecofac.persistence.database import get_connection, init_db
 from ecofac.persistence.repository import insert_reading
@@ -61,7 +61,7 @@ def test_normal_consumption(db_conn):
 
 def test_sudden_spike(db_conn):
     """Verify a sudden spike triggers anomalies."""
-    _insert_series(db_conn, [10.0] * 23 + [10.0])  # 24 normal
+    _insert_series(db_conn, [10.0] * 24)
     _insert_series(db_conn, [100.0], start_hour=0, day=2)  # The spike
 
     target_ts = "2026-01-02T00:00:00Z"
@@ -89,25 +89,29 @@ def test_insufficient_history(db_conn):
 
 def test_zero_mad_constant_data(db_conn):
     """Verify zero MAD is handled safely."""
-    # Constant data results in MAD = 0
     _insert_series(db_conn, [10.0] * 24)
     _insert_series(db_conn, [15.0], start_hour=0, day=2)
 
     target_ts = "2026-01-02T00:00:00Z"
     anomaly_mad = detect_robust_mad(db_conn, "m1", target_ts)
 
-    # Should trigger because observed != median and MAD is replaced by epsilon
     assert anomaly_mad is not None
 
 
 def test_missing_readings_quality_impact(db_conn):
     """Verify data quality eligibility flag is passed to the anomaly."""
-    _insert_series(db_conn, [10.0] * 23)  # 23 readings (missing 1 hour in the window)
+    _insert_series(db_conn, [10.0] * 24, day=1)
+
+    # Delete the reading at hour 23 to create a gap right before the target
+    db_conn.execute("DELETE FROM energy_readings WHERE id = 'r-1-23'")
+
+    # Insert one reading at day 0 to maintain the 24-item window
+    _insert_series(db_conn, [10.0], start_hour=23, day=0)
+
     _insert_series(db_conn, [100.0], start_hour=0, day=2)
 
     target_ts = "2026-01-02T00:00:00Z"
     anomaly = detect_rolling_baseline(db_conn, "m1", target_ts)
 
     assert anomaly is not None
-    # Because the previous hour was missing, quality is ineligible
     assert anomaly.is_data_quality_eligible is False

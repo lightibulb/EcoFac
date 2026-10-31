@@ -2,7 +2,6 @@
 
 """Statistical anomaly detection engines."""
 
-import dataclasses
 import datetime as dt
 import json
 import sqlite3
@@ -11,6 +10,12 @@ import uuid
 
 from ecofac.domain.models import Anomaly
 from ecofac.quality.assessment import assess_quality
+
+ROLLING_Z_THRESHOLD = 3.0
+ROLLING_Z_HIGH = 4.5
+MAD_Z_THRESHOLD = 3.5
+MAD_Z_HIGH = 5.0
+ZERO_MAD_EPSILON = 1e-6
 
 
 def detect_rolling_baseline(
@@ -29,18 +34,19 @@ def detect_rolling_baseline(
     history = cursor.fetchall()
 
     if len(history) < window_size:
-        return None  # Insufficient history
+        return None
 
     values = [row["value"] for row in history]
     obs_ids = [row["id"] for row in history]
 
     cursor = conn.execute(
-        "SELECT id, value, building_id FROM energy_readings JOIN meters ON meters.id = energy_readings.meter_id "
+        "SELECT energy_readings.id, energy_readings.value, meters.building_id "
+        "FROM energy_readings JOIN meters ON meters.id = energy_readings.meter_id "
         "WHERE meter_id = ? AND timestamp_utc = ?",
         (meter_id, target_ts),
     )
     target = cursor.fetchone()
-    if not target or not target["value"]:
+    if not target:
         return None
 
     mean = statistics.mean(values)
@@ -50,7 +56,7 @@ def detect_rolling_baseline(
     deviation = observed - mean
     z_score = deviation / stdev if stdev > 0 else 0.0
 
-    if abs(z_score) < 3.0:
+    if abs(z_score) < ROLLING_Z_THRESHOLD:
         return None
 
     return _build_anomaly(
@@ -60,7 +66,7 @@ def detect_rolling_baseline(
         observed=observed,
         expected=mean,
         detector_name="rolling_baseline",
-        severity="high" if abs(z_score) > 4.5 else "medium",
+        severity="high" if abs(z_score) > ROLLING_Z_HIGH else "medium",
         params={"window_size": window_size, "z_score": z_score, "stdev": stdev},
         supporting_ids=obs_ids,
         conn=conn,
@@ -89,12 +95,13 @@ def detect_robust_mad(
     obs_ids = [row["id"] for row in history]
 
     cursor = conn.execute(
-        "SELECT id, value, building_id FROM energy_readings JOIN meters ON meters.id = energy_readings.meter_id "
+        "SELECT energy_readings.id, energy_readings.value, meters.building_id "
+        "FROM energy_readings JOIN meters ON meters.id = energy_readings.meter_id "
         "WHERE meter_id = ? AND timestamp_utc = ?",
         (meter_id, target_ts),
     )
     target = cursor.fetchone()
-    if not target or not target["value"]:
+    if not target:
         return None
 
     median = statistics.median(values)
@@ -104,14 +111,13 @@ def detect_robust_mad(
     observed = target["value"]
     deviation = observed - median
 
-    # Safeguard: Zero MAD
     scaled_mad = 1.4826 * mad
     if scaled_mad == 0.0:
-        scaled_mad = 1e-6
+        scaled_mad = ZERO_MAD_EPSILON
 
     z_score = deviation / scaled_mad
 
-    if abs(z_score) < 3.5:
+    if abs(z_score) < MAD_Z_THRESHOLD:
         return None
 
     return _build_anomaly(
@@ -121,7 +127,7 @@ def detect_robust_mad(
         observed=observed,
         expected=median,
         detector_name="robust_mad",
-        severity="high" if abs(z_score) > 5.0 else "medium",
+        severity="high" if abs(z_score) > MAD_Z_HIGH else "medium",
         params={"window_size": window_size, "z_score": z_score, "mad": mad},
         supporting_ids=obs_ids,
         conn=conn,
@@ -129,6 +135,7 @@ def detect_robust_mad(
 
 
 def _build_anomaly(
+    *,
     building_id: str,
     meter_id: str,
     target_ts: str,
@@ -147,7 +154,6 @@ def _build_anomaly(
     target_dt = dt.datetime.fromisoformat(target_ts)
     start_dt = target_dt - dt.timedelta(hours=1)
 
-    # Check quality for the period leading up to this observation
     quality = assess_quality(conn, meter_id, start_dt, target_dt, expected_frequency_minutes=60)
 
     anomaly = Anomaly(
@@ -168,15 +174,24 @@ def _build_anomaly(
     )
 
     conn.execute(
-        "INSERT INTO anomalies (id, building_id, meter_id, timestamp_utc, observed_consumption, "
-        "expected_consumption, absolute_deviation, percentage_deviation, detector_name, severity, "
-        "is_data_quality_eligible, detection_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO anomalies (id, building_id, meter_id, timestamp_utc, "
+        "observed_consumption, expected_consumption, absolute_deviation, "
+        "percentage_deviation, detector_name, severity, "
+        "is_data_quality_eligible, detection_timestamp) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
-            anomaly.id, anomaly.building_id, anomaly.meter_id, anomaly.timestamp_utc,
-            anomaly.observed_consumption, anomaly.expected_consumption,
-            anomaly.absolute_deviation, anomaly.percentage_deviation,
-            anomaly.detector_name, anomaly.severity, int(anomaly.is_data_quality_eligible),
-            anomaly.detection_timestamp
-        )
+            anomaly.id,
+            anomaly.building_id,
+            anomaly.meter_id,
+            anomaly.timestamp_utc,
+            anomaly.observed_consumption,
+            anomaly.expected_consumption,
+            anomaly.absolute_deviation,
+            anomaly.percentage_deviation,
+            anomaly.detector_name,
+            anomaly.severity,
+            int(anomaly.is_data_quality_eligible),
+            anomaly.detection_timestamp,
+        ),
     )
     return anomaly
