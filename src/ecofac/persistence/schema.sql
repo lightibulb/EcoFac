@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS anomalies (
     severity TEXT NOT NULL,
     is_data_quality_eligible INTEGER NOT NULL,
     detection_timestamp TEXT NOT NULL,
+    detection_parameters TEXT,
     FOREIGN KEY (building_id) REFERENCES buildings(id),
     FOREIGN KEY (meter_id) REFERENCES meters(id)
 );
