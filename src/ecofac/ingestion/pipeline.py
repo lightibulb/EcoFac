@@ -4,7 +4,7 @@
 
 import csv
 import dataclasses
-import datetime
+import datetime as dt
 import io
 import sqlite3
 import uuid
@@ -44,7 +44,7 @@ def _log_issue(
             batch_id,
             issue_type,
             description,
-            datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            dt.datetime.now(dt.UTC).isoformat(),
         ),
     )
 
@@ -54,6 +54,7 @@ def ingest_csv(
     csv_content: str,
     source_id: str,
     batch_id: str,
+    *,
     max_rows: int = 50000,
     max_size_mb: float = 5.0,
 ) -> IngestionSummary:
@@ -106,8 +107,8 @@ def ingest_csv(
             # 2. Normalize Timestamp to UTC
             ts_raw = (row.get("timestamp") or "").strip()
             try:
-                dt = datetime.datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
-                dt_utc = dt.astimezone(datetime.timezone.utc)
+                dt_val = dt.datetime.fromisoformat(ts_raw)
+                dt_utc = dt_val.astimezone(dt.UTC)
                 ts_utc = dt_utc.isoformat().replace("+00:00", "Z")
             except ValueError:
                 summary.rejected_rows += 1
@@ -144,13 +145,13 @@ def ingest_csv(
             val_kwh = val * UNITS[unit_raw]
             reading_id = str(uuid.uuid4())
             is_valid = True
+            issue_to_log = None
 
             # 6. Negative consumption flagging
             if val_kwh < 0:
                 is_valid = False
                 summary.negative_consumption += 1
-                _log_issue(
-                    conn,
+                issue_to_log = (
                     batch_id,
                     "negative_consumption",
                     f"Negative reading: {val_kwh} kWh",
@@ -173,11 +174,16 @@ def ingest_csv(
                         source_id,
                         batch_id,
                         int(is_valid),
-                        datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                        dt.datetime.now(dt.UTC).isoformat(),
                         val_raw,
                     ),
                 )
                 summary.accepted_rows += 1
+                
+                # Log issue AFTER inserting reading to satisfy FK constraint
+                if issue_to_log:
+                    _log_issue(conn, *issue_to_log)
+                    
             except sqlite3.IntegrityError:
                 # Catches duplicates that exist in the DB already
                 summary.rejected_rows += 1
@@ -185,8 +191,8 @@ def ingest_csv(
                 _log_issue(conn, batch_id, "duplicate", f"Duplicate in DB: {meter_id} @ {ts_utc}")
 
         conn.execute("COMMIT")
-    except Exception as exc:
+    except Exception:
         conn.execute("ROLLBACK")
-        raise exc
+        raise
 
     return summary

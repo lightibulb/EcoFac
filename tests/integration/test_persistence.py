@@ -2,12 +2,12 @@
 
 """Integration tests for the SQLite persistence layer."""
 
-import datetime
+import datetime as dt
 import sqlite3
 
 import pytest
 
-from ecofac.domain.models import EnergyReading, Organization
+from ecofac.domain.models import EnergyReading
 from ecofac.persistence.database import get_connection, init_db
 from ecofac.persistence.repository import DuplicateReadingError, insert_reading
 
@@ -32,27 +32,42 @@ def test_schema_initialization(db_conn):
 
 def test_identifier_uniqueness(db_conn):
     """Verify primary keys prevent duplicate organizations."""
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-    db_conn.execute("INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)", ("org-1", "Test", now))
+    now = dt.datetime.now(dt.UTC).isoformat()
     
+    db_conn.execute(
+        "INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)", 
+        ("org-1", "Test", now)
+    )
+
     with pytest.raises(sqlite3.IntegrityError):
-        db_conn.execute("INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)", ("org-1", "Duplicate", now))
+        db_conn.execute(
+            "INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)", 
+            ("org-1", "Duplicate", now)
+        )
 
 
 def test_relationships(db_conn):
     """Verify foreign keys restrict invalid associations."""
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now = dt.datetime.now(dt.UTC).isoformat()
     # Attempting to add a building to a non-existent org should fail
     with pytest.raises(sqlite3.IntegrityError):
-        db_conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, ?, ?, ?)", ("b-1", "org-999", "Test Bldg", now))
+        db_conn.execute(
+            "INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, ?, ?, ?)", 
+            ("b-1", "org-999", "Test Bldg", now)
+        )
 
 
 def test_duplicate_reading_handling(db_conn):
     """Verify duplicate readings raise an error and do not silently overwrite."""
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now = dt.datetime.now(dt.UTC).isoformat()
+    
     db_conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'O1', ?)", (now,))
     db_conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'B1', ?)", (now,))
-    db_conn.execute("INSERT INTO meters (id, building_id, fuel_type, unit, created_at) VALUES ('m1', 'b1', 'electricity', 'kWh', ?)", (now,))
+    db_conn.execute(
+        "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) "
+        "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)", 
+        (now,)
+    )
     db_conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'S1', 'csv', ?)", (now,))
     db_conn.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'complete', ?)", (now,))
 
@@ -79,7 +94,8 @@ def test_duplicate_reading_handling(db_conn):
 
 def test_transaction_rollback(db_conn):
     """Verify that a failed insert rolls back completely."""
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now = dt.datetime.now(dt.UTC).isoformat()
+    
     db_conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o2', 'O2', ?)", (now,))
     
     try:
@@ -99,11 +115,11 @@ def test_transaction_rollback(db_conn):
 def test_persistence_across_restarts(tmp_path):
     """Verify data persists when closing and reopening the connection."""
     db_file = tmp_path / "test.db"
-    
+
     # 1. Write data
     conn1 = get_connection(str(db_file))
     init_db(conn1)
-    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    now = dt.datetime.now(dt.UTC).isoformat()
     conn1.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o3', 'Persist', ?)", (now,))
     conn1.close()
 

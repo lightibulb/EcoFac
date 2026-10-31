@@ -43,6 +43,7 @@ ignore = [
     "ISC001",   # formatter conflict
     "ANN401",   # dynamically typed Any
     "PLR0913", # Too many arguments (dataclasses)
+    "TRY301", # Abstract raise to inner function
         "PLR0912", # Too many branches
         "PLR0915", # Too many statements
         "C901",    # Too complex
