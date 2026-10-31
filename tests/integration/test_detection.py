@@ -1,0 +1,113 @@
+# Copyright 2026 Lightibulb
+
+"""Integration tests for anomaly detection."""
+
+import datetime as dt
+
+import pytest
+
+from ecofac.detection.anomaly import detect_rolling_baseline, detect_robust_mad
+from ecofac.domain.models import EnergyReading
+from ecofac.persistence.database import get_connection, init_db
+from ecofac.persistence.repository import insert_reading
+
+
+@pytest.fixture
+def db_conn():
+    """Yield an in-memory database."""
+    conn = get_connection(":memory:")
+    init_db(conn)
+    now = "2026-01-01T00:00:00Z"
+
+    conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)", (now,))
+    conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)", (now,))
+    conn.execute(
+        "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) "
+        "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)",
+        (now,)
+    )
+    conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))
+    conn.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'started', ?)", (now,))
+
+    yield conn
+    conn.close()
+
+
+def _insert_series(conn, values, start_hour=0, day=1):
+    """Helper to insert a continuous series of hourly readings."""
+    for i, val in enumerate(values):
+        ts = dt.datetime(2026, 1, day, start_hour, 0, tzinfo=dt.UTC)
+        ts += dt.timedelta(hours=i)
+        r = EnergyReading(
+            id=f"r-{day}-{i}", meter_id="m1", timestamp_utc=ts.isoformat().replace("+00:00", "Z"),
+            value=val, unit="kWh", source_id="s1", batch_id="ib1",
+            is_valid=True, created_at="2026-01-01T00:00:00Z"
+        )
+        insert_reading(conn, r)
+
+
+def test_normal_consumption(db_conn):
+    """Verify normal steady data does not trigger anomalies."""
+    _insert_series(db_conn, [10.0] * 24)
+    _insert_series(db_conn, [10.0], start_hour=0, day=2)  # The target
+
+    target_ts = "2026-01-02T00:00:00Z"
+    anomaly_roll = detect_rolling_baseline(db_conn, "m1", target_ts)
+    anomaly_mad = detect_robust_mad(db_conn, "m1", target_ts)
+
+    assert anomaly_roll is None
+    assert anomaly_mad is None
+
+
+def test_sudden_spike(db_conn):
+    """Verify a sudden spike triggers anomalies."""
+    _insert_series(db_conn, [10.0] * 23 + [10.0])  # 24 normal
+    _insert_series(db_conn, [100.0], start_hour=0, day=2)  # The spike
+
+    target_ts = "2026-01-02T00:00:00Z"
+    anomaly_roll = detect_rolling_baseline(db_conn, "m1", target_ts)
+    anomaly_mad = detect_robust_mad(db_conn, "m1", target_ts)
+
+    assert anomaly_roll is not None
+    assert anomaly_mad is not None
+    assert anomaly_roll.observed_consumption == 100.0
+    assert anomaly_roll.expected_consumption == 10.0
+
+
+def test_insufficient_history(db_conn):
+    """Verify detectors return None if there is not enough data."""
+    _insert_series(db_conn, [10.0] * 5)  # Only 5 points, need 24
+    _insert_series(db_conn, [10.0], start_hour=0, day=2)
+
+    target_ts = "2026-01-02T00:00:00Z"
+    anomaly_roll = detect_rolling_baseline(db_conn, "m1", target_ts)
+    anomaly_mad = detect_robust_mad(db_conn, "m1", target_ts)
+
+    assert anomaly_roll is None
+    assert anomaly_mad is None
+
+
+def test_zero_mad_constant_data(db_conn):
+    """Verify zero MAD is handled safely."""
+    # Constant data results in MAD = 0
+    _insert_series(db_conn, [10.0] * 24)
+    _insert_series(db_conn, [15.0], start_hour=0, day=2)
+
+    target_ts = "2026-01-02T00:00:00Z"
+    anomaly_mad = detect_robust_mad(db_conn, "m1", target_ts)
+
+    # Should trigger because observed != median and MAD is replaced by epsilon
+    assert anomaly_mad is not None
+
+
+def test_missing_readings_quality_impact(db_conn):
+    """Verify data quality eligibility flag is passed to the anomaly."""
+    _insert_series(db_conn, [10.0] * 23)  # 23 readings (missing 1 hour in the window)
+    _insert_series(db_conn, [100.0], start_hour=0, day=2)
+
+    target_ts = "2026-01-02T00:00:00Z"
+    anomaly = detect_rolling_baseline(db_conn, "m1", target_ts)
+
+    assert anomaly is not None
+    # Because the previous hour was missing, quality is ineligible
+    assert anomaly.is_data_quality_eligible is False

@@ -123,3 +123,23 @@ class AuditEvent:
     action: str
     details: str
     created_at: str
+
+
+@dataclasses.dataclass
+class Anomaly:
+    """A statistical deviation from expected consumption."""
+
+    id: str
+    building_id: str
+    meter_id: str
+    timestamp_utc: str
+    observed_consumption: float
+    expected_consumption: float
+    absolute_deviation: float
+    percentage_deviation: float | None
+    detector_name: str
+    severity: str
+    is_data_quality_eligible: bool
+    detection_timestamp: str
+    supporting_observation_ids: list[str]
+    detection_parameters: str

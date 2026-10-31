@@ -1,0 +1,37 @@
+STAGE REPORT: PART 5 (Data Quality Engine)
+
+1. What you inspected.
+The Part 5 requirements for data quality dimensions, strict integrity rules, and the outputs required for downstream reliability assessment.
+
+2. What you changed.
+Created a data quality assessment engine that queries the energy_readings and data_quality_issues tables. It calculates expected vs. actual readings to find gaps, checks the latest observation for staleness, and aggregates ingestion errors. It outputs explicit boolean flags and an is_analysis_eligible boolean instead of an opaque score. Added a sed command to the end of the script to permanently resolve the Ruff W293 trailing whitespace issue.
+
+3. Files created.
+
+· src/ecofac/quality/assessment.py (Quality engine and QualityReport dataclass).
+· tests/integration/test_quality.py (5 test functions covering all acceptance criteria).
+
+4. Files modified.
+
+· None (aside from whitespace formatting on all .py files via sed).
+
+5. Dependencies added or removed.
+
+· None.
+
+6. Tests executed and their actual results.
+
+· Not executed locally.
+· The tests inject perfect data, missing data, stale data, duplicates, and invalid (negative) data. It explicitly tests that an extreme valid reading (99999.9) does not trigger the invalid data flag, satisfying the "distinguish an invalid reading from a genuine unusual reading" rule.
+
+7. Known limitations.
+
+· expected_frequency_minutes is passed as an argument to assess_quality. In future parts, we may want to store this on the Meter table in the database instead of passing it dynamically.
+· We are assuming the data_quality_issues table accurately contains all duplicates. If an external script bypassed our ingestion pipeline and inserted directly into energy_readings, SQLite's UNIQUE constraint would catch it and throw an error, but it wouldn't be logged in data_quality_issues.
+
+8. Any unresolved risks.
+
+· Timezone edge cases: The staleness check uses dt.datetime.fromisoformat(latest_obs). If a reading was somehow stored without timezone info (violating the ingestion rule), this would throw a naive datetime error. Because ingestion enforces UTC, this is currently safe, but is a brittle assumption.
+
+9. The exact next step.
+Run the bash script, push to GitHub, and verify both CI jobs pass. Once confirmed, await Part 6 (Statistical Baselines & Anomaly Detection).

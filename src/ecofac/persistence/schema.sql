@@ -96,3 +96,20 @@ CREATE TABLE IF NOT EXISTS audit_events (
     details TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS anomalies (
+    id TEXT PRIMARY KEY,
+    building_id TEXT NOT NULL,
+    meter_id TEXT NOT NULL,
+    timestamp_utc TEXT NOT NULL,
+    observed_consumption REAL NOT NULL,
+    expected_consumption REAL NOT NULL,
+    absolute_deviation REAL NOT NULL,
+    percentage_deviation REAL,
+    detector_name TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    is_data_quality_eligible INTEGER NOT NULL,
+    detection_timestamp TEXT NOT NULL,
+    FOREIGN KEY (building_id) REFERENCES buildings(id),
+    FOREIGN KEY (meter_id) REFERENCES meters(id)
+);
