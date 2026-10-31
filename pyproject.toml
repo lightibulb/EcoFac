@@ -74,3 +74,6 @@ markers = ["slow", "integration"]
 
 [tool.ruff.lint.flake8-copyright]
 notice-rgx = "^# Copyright \\d{4} Lightibulb"
+
+[tool.ruff.lint.isort]
+known-first-party = ["ecofac", "evaluation", "simulator"]

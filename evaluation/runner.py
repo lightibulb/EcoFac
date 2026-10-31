@@ -5,13 +5,12 @@
 import json
 import time
 
-from evaluation.metrics import evaluate_detection, evaluate_quality
-from simulator.generate import generate_data
-
 from ecofac.detection.anomaly import detect_robust_mad, detect_rolling_baseline
 from ecofac.incidents.lifecycle import create_incident
 from ecofac.ingestion.pipeline import ingest_csv
 from ecofac.persistence.database import get_connection, init_db
+from evaluation.metrics import evaluate_detection, evaluate_quality
+from simulator.generate import generate_data
 
 
 def run_evaluation() -> None:
