@@ -1,52 +1,68 @@
 # EcoFac — Open Energy Intelligence for Facilities
 
-Reproducible, explainable, evidence-driven energy intelligence for facilities.
-Initial scope: **energy intelligence only**, using **synthetic data exclusively**.
+**Tagline:** Open Energy Intelligence for Facilities
 
-## Status: Early Foundation (Part 2)
+EcoFac is a reproducible, explainable, evidence-driven energy intelligence engine for facilities. It ingests synthetic meter data, assesses data quality, computes historical baselines, detects anomalies, attaches deterministic evidence, and tracks incidents through a defined lifecycle.
 
-Repository skeleton, CI (lint + test), linting, and test harness exist.
-**No energy intelligence logic has been implemented yet.**
+## ⚠️ Important Disclaimers
+- **Synthetic Data Only:** EcoFac is not connected to any real building, meter, or BMS.
+- **Not Production-Ready:** A successful test run or demonstration does not constitute production readiness.
+- **No Authentication:** This is a local demonstration API. Do not expose it to untrusted networks.
+- **No Equipment Control:** This system cannot and does not control physical equipment.
 
-## Scope (initial)
-
-- Synthetic facilities, meters, and readings
-- CSV ingestion, normalisation, data quality assessment
-- Statistical baselines and anomaly detection
-- Evidence-backed findings
-- Incident lifecycle tracking
+## Scope (Initial)
+- Synthetic building and meter records
+- CSV-based energy data ingestion
+- Data normalization and quality assessment
+- Historical energy baselines and anomaly detection
+- Evidence-backed findings and incident tracking
 - Before/after energy verification
 - FastAPI REST API
-- Reproducible evaluation
+- Reproducible automated evaluation
 
-## Explicitly out of scope
-
+## Explicitly Out of Scope
 - Real BMS integrations
 - Real equipment control
-- Maintenance dispatch or work orders
+- Automatic maintenance dispatch
+- Work-order management
 - Financial claims of verified savings
 - Paid AI dependencies
 - Complex digital twins
 
-## Limitations (read first)
+## Architecture
+EcoFac is built with Python 3.11+, FastAPI, and SQLite. It follows a strict modular architecture:
+- `src/ecofac/api`: FastAPI routes and Pydantic schemas.
+- `src/ecofac/domain`: Core dataclasses.
+- `src/ecofac/ingestion`: CSV parsing and normalization.
+- `src/ecofac/quality`: Data quality assessment.
+- `src/ecofac/detection`: Statistical anomaly detection.
+- `src/ecofac/incidents`: Incident lifecycle and evidence.
+- `simulator`: Synthetic data generation.
+- `evaluation`: Metrics and verification engines.
 
-1. **All data is synthetic.** No real building, meter, or BMS connection.
-2. **Not production-ready.** Passing tests are not a production claim.
-3. **No authentication or authorization** in this scope.
-4. **SQLite is single-process**; concurrent writes unsupported.
-5. **Statistical methods only**, not learned models.
-
-## Development
-
+## Setup Instructions
 Requires Python 3.11+.
-
-~~~bash
+```bash
 python -m pip install -e ".[dev]"
-ruff check src tests
-ruff format src tests
+```
+
+## Test Instructions
+```bash
+# Run linting
+ruff check src tests simulator evaluation
+
+# Run all tests
 pytest tests/ -v
-~~~
 
-## License
+# Run the evaluation framework
+python evaluation/runner.py
+```
 
-Apache License 2.0 — see [LICENSE](LICENSE).
+## API Documentation
+Once the server is running (`uvicorn ecofac.main:app --reload`), visit `http://127.0.0.1:8000/docs` for the interactive OpenAPI documentation.
+
+## Limitations
+See [docs/limitations.md](docs/limitations.md) for a complete list. Key limitations include:
+- SQLite is single-process.
+- Statistical methods only (no deep learning).
+- Anomalies are statistical, not confirmed operational faults.
