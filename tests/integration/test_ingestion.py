@@ -14,7 +14,7 @@ def db_conn():
     conn = get_connection(":memory:")
     init_db(conn)
     now = "2026-01-01T00:00:00Z"
-    
+
     conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)", (now,))
     conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)", (now,))
     conn.execute(
@@ -24,7 +24,7 @@ def db_conn():
     )
     conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))
     conn.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'started', ?)", (now,))
-    
+
     yield conn
     conn.close()
 
@@ -114,7 +114,7 @@ def test_negative_consumption(db_conn):
 
     cursor = db_conn.execute("SELECT is_valid FROM energy_readings")
     assert cursor.fetchone()["is_valid"] == 0
-    
+
     # Verify the issue was actually logged
     cursor = db_conn.execute("SELECT issue_type FROM data_quality_issues")
     assert cursor.fetchone()["issue_type"] == "negative_consumption"

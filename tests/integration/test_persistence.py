@@ -33,7 +33,7 @@ def test_schema_initialization(db_conn):
 def test_identifier_uniqueness(db_conn):
     """Verify primary keys prevent duplicate organizations."""
     now = dt.datetime.now(dt.UTC).isoformat()
-    
+
     db_conn.execute(
         "INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)",
         ("org-1", "Test", now)
@@ -60,7 +60,7 @@ def test_relationships(db_conn):
 def test_duplicate_reading_handling(db_conn):
     """Verify duplicate readings raise an error and do not silently overwrite."""
     now = dt.datetime.now(dt.UTC).isoformat()
-    
+
     db_conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'O1', ?)", (now,))
     db_conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'B1', ?)", (now,))
     db_conn.execute(
@@ -95,9 +95,9 @@ def test_duplicate_reading_handling(db_conn):
 def test_transaction_rollback(db_conn):
     """Verify that a failed insert rolls back completely."""
     now = dt.datetime.now(dt.UTC).isoformat()
-    
+
     db_conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o2', 'O2', ?)", (now,))
-    
+
     try:
         db_conn.execute("BEGIN")
         db_conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b2', 'o2', 'B2', ?)", (now,))
@@ -115,7 +115,7 @@ def test_transaction_rollback(db_conn):
 def test_persistence_across_restarts(tmp_path):
     """Verify data persists when closing and reopening the connection."""
     db_file = tmp_path / "test.db"
-    
+
     # 1. Write data
     conn1 = get_connection(str(db_file))
     init_db(conn1)
