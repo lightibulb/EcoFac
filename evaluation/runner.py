@@ -1,5 +1,7 @@
 # Copyright 2026 Lightibulb
+
 """Orchestrates data generation, ingestion, detection, and reporting."""
+
 import dataclasses
 import datetime as dt
 import json
@@ -196,7 +198,7 @@ def run_evaluation() -> None:
             f"{detection_metrics['false_alerts_per_bldg_week']}\n\n"
         )
         f.write("## Verification\n")
-        f.write(f"- Meter: m1-1 (synthetic 30% reduction intervention)\n")
+        f.write("- Meter: m1-1 (synthetic 30% reduction intervention)\n")
         f.write(f"- Outcome: {v_result.status}\n")
         f.write(f"- Change: {v_result.percent_change:+.1f}%\n")
         f.write(f"- Completeness: {v_result.data_completeness_pct}%\n\n")

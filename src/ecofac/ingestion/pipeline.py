@@ -1,12 +1,13 @@
 # Copyright 2026 Lightibulb
+
 """CSV ingestion and normalization pipeline."""
+
 import csv
 import dataclasses
+import datetime as dt
 import io
 import sqlite3
 import uuid
-
-from ecofac.timeutil import now_z, parse_utc, to_z
 
 
 @dataclasses.dataclass
@@ -28,27 +29,23 @@ UNITS = {"wh": 0.001, "kwh": 1.0, "mwh": 1000.0}
 
 def _log_issue(
     conn: sqlite3.Connection,
+    *,
     batch_id: str,
     issue_type: str,
     description: str,
     reading_id: str | None = None,
-    meter_id: str | None = None,
-    reading_timestamp_utc: str | None = None,
 ) -> None:
     conn.execute(
         "INSERT INTO data_quality_issues "
-        "(id, reading_id, batch_id, issue_type, description, meter_id, "
-        "reading_timestamp_utc, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "(id, reading_id, batch_id, issue_type, description, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
         (
             str(uuid.uuid4()),
             reading_id,
             batch_id,
             issue_type,
             description,
-            meter_id,
-            reading_timestamp_utc,
-            now_z(),
+            dt.datetime.now(dt.UTC).isoformat(),
         ),
     )
 
@@ -74,8 +71,10 @@ def ingest_csv(
         raise ValueError(msg)
 
     summary = IngestionSummary()
+
     cursor = conn.execute("SELECT id, building_id FROM meters")
     meter_map = {row["id"]: row["building_id"] for row in cursor.fetchall()}
+
     seen: set[tuple[str, str]] = set()
 
     conn.execute("BEGIN")
@@ -93,33 +92,38 @@ def ingest_csv(
             if meter_id not in meter_map:
                 summary.rejected_rows += 1
                 summary.unknown_meter_ids += 1
-                _log_issue(conn, batch_id, "unknown_meter", f"Unknown meter: {meter_id}")
+                _log_issue(
+                    conn,
+                    batch_id=batch_id,
+                    issue_type="unknown_meter",
+                    description=f"Unknown meter: {meter_id}",
+                )
                 continue
+
             if meter_map[meter_id] != building_id:
                 summary.rejected_rows += 1
                 _log_issue(
                     conn,
-                    batch_id,
-                    "building_mismatch",
-                    f"Meter {meter_id} does not belong to building {building_id}",
-                    meter_id=meter_id,
+                    batch_id=batch_id,
+                    issue_type="building_mismatch",
+                    description=f"Meter {meter_id} does not belong to building {building_id}",
                 )
                 continue
 
-            # 2. Normalize timestamp to UTC. Naive timestamps are REJECTED:
-            #    previously they were interpreted as server-local time.
+            # 2. Normalize Timestamp to UTC
             ts_raw = (row.get("timestamp") or "").strip()
             try:
-                ts_utc = to_z(parse_utc(ts_raw))
+                dt_val = dt.datetime.fromisoformat(ts_raw)
+                dt_utc = dt_val.astimezone(dt.UTC)
+                ts_utc = dt_utc.isoformat().replace("+00:00", "Z")
             except ValueError:
                 summary.rejected_rows += 1
                 summary.invalid_timestamps += 1
                 _log_issue(
                     conn,
-                    batch_id,
-                    "invalid_timestamp",
-                    f"Invalid or naive timestamp: {ts_raw}",
-                    meter_id=meter_id,
+                    batch_id=batch_id,
+                    issue_type="invalid_timestamp",
+                    description=f"Invalid timestamp: {ts_raw}",
                 )
                 continue
 
@@ -130,11 +134,9 @@ def ingest_csv(
                 summary.duplicate_rows += 1
                 _log_issue(
                     conn,
-                    batch_id,
-                    "duplicate",
-                    f"Duplicate in CSV: {meter_id} @ {ts_utc}",
-                    meter_id=meter_id,
-                    reading_timestamp_utc=ts_utc,
+                    batch_id=batch_id,
+                    issue_type="duplicate",
+                    description=f"Duplicate in CSV: {meter_id} @ {ts_utc}",
                 )
                 continue
             seen.add(key)
@@ -146,11 +148,9 @@ def ingest_csv(
                 summary.invalid_units += 1
                 _log_issue(
                     conn,
-                    batch_id,
-                    "invalid_unit",
-                    f"Unsupported unit: {unit_raw}",
-                    meter_id=meter_id,
-                    reading_timestamp_utc=ts_utc,
+                    batch_id=batch_id,
+                    issue_type="invalid_unit",
+                    description=f"Unsupported unit: {unit_raw}",
                 )
                 continue
 
@@ -162,11 +162,9 @@ def ingest_csv(
                 summary.rejected_rows += 1
                 _log_issue(
                     conn,
-                    batch_id,
-                    "malformed_value",
-                    f"Invalid value: {val_raw}",
-                    meter_id=meter_id,
-                    reading_timestamp_utc=ts_utc,
+                    batch_id=batch_id,
+                    issue_type="malformed_value",
+                    description=f"Invalid value: {val_raw}",
                 )
                 continue
 
@@ -184,8 +182,6 @@ def ingest_csv(
                     "negative_consumption",
                     f"Negative reading: {val_kwh} kWh",
                     reading_id,
-                    meter_id,
-                    ts_utc,
                 )
 
             # 7. Insert normalized record
@@ -193,7 +189,7 @@ def ingest_csv(
                 conn.execute(
                     """INSERT INTO energy_readings
                     (id, meter_id, timestamp_utc, value, unit, source_id, batch_id,
-                    is_valid, created_at, raw_value)
+                     is_valid, created_at, raw_value)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (
                         reading_id,
@@ -204,25 +200,31 @@ def ingest_csv(
                         source_id,
                         batch_id,
                         int(is_valid),
-                        now_z(),
+                        dt.datetime.now(dt.UTC).isoformat(),
                         val_raw,
                     ),
                 )
                 summary.accepted_rows += 1
+
                 # Log issue AFTER inserting reading to satisfy FK constraint
                 if issue_to_log:
-                    _log_issue(conn, *issue_to_log)
+                    _log_issue(
+                        conn,
+                        batch_id=issue_to_log[0],
+                        issue_type=issue_to_log[1],
+                        description=issue_to_log[2],
+                        reading_id=issue_to_log[3],
+                    )
+
             except sqlite3.IntegrityError:
-                # Duplicate that already exists in the DB
+                # Catches duplicates that exist in the DB already
                 summary.rejected_rows += 1
                 summary.duplicate_rows += 1
                 _log_issue(
                     conn,
-                    batch_id,
-                    "duplicate",
-                    f"Duplicate in DB: {meter_id} @ {ts_utc}",
-                    meter_id=meter_id,
-                    reading_timestamp_utc=ts_utc,
+                    batch_id=batch_id,
+                    issue_type="duplicate",
+                    description=f"Duplicate in DB: {meter_id} @ {ts_utc}",
                 )
 
         conn.execute("COMMIT")
