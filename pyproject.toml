@@ -61,4 +61,4 @@ pythonpath = ["src"]
 markers = ["slow", "integration"]
 
 [tool.ruff.lint.flake8-copyright]
-notice = "# Copyright 2026 Lightibulb"
+notice-rgx = "^# Copyright \\d{4} Lightibulb"
