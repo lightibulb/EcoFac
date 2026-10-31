@@ -15,9 +15,9 @@ router = APIRouter()
 
 @router.get("/incidents", tags=["Incidents"])
 def list_incidents(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     offset: Annotated[int, Query(ge=0)] = 0,
-    conn: Annotated[sqlite3.Connection, Depends(get_db)] = None,
 ) -> list[IncidentResponse]:
     """List incidents."""
     cursor = conn.execute("SELECT * FROM incidents LIMIT ? OFFSET ?", (limit, offset))

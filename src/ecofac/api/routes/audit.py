@@ -14,9 +14,9 @@ router = APIRouter()
 
 @router.get("/audit", tags=["Audit"])
 def list_audit(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
-    conn: Annotated[sqlite3.Connection, Depends(get_db)] = None,
 ) -> list[AuditEventResponse]:
     """List audit events."""
     cursor = conn.execute(

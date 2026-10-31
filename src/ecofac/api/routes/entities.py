@@ -14,9 +14,9 @@ router = APIRouter()
 
 @router.get("/buildings", tags=["Entities"])
 def list_buildings(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     offset: Annotated[int, Query(ge=0)] = 0,
-    conn: Annotated[sqlite3.Connection, Depends(get_db)] = None,
 ) -> list[BuildingResponse]:
     """List buildings with pagination."""
     cursor = conn.execute("SELECT * FROM buildings LIMIT ? OFFSET ?", (limit, offset))
@@ -25,7 +25,7 @@ def list_buildings(
 @router.get("/buildings/{building_id}", tags=["Entities"])
 def get_building(
     building_id: str,
-    conn: Annotated[sqlite3.Connection, Depends(get_db)] = None,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> BuildingResponse:
     """Get a building by ID."""
     cursor = conn.execute("SELECT * FROM buildings WHERE id = ?", (building_id,))
@@ -36,9 +36,9 @@ def get_building(
 
 @router.get("/meters", tags=["Entities"])
 def list_meters(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     offset: Annotated[int, Query(ge=0)] = 0,
-    conn: Annotated[sqlite3.Connection, Depends(get_db)] = None,
 ) -> list[MeterResponse]:
     """List meters with pagination."""
     cursor = conn.execute("SELECT * FROM meters LIMIT ? OFFSET ?", (limit, offset))
@@ -47,7 +47,7 @@ def list_meters(
 @router.get("/meters/{meter_id}", tags=["Entities"])
 def get_meter(
     meter_id: str,
-    conn: Annotated[sqlite3.Connection, Depends(get_db)] = None,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> MeterResponse:
     """Get a meter by ID."""
     cursor = conn.execute("SELECT * FROM meters WHERE id = ?", (meter_id,))

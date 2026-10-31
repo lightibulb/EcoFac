@@ -35,23 +35,30 @@ async def upload_csv(
     except UnicodeDecodeError as e:
         raise HTTPException(status_code=400, detail="File must be UTF-8 encoded") from e
 
+    # Ensure the batch exists before ingestion to satisfy foreign keys
+    now = dt.datetime.now(dt.UTC).isoformat()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO import_batches (id, source_id, status, imported_at) "
+            "VALUES (?, ?, ?, ?)",
+            (batch_id, source_id, "started", now)
+        )
+    except sqlite3.IntegrityError as e:
+        raise HTTPException(status_code=400, detail="Invalid source_id") from e
+
     try:
         summary = ingest_csv(conn, text, source_id, batch_id, max_size_mb=5.0)
 
-        now = dt.datetime.now(dt.UTC).isoformat()
-        query = (
-            "INSERT INTO import_batches (id, source_id, status, summary_json, imported_at) "
-            "VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO UPDATE SET status=excluded.status, "
-            "summary_json=excluded.summary_json"
-        )
         conn.execute(
-            query,
-            (batch_id, source_id, "completed", json.dumps(dataclasses.asdict(summary)), now)
+            "UPDATE import_batches SET status = 'completed', summary_json = ? WHERE id = ?",
+            (json.dumps(dataclasses.asdict(summary)), batch_id)
         )
 
         return ImportSummaryResponse(**dataclasses.asdict(summary))
     except ValueError as e:
+        conn.execute(
+            "UPDATE import_batches SET status = 'failed' WHERE id = ?", (batch_id,)
+        )
         raise HTTPException(status_code=400, detail=str(e)) from e
 
 @router.get("/imports/{batch_id}", tags=["Imports"])
