@@ -55,7 +55,7 @@ ruff check src tests simulator evaluation
 pytest tests/ -v
 
 # Run the evaluation framework
-python evaluation/runner.py
+python -m evaluation.runner
 ```
 
 ## API Documentation

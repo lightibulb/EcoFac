@@ -1,7 +1,5 @@
 # Copyright 2026 Lightibulb
-
 """Statistical anomaly detection engines."""
-
 import datetime as dt
 import json
 import sqlite3
@@ -10,6 +8,7 @@ import uuid
 
 from ecofac.domain.models import Anomaly
 from ecofac.quality.assessment import assess_quality
+from ecofac.timeutil import now_z, parse_utc
 
 ROLLING_Z_THRESHOLD = 3.0
 ROLLING_Z_HIGH = 4.5
@@ -24,7 +23,7 @@ def detect_rolling_baseline(
     target_ts: str,
     window_size: int = 24,
 ) -> Anomaly | None:
-    """Detect anomalies using a simple rolling window mean and standard deviation."""
+    """Detect anomalies using a rolling window mean and standard deviation."""
     cursor = conn.execute(
         "SELECT id, timestamp_utc, value FROM energy_readings "
         "WHERE meter_id = ? AND timestamp_utc < ? AND is_valid = 1 "
@@ -32,17 +31,16 @@ def detect_rolling_baseline(
         (meter_id, target_ts, window_size),
     )
     history = cursor.fetchall()
-
     if len(history) < window_size:
         return None
-
     values = [row["value"] for row in history]
     obs_ids = [row["id"] for row in history]
 
     cursor = conn.execute(
         "SELECT energy_readings.id, energy_readings.value, meters.building_id "
         "FROM energy_readings JOIN meters ON meters.id = energy_readings.meter_id "
-        "WHERE meter_id = ? AND timestamp_utc = ?",
+        "WHERE energy_readings.meter_id = ? AND energy_readings.timestamp_utc = ? "
+        "AND energy_readings.is_valid = 1",
         (meter_id, target_ts),
     )
     target = cursor.fetchone()
@@ -51,13 +49,11 @@ def detect_rolling_baseline(
 
     mean = statistics.mean(values)
     stdev = statistics.stdev(values) if len(values) > 1 else 0.0
-
     observed = target["value"]
     deviation = observed - mean
     if stdev == 0.0:
         stdev = ZERO_MAD_EPSILON
     z_score = deviation / stdev
-
     if abs(z_score) < ROLLING_Z_THRESHOLD:
         return None
 
@@ -89,17 +85,16 @@ def detect_robust_mad(
         (meter_id, target_ts, window_size),
     )
     history = cursor.fetchall()
-
     if len(history) < window_size:
         return None
-
     values = [row["value"] for row in history]
     obs_ids = [row["id"] for row in history]
 
     cursor = conn.execute(
         "SELECT energy_readings.id, energy_readings.value, meters.building_id "
         "FROM energy_readings JOIN meters ON meters.id = energy_readings.meter_id "
-        "WHERE meter_id = ? AND timestamp_utc = ?",
+        "WHERE energy_readings.meter_id = ? AND energy_readings.timestamp_utc = ? "
+        "AND energy_readings.is_valid = 1",
         (meter_id, target_ts),
     )
     target = cursor.fetchone()
@@ -109,16 +104,12 @@ def detect_robust_mad(
     median = statistics.median(values)
     absolute_deviations = [abs(v - median) for v in values]
     mad = statistics.median(absolute_deviations)
-
     observed = target["value"]
     deviation = observed - median
-
     scaled_mad = 1.4826 * mad
     if scaled_mad == 0.0:
         scaled_mad = ZERO_MAD_EPSILON
-
     z_score = deviation / scaled_mad
-
     if abs(z_score) < MAD_Z_THRESHOLD:
         return None
 
@@ -148,14 +139,24 @@ def _build_anomaly(
     params: dict,
     supporting_ids: list[str],
     conn: sqlite3.Connection,
-) -> Anomaly:
-    """Construct the anomaly record and check data quality eligibility."""
+) -> Anomaly | None:
+    """Construct the anomaly record and check data quality eligibility.
+
+    Returns None if this (meter, timestamp, detector) was already flagged,
+    so re-analysis cannot spawn duplicate anomalies or incidents.
+    """
+    existing = conn.execute(
+        "SELECT 1 FROM anomalies "
+        "WHERE meter_id = ? AND timestamp_utc = ? AND detector_name = ?",
+        (meter_id, target_ts, detector_name),
+    ).fetchone()
+    if existing:
+        return None
+
     abs_dev = observed - expected
     pct_dev = (abs_dev / expected * 100) if expected > 0 else None
-
-    target_dt = dt.datetime.fromisoformat(target_ts)
+    target_dt = parse_utc(target_ts)
     start_dt = target_dt - dt.timedelta(hours=1)
-
     quality = assess_quality(conn, meter_id, start_dt, target_dt, expected_frequency_minutes=60)
 
     anomaly = Anomaly(
@@ -170,17 +171,16 @@ def _build_anomaly(
         detector_name=detector_name,
         severity=severity,
         is_data_quality_eligible=quality.is_analysis_eligible,
-        detection_timestamp=dt.datetime.now(dt.UTC).isoformat(),
+        detection_timestamp=now_z(),
         supporting_observation_ids=supporting_ids,
         detection_parameters=json.dumps(params),
     )
-
     conn.execute(
         "INSERT INTO anomalies (id, building_id, meter_id, timestamp_utc, "
         "observed_consumption, expected_consumption, absolute_deviation, "
         "percentage_deviation, detector_name, severity, "
-        "is_data_quality_eligible, detection_timestamp) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "is_data_quality_eligible, detection_timestamp, detection_parameters) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             anomaly.id,
             anomaly.building_id,
@@ -194,6 +194,7 @@ def _build_anomaly(
             anomaly.severity,
             int(anomaly.is_data_quality_eligible),
             anomaly.detection_timestamp,
+            anomaly.detection_parameters,
         ),
     )
     return anomaly

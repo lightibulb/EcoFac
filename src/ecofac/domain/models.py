@@ -1,7 +1,5 @@
 # Copyright 2026 Lightibulb
-
 """Domain models representing facilities and energy observations."""
-
 import dataclasses
 import datetime as dt
 
@@ -69,6 +67,7 @@ class EnergyReading:
     batch_id: str
     is_valid: bool
     created_at: str
+    raw_value: str | None = None
 
 
 @dataclasses.dataclass
@@ -81,16 +80,21 @@ class DataQualityIssue:
     issue_type: str
     description: str
     created_at: str
+    meter_id: str | None = None
+    reading_timestamp_utc: str | None = None
 
 
 @dataclasses.dataclass
 class Incident:
-    """Tracks the lifecycle of an anomaly or quality issue."""
+    """Tracks the lifecycle of an anomaly (matches the incidents table)."""
 
     id: str
-    meter_id: str
+    anomaly_id: str
     status: str
+    resolution_notes: str | None
+    dismissal_reason: str | None
     created_at: str
+    updated_at: str
 
 
 @dataclasses.dataclass

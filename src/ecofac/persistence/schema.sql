@@ -60,6 +60,8 @@ CREATE TABLE IF NOT EXISTS data_quality_issues (
     batch_id TEXT NOT NULL,
     issue_type TEXT NOT NULL,
     description TEXT NOT NULL,
+    meter_id TEXT,
+    reading_timestamp_utc TEXT,
     created_at TEXT NOT NULL,
     FOREIGN KEY (reading_id) REFERENCES energy_readings(id),
     FOREIGN KEY (batch_id) REFERENCES import_batches(id)
@@ -78,8 +80,10 @@ CREATE TABLE IF NOT EXISTS anomalies (
     severity TEXT NOT NULL,
     is_data_quality_eligible INTEGER NOT NULL,
     detection_timestamp TEXT NOT NULL,
+    detection_parameters TEXT,
     FOREIGN KEY (building_id) REFERENCES buildings(id),
-    FOREIGN KEY (meter_id) REFERENCES meters(id)
+    FOREIGN KEY (meter_id) REFERENCES meters(id),
+    UNIQUE (meter_id, timestamp_utc, detector_name)
 );
 
 CREATE TABLE IF NOT EXISTS incidents (
@@ -117,3 +121,11 @@ CREATE TABLE IF NOT EXISTS audit_events (
     details TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+
+-- Performance: detection issues per-reading range queries on this pair.
+CREATE INDEX IF NOT EXISTS idx_readings_meter_ts
+    ON energy_readings (meter_id, timestamp_utc);
+
+-- Scoped quality-issue lookups (duplicate counts per meter per window).
+CREATE INDEX IF NOT EXISTS idx_dqi_scope
+    ON data_quality_issues (issue_type, meter_id, reading_timestamp_utc);
