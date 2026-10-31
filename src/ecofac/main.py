@@ -9,7 +9,10 @@ from ecofac.api.routes import audit, entities, health, imports, incidents, intel
 app = FastAPI(
     title="EcoFac API",
     version="0.1.0",
-    description="Local demonstration API. Not production-secure. Requires auth for public deployment.",
+    description=(
+        "Local demonstration API. Not production-secure. "
+        "Requires auth for public deployment."
+    ),
 )
 
 app.include_router(health.router)

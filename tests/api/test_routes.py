@@ -2,24 +2,23 @@
 
 """API integration tests."""
 
-import os
 import sqlite3
 
-import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from ecofac.api.dependencies import get_db
 from ecofac.main import app
+from ecofac.persistence.database import init_db
 
 
 @pytest.fixture
 def test_db():
     """Yield an in-memory database."""
-    conn = sqlite3.connect(":memory:", isolation_level=None)
+    # check_same_thread=False is required for FastAPI TestClient
+    conn = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
-    from ecofac.persistence.database import init_db
     init_db(conn)
 
     # Seed data

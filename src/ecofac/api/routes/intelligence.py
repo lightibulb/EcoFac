@@ -4,6 +4,7 @@
 
 import datetime as dt
 import sqlite3
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
@@ -15,12 +16,12 @@ from ecofac.quality.assessment import assess_quality
 
 router = APIRouter()
 
-@router.get("/quality/{meter_id}", response_model=QualityResponse, tags=["Intelligence"])
+@router.get("/quality/{meter_id}", tags=["Intelligence"])
 def get_quality(
     meter_id: str,
-    start: str = Query(...),
-    end: str = Query(...),
-    conn: sqlite3.Connection = Depends(get_db),
+    start: Annotated[str, Query()],
+    end: Annotated[str, Query()],
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> QualityResponse:
     """Assess data quality for a meter over a period."""
     try:
@@ -48,11 +49,10 @@ def get_quality(
 @router.post("/analyze/{meter_id}", tags=["Intelligence"])
 def analyze_meter(
     meter_id: str,
-    timestamp: str = Query(...),
-    conn: sqlite3.Connection = Depends(get_db),
+    timestamp: Annotated[str, Query()],
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> dict:
     """Run anomaly detection for a specific timestamp and create incidents."""
-    # Run detectors
     anomaly_roll = detect_rolling_baseline(conn, meter_id, timestamp)
     anomaly_mad = detect_robust_mad(conn, meter_id, timestamp)
 

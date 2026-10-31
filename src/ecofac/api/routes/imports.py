@@ -6,6 +6,7 @@ import dataclasses
 import datetime as dt
 import json
 import sqlite3
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
@@ -17,12 +18,12 @@ router = APIRouter()
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
-@router.post("/imports", response_model=ImportSummaryResponse, tags=["Imports"])
+@router.post("/imports", tags=["Imports"])
 async def upload_csv(
-    file: UploadFile = File(...),
-    source_id: str = Form(...),
-    batch_id: str = Form(...),
-    conn: sqlite3.Connection = Depends(get_db),
+    file: Annotated[UploadFile, File()],
+    source_id: Annotated[str, Form()],
+    batch_id: Annotated[str, Form()],
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> ImportSummaryResponse:
     """Upload a CSV file and ingest it."""
     content = await file.read()
@@ -37,12 +38,15 @@ async def upload_csv(
     try:
         summary = ingest_csv(conn, text, source_id, batch_id, max_size_mb=5.0)
 
-        # Save batch status
         now = dt.datetime.now(dt.UTC).isoformat()
-        conn.execute(
+        query = (
             "INSERT INTO import_batches (id, source_id, status, summary_json, imported_at) "
             "VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT(id) DO UPDATE SET status=excluded.status, summary_json=excluded.summary_json",
+            "ON CONFLICT(id) DO UPDATE SET status=excluded.status, "
+            "summary_json=excluded.summary_json"
+        )
+        conn.execute(
+            query,
             (batch_id, source_id, "completed", json.dumps(dataclasses.asdict(summary)), now)
         )
 
@@ -50,10 +54,13 @@ async def upload_csv(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
-@router.get("/imports/{id}", response_model=ImportBatchResponse, tags=["Imports"])
-def get_import(id: str, conn: sqlite3.Connection = Depends(get_db)) -> ImportBatchResponse:
+@router.get("/imports/{batch_id}", tags=["Imports"])
+def get_import(
+    batch_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> ImportBatchResponse:
     """Get the status of an import."""
-    cursor = conn.execute("SELECT * FROM import_batches WHERE id = ?", (id,))
+    cursor = conn.execute("SELECT * FROM import_batches WHERE id = ?", (batch_id,))
     row = cursor.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Import batch not found")
