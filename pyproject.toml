@@ -32,6 +32,10 @@ package-dir = { "" = "src" }
 where = ["src"]
 exclude = ["tests*", "simulator*", "evaluation*"]
 
+# THIS IS THE CRUCIAL FIX: Include templates and static files in the package
+[tool.setuptools.package-data]
+ecofac = ["templates/*.html", "static/*"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py311"
@@ -42,9 +46,7 @@ select = ["ALL"]
 ignore = [
     "D", "COM812", "ISC001", "ANN401", "CPY", "INP", "PLR0913", 
     "TRY301", "S608", "PTH123", "T201", "PLR2004", "S311", "B008",
-    "C901",    # Too complex
-    "PLR0912", # Too many branches
-    "PLR0915", # Too many statements
+    "C901", "PLR0912", "PLR0915",
 ]
 
 [tool.ruff.lint.isort]
