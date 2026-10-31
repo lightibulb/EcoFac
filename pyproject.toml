@@ -14,6 +14,7 @@ dependencies = [
     "fastapi",
     "pydantic>=2",
     "uvicorn",
+    "python-multipart",
 ]
 
 [project.optional-dependencies]
@@ -45,6 +46,7 @@ ignore = [
     "PLR0913", # Too many arguments (dataclasses)
     "TRY301", # Abstract raise to inner function
     "S608",  # SQL injection false positive (we use parameterized queries)
+    "B008",  # FastAPI Depends() uses function calls in default args
         "PLR0912", # Too many branches
         "PLR0915", # Too many statements
         "C901",    # Too complex

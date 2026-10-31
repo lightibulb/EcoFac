@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS import_batches (
     id TEXT PRIMARY KEY,
     source_id TEXT NOT NULL,
     status TEXT NOT NULL,
+    summary_json TEXT,
     imported_at TEXT NOT NULL,
     FOREIGN KEY (source_id) REFERENCES data_sources(id)
 );
