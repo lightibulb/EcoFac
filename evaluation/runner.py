@@ -2,9 +2,7 @@
 
 """Orchestrates data generation, ingestion, detection, and reporting."""
 
-import datetime as dt
 import json
-import sqlite3
 import time
 
 from ecofac.detection.anomaly import detect_robust_mad, detect_rolling_baseline
@@ -31,13 +29,32 @@ def run_evaluation() -> None:
     now = "2026-01-01T00:00:00Z"
 
     # Seed metadata
-    conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)", (now,))
+    conn.execute(
+        "INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)",
+        (now,)
+    )
     for b in range(1, 6):
-        conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, 'o1', 'Bldg', ?)", (f"b{b}", now))
+        conn.execute(
+            "INSERT INTO buildings (id, org_id, name, created_at) "
+            "VALUES (?, 'o1', 'Bldg', ?)",
+            (f"b{b}", now)
+        )
         for m in range(1, 3):
-            conn.execute("INSERT INTO meters (id, building_id, fuel_type, unit, created_at) VALUES (?, ?, 'elec', 'kWh', ?)", (f"m{b}-{m}", f"b{b}", now))
-    conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))
-    conn.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'started', ?)", (now,))
+            conn.execute(
+                "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) "
+                "VALUES (?, ?, 'elec', 'kWh', ?)",
+                (f"m{b}-{m}", f"b{b}", now)
+            )
+    conn.execute(
+        "INSERT INTO data_sources (id, name, source_type, created_at) "
+        "VALUES ('s1', 'Src', 'csv', ?)",
+        (now,)
+    )
+    conn.execute(
+        "INSERT INTO import_batches (id, source_id, status, imported_at) "
+        "VALUES ('ib1', 's1', 'started', ?)",
+        (now,)
+    )
 
     # 3. Ingest Data
     start_time = time.time()
@@ -50,13 +67,15 @@ def run_evaluation() -> None:
 
     # 4. Analyze Data
     start_time = time.time()
-    cursor = conn.execute("SELECT id, timestamp_utc FROM energy_readings WHERE is_valid = 1")
+    cursor = conn.execute(
+        "SELECT id, timestamp_utc FROM energy_readings WHERE is_valid = 1"
+    )
     readings = cursor.fetchall()
 
     detected_count = 0
     for r in readings:
         # Run detectors
-        a1 = detect_rolling_baseline(conn, r["id"], r["timestamp_utc"]) # Simplified trigger
+        a1 = detect_rolling_baseline(conn, r["id"], r["timestamp_utc"])
         a2 = detect_robust_mad(conn, r["id"], r["timestamp_utc"])
 
         for a in [a1, a2]:
@@ -65,7 +84,7 @@ def run_evaluation() -> None:
                 detected_count += 1
 
     analyze_time = time.time() - start_time
-    print(f"Analyzed {len(readings)} readings, created {detected_count} incidents in {analyze_time:.2f}s")
+    print(f"Analyzed {len(readings)} readings in {analyze_time:.2f}s")
 
     # 5. Evaluate
     detection_metrics = evaluate_detection(conn, "ground_truth.json")
@@ -100,12 +119,16 @@ def run_evaluation() -> None:
         f.write(f"- Precision: {detection_metrics['precision']}\n")
         f.write(f"- Recall: {detection_metrics['recall']}\n")
         f.write(f"- F1 Score: {detection_metrics['f1']}\n")
-        f.write(f"- False Alerts / Bldg / Week: {detection_metrics['false_alerts_per_bldg_week']}\n\n")
+        f.write(
+            f"- False Alerts / Bldg / Week: "
+            f"{detection_metrics['false_alerts_per_bldg_week']}\n\n"
+        )
         f.write("## Limitations\n")
         f.write("- Synthetic data only.\n")
         f.write("- Thresholds tuned on this specific synthetic seed.\n")
 
     print("Evaluation complete. See evaluation_report.json and evaluation_summary.md")
+
 
 if __name__ == "__main__":
     run_evaluation()

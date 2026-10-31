@@ -50,12 +50,10 @@ def generate_data(
                     noise = random.gauss(0, 1.0)
 
                     value = base_load + seasonal + schedule + noise
-                    is_anomaly = False
 
                     # Anomaly injection (spikes)
                     if random.random() < anomaly_prob:
                         value *= random.uniform(1.5, 3.0)
-                        is_anomaly = True
                         ground_truth.append({
                             "building_id": bldg_id,
                             "meter_id": meter_id,
@@ -82,8 +80,9 @@ def generate_data(
     random.shuffle(readings)
 
     # Write CSV
+    fields = ["timestamp", "building_id", "meter_id", "energy_value", "unit"]
     with open("synthetic_data.csv", "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["timestamp", "building_id", "meter_id", "energy_value", "unit"])
+        writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         writer.writerows(readings)
 
@@ -91,4 +90,7 @@ def generate_data(
     with open("ground_truth.json", "w", encoding="utf-8") as f:
         json.dump(ground_truth, f, indent=2)
 
-    print(f"Generated {len(readings)} readings and {len(ground_truth)} ground truth anomalies.")
+    print(
+        f"Generated {len(readings)} readings and "
+        f"{len(ground_truth)} ground truth anomalies."
+    )

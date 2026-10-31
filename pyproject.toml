@@ -50,6 +50,10 @@ ignore = [
         "PLR0912", # Too many branches
         "PLR0915", # Too many statements
         "C901",    # Too complex
+    "PTH123",  # Path.open()
+    "T201",    # print()
+    "PLR2004", # Magic values
+    "S311",    # random()
     "INP",      # implicit namespace package
 ]
 
@@ -65,7 +69,7 @@ indent-style = "space"
 minversion = "7.0"
 addopts = ["-ra", "--import-mode=importlib"]
 testpaths = ["tests"]
-pythonpath = ["src"]
+pythonpath = ["src", "."]
 markers = ["slow", "integration"]
 
 [tool.ruff.lint.flake8-copyright]

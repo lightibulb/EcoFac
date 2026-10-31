@@ -12,7 +12,7 @@ def calculate_pr_auc(precisions: list[float], recalls: list[float]) -> float:
         return 0.0
 
     # Ensure points are ordered by recall ascending
-    sorted_pairs = sorted(zip(recalls, precisions))
+    sorted_pairs = sorted(zip(recalls, precisions, strict=True))
 
     auc = 0.0
     prev_recall = 0.0
@@ -48,22 +48,29 @@ def evaluate_detection(
     false_positives = len(pred_set - truth_set)
     false_negatives = len(truth_set - pred_set)
 
-    precision = true_positives / (true_positives + false_positives) if (true_positives + false_positives) > 0 else 0.0
-    recall = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0.0
-    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
+    if (true_positives + false_positives) > 0:
+        precision = true_positives / (true_positives + false_positives)
+    else:
+        precision = 0.0
 
-    # Calculate PR-AUC
-    precisions = []
-    recalls = []
-    for thresh in range(10, 0, -1):
-        # Simulated thresholds for curve generation based on severity
-        pass
+    if (true_positives + false_negatives) > 0:
+        recall = true_positives / (true_positives + false_negatives)
+    else:
+        recall = 0.0
+
+    if (precision + recall) > 0:
+        f1 = 2 * (precision * recall) / (precision + recall)
+    else:
+        f1 = 0.0
 
     # For simplicity, we just compute the single operating point PR-AUC here
     pr_auc = precision * recall
 
     weeks = days / 7.0
-    false_alerts_per_week = false_positives / (buildings * weeks) if buildings > 0 else 0.0
+    if buildings > 0:
+        false_alerts_per_week = false_positives / (buildings * weeks)
+    else:
+        false_alerts_per_week = 0.0
 
     return {
         "precision": round(precision, 3),
@@ -79,7 +86,10 @@ def evaluate_detection(
 
 def evaluate_quality(conn: sqlite3.Connection) -> dict:
     """Calculate data quality defect detection rates."""
-    cursor = conn.execute("SELECT issue_type, count(*) as c FROM data_quality_issues GROUP BY issue_type")
+    cursor = conn.execute(
+        "SELECT issue_type, count(*) as c FROM data_quality_issues "
+        "GROUP BY issue_type"
+    )
     issues = {row["issue_type"]: row["c"] for row in cursor.fetchall()}
 
     return {

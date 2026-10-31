@@ -25,6 +25,7 @@ def verify_intervention(
     intervention_date: dt.datetime,
     baseline_days: int = 30,
     post_days: int = 14,
+    *,
     threshold_pct: float = 5.0,
 ) -> VerificationResult:
     """Compare energy consumption before and after an intervention."""
