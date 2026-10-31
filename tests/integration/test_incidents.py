@@ -2,7 +2,6 @@
 
 """Integration tests for incident lifecycle and evidence management."""
 
-import datetime as dt
 import json
 
 import pytest
@@ -46,8 +45,11 @@ def db_conn():
     conn.close()
 
 
-def _make_anomaly(supporting_ids=["r1"]):
-    return Anomaly(
+def _make_and_insert_anomaly(conn, supporting_ids=None):
+    if supporting_ids is None:
+        supporting_ids = ["r1"]
+
+    anomaly = Anomaly(
         id="a1", building_id="b1", meter_id="m1",
         timestamp_utc="2026-01-01T12:00:00Z",
         observed_consumption=100.0, expected_consumption=10.0,
@@ -59,10 +61,27 @@ def _make_anomaly(supporting_ids=["r1"]):
         detection_parameters='{"window_size": 24}'
     )
 
+    # Insert anomaly into DB to satisfy the FK constraint on incidents
+    conn.execute(
+        "INSERT INTO anomalies (id, building_id, meter_id, timestamp_utc, "
+        "observed_consumption, expected_consumption, absolute_deviation, "
+        "percentage_deviation, detector_name, severity, "
+        "is_data_quality_eligible, detection_timestamp) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            anomaly.id, anomaly.building_id, anomaly.meter_id, anomaly.timestamp_utc,
+            anomaly.observed_consumption, anomaly.expected_consumption,
+            anomaly.absolute_deviation, anomaly.percentage_deviation,
+            anomaly.detector_name, anomaly.severity, int(anomaly.is_data_quality_eligible),
+            anomaly.detection_timestamp
+        )
+    )
+    return anomaly
+
 
 def test_create_incident_with_evidence(db_conn):
     """Verify incident creation generates evidence and audit log."""
-    anomaly = _make_anomaly()
+    anomaly = _make_and_insert_anomaly(db_conn)
     incident_id = create_incident(db_conn, anomaly)
 
     # Check incident
@@ -82,14 +101,15 @@ def test_create_incident_with_evidence(db_conn):
 
 def test_evidence_rejects_nonexistent_readings(db_conn):
     """Verify incident creation fails if evidence references missing data."""
-    anomaly = _make_anomaly(supporting_ids=["r1", "missing-reading"])
+    anomaly = _make_and_insert_anomaly(db_conn, supporting_ids=["r1", "missing-reading"])
     with pytest.raises(ValueError, match="nonexistent readings"):
         create_incident(db_conn, anomaly)
 
 
 def test_valid_state_transitions(db_conn):
     """Verify the full happy path of the state machine."""
-    incident_id = create_incident(db_conn, _make_anomaly())
+    anomaly = _make_and_insert_anomaly(db_conn)
+    incident_id = create_incident(db_conn, anomaly)
 
     transition_incident(db_conn, incident_id, "UNDER_REVIEW")
     transition_incident(db_conn, incident_id, "ACKNOWLEDGED")
@@ -103,7 +123,8 @@ def test_valid_state_transitions(db_conn):
 
 def test_invalid_state_transitions(db_conn):
     """Verify skipping steps raises an error."""
-    incident_id = create_incident(db_conn, _make_anomaly())
+    anomaly = _make_and_insert_anomaly(db_conn)
+    incident_id = create_incident(db_conn, anomaly)
 
     # Cannot go directly from DETECTED to ACKNOWLEDGED
     with pytest.raises(InvalidStateTransitionError):
@@ -112,7 +133,8 @@ def test_invalid_state_transitions(db_conn):
 
 def test_dismissal_requires_reason(db_conn):
     """Verify dismissing without a reason fails."""
-    incident_id = create_incident(db_conn, _make_anomaly())
+    anomaly = _make_and_insert_anomaly(db_conn)
+    incident_id = create_incident(db_conn, anomaly)
     transition_incident(db_conn, incident_id, "UNDER_REVIEW")
 
     with pytest.raises(ValueError, match="dismissal reason is required"):

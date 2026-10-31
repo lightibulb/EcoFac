@@ -2,7 +2,6 @@
 
 """Builds reproducible evidence records for anomalies."""
 
-import datetime as dt
 import json
 import sqlite3
 
@@ -18,9 +17,10 @@ def build_computation_log(conn: sqlite3.Connection, anomaly: Anomaly) -> str:
         raise ValueError(msg)
 
     placeholders = ",".join(["?"] * len(supporting_ids))
+    # noqa: S608 is required because we are dynamically building a safe IN clause with '?' placeholders
     cursor = conn.execute(
         f"SELECT id, timestamp_utc, value, raw_value, source_id FROM energy_readings "
-        f"WHERE id IN ({placeholders})",
+        f"WHERE id IN ({placeholders})",  # noqa: S608
         supporting_ids,
     )
     rows = cursor.fetchall()

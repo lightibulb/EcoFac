@@ -118,12 +118,14 @@ def transition_incident(
     try:
         if new_status == "DISMISSED":
             conn.execute(
-                "UPDATE incidents SET status = ?, dismissal_reason = ?, updated_at = ? WHERE id = ?",
+                "UPDATE incidents SET status = ?, dismissal_reason = ?, "
+                "updated_at = ? WHERE id = ?",
                 (new_status, reason, now, incident_id),
             )
         elif new_status in ("RESOLVED", "UNRESOLVED"):
             conn.execute(
-                "UPDATE incidents SET status = ?, resolution_notes = ?, updated_at = ? WHERE id = ?",
+                "UPDATE incidents SET status = ?, resolution_notes = ?, "
+                "updated_at = ? WHERE id = ?",
                 (new_status, reason, now, incident_id),
             )
         else:
