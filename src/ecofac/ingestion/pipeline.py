@@ -34,11 +34,14 @@ def _log_issue(
     issue_type: str,
     description: str,
     reading_id: str | None = None,
+    meter_id: str | None = None,
+    reading_timestamp_utc: str | None = None,
 ) -> None:
     conn.execute(
         "INSERT INTO data_quality_issues "
-        "(id, reading_id, batch_id, issue_type, description, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "(id, reading_id, batch_id, issue_type, description, created_at, "
+        "meter_id, reading_timestamp_utc) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
         (
             str(uuid.uuid4()),
             reading_id,
@@ -46,6 +49,8 @@ def _log_issue(
             issue_type,
             description,
             dt.datetime.now(dt.UTC).isoformat(),
+            meter_id,
+            reading_timestamp_utc,
         ),
     )
 
@@ -110,10 +115,13 @@ def ingest_csv(
                 )
                 continue
 
-            # 2. Normalize Timestamp to UTC
+            # 2. Normalize Timestamp to UTC (and reject naive timestamps)
             ts_raw = (row.get("timestamp") or "").strip()
             try:
                 dt_val = dt.datetime.fromisoformat(ts_raw)
+                if dt_val.tzinfo is None:
+                    msg = f"Naive timestamp: {ts_raw}"
+                    raise ValueError(msg)
                 dt_utc = dt_val.astimezone(dt.UTC)
                 ts_utc = dt_utc.isoformat().replace("+00:00", "Z")
             except ValueError:
@@ -137,6 +145,8 @@ def ingest_csv(
                     batch_id=batch_id,
                     issue_type="duplicate",
                     description=f"Duplicate in CSV: {meter_id} @ {ts_utc}",
+                    meter_id=meter_id,
+                    reading_timestamp_utc=ts_utc,
                 )
                 continue
             seen.add(key)
@@ -225,6 +235,8 @@ def ingest_csv(
                     batch_id=batch_id,
                     issue_type="duplicate",
                     description=f"Duplicate in DB: {meter_id} @ {ts_utc}",
+                    meter_id=meter_id,
+                    reading_timestamp_utc=ts_utc,
                 )
 
         conn.execute("COMMIT")

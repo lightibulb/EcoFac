@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS data_quality_issues (
     meter_id TEXT,
     reading_timestamp_utc TEXT,
     created_at TEXT NOT NULL,
+    meter_id TEXT,
+    reading_timestamp_utc TEXT,
     FOREIGN KEY (reading_id) REFERENCES energy_readings(id),
     FOREIGN KEY (batch_id) REFERENCES import_batches(id)
 );
