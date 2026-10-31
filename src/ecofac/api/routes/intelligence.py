@@ -16,6 +16,7 @@ from ecofac.quality.assessment import assess_quality
 
 router = APIRouter()
 
+
 @router.get("/quality/{meter_id}", tags=["Intelligence"])
 def get_quality(
     meter_id: str,
@@ -28,7 +29,8 @@ def get_quality(
         start_dt = dt.datetime.fromisoformat(start)
         end_dt = dt.datetime.fromisoformat(end)
         if start_dt.tzinfo is None or end_dt.tzinfo is None:
-            raise ValueError("Naive timestamps not allowed")
+            msg = "Naive timestamps not allowed"
+            raise ValueError(msg)
     except ValueError as e:
         raise HTTPException(
             status_code=400,
@@ -51,6 +53,7 @@ def get_quality(
         flags=report.flags
     )
 
+
 @router.post("/analyze/{meter_id}", tags=["Intelligence"])
 def analyze_meter(
     meter_id: str,
@@ -61,7 +64,8 @@ def analyze_meter(
     try:
         ts_dt = dt.datetime.fromisoformat(timestamp)
         if ts_dt.tzinfo is None:
-            raise ValueError("Naive timestamps not allowed")
+            msg = "Naive timestamps not allowed"
+            raise ValueError(msg)
     except ValueError as e:
         raise HTTPException(
             status_code=400,
