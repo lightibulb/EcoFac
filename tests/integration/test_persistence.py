@@ -35,13 +35,13 @@ def test_identifier_uniqueness(db_conn):
     now = dt.datetime.now(dt.UTC).isoformat()
     
     db_conn.execute(
-        "INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)", 
+        "INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)",
         ("org-1", "Test", now)
     )
 
     with pytest.raises(sqlite3.IntegrityError):
         db_conn.execute(
-            "INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)", 
+            "INSERT INTO organizations (id, name, created_at) VALUES (?, ?, ?)",
             ("org-1", "Duplicate", now)
         )
 
@@ -52,7 +52,7 @@ def test_relationships(db_conn):
     # Attempting to add a building to a non-existent org should fail
     with pytest.raises(sqlite3.IntegrityError):
         db_conn.execute(
-            "INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, ?, ?, ?)", 
+            "INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, ?, ?, ?)",
             ("b-1", "org-999", "Test Bldg", now)
         )
 
@@ -65,7 +65,7 @@ def test_duplicate_reading_handling(db_conn):
     db_conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'B1', ?)", (now,))
     db_conn.execute(
         "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) "
-        "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)", 
+        "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)",
         (now,)
     )
     db_conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'S1', 'csv', ?)", (now,))
@@ -115,7 +115,7 @@ def test_transaction_rollback(db_conn):
 def test_persistence_across_restarts(tmp_path):
     """Verify data persists when closing and reopening the connection."""
     db_file = tmp_path / "test.db"
-
+    
     # 1. Write data
     conn1 = get_connection(str(db_file))
     init_db(conn1)

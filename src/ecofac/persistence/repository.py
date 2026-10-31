@@ -3,10 +3,13 @@
 """CRUD operations for domain entities."""
 
 import sqlite3
+
 from ecofac.domain.models import EnergyReading
+
 
 class DuplicateReadingError(Exception):
     """Raised when a reading for a meter at a specific timestamp already exists."""
+
 
 def insert_reading(conn: sqlite3.Connection, reading: EnergyReading) -> None:
     """Insert a reading safely, rolling back on duplicate."""

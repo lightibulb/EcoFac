@@ -5,6 +5,7 @@
 import pathlib
 import sqlite3
 
+
 def get_connection(db_path: str) -> sqlite3.Connection:
     """Create a connection with explicit transaction control."""
     # isolation_level=None disables implicit transactions, allowing explicit BEGIN/COMMIT
@@ -12,6 +13,7 @@ def get_connection(db_path: str) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
+
 
 def init_db(conn: sqlite3.Connection) -> None:
     """Initialize the database with the schema."""

@@ -19,7 +19,7 @@ def db_conn():
     conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)", (now,))
     conn.execute(
         "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) "
-        "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)", 
+        "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)",
         (now,)
     )
     conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))

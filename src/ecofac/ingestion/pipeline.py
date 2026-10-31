@@ -179,11 +179,11 @@ def ingest_csv(
                     ),
                 )
                 summary.accepted_rows += 1
-                
+
                 # Log issue AFTER inserting reading to satisfy FK constraint
                 if issue_to_log:
                     _log_issue(conn, *issue_to_log)
-                    
+
             except sqlite3.IntegrityError:
                 # Catches duplicates that exist in the DB already
                 summary.rejected_rows += 1

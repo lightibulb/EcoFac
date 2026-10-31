@@ -3,7 +3,7 @@
 """Domain models representing facilities and energy observations."""
 
 import dataclasses
-import datetime
+import datetime as dt
 
 
 @dataclasses.dataclass
@@ -12,7 +12,7 @@ class Organization:
 
     id: str
     name: str
-    created_at: datetime.datetime
+    created_at: dt.datetime
 
 
 @dataclasses.dataclass
@@ -22,7 +22,7 @@ class Building:
     id: str
     org_id: str
     name: str
-    created_at: datetime.datetime
+    created_at: dt.datetime
 
 
 @dataclasses.dataclass
@@ -33,7 +33,7 @@ class Meter:
     building_id: str
     fuel_type: str
     unit: str
-    created_at: datetime.datetime
+    created_at: dt.datetime
 
 
 @dataclasses.dataclass
@@ -43,7 +43,7 @@ class DataSource:
     id: str
     name: str
     source_type: str
-    created_at: datetime.datetime
+    created_at: dt.datetime
 
 
 @dataclasses.dataclass
@@ -53,7 +53,7 @@ class ImportBatch:
     id: str
     source_id: str
     status: str
-    imported_at: datetime.datetime
+    imported_at: dt.datetime
 
 
 @dataclasses.dataclass
