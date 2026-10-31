@@ -64,12 +64,32 @@ CREATE TABLE IF NOT EXISTS data_quality_issues (
     FOREIGN KEY (batch_id) REFERENCES import_batches(id)
 );
 
+CREATE TABLE IF NOT EXISTS anomalies (
+    id TEXT PRIMARY KEY,
+    building_id TEXT NOT NULL,
+    meter_id TEXT NOT NULL,
+    timestamp_utc TEXT NOT NULL,
+    observed_consumption REAL NOT NULL,
+    expected_consumption REAL NOT NULL,
+    absolute_deviation REAL NOT NULL,
+    percentage_deviation REAL,
+    detector_name TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    is_data_quality_eligible INTEGER NOT NULL,
+    detection_timestamp TEXT NOT NULL,
+    FOREIGN KEY (building_id) REFERENCES buildings(id),
+    FOREIGN KEY (meter_id) REFERENCES meters(id)
+);
+
 CREATE TABLE IF NOT EXISTS incidents (
     id TEXT PRIMARY KEY,
-    meter_id TEXT NOT NULL,
+    anomaly_id TEXT NOT NULL,
     status TEXT NOT NULL,
+    resolution_notes TEXT,
+    dismissal_reason TEXT,
     created_at TEXT NOT NULL,
-    FOREIGN KEY (meter_id) REFERENCES meters(id)
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (anomaly_id) REFERENCES anomalies(id)
 );
 
 CREATE TABLE IF NOT EXISTS evidence_records (
@@ -95,21 +115,4 @@ CREATE TABLE IF NOT EXISTS audit_events (
     action TEXT NOT NULL,
     details TEXT NOT NULL,
     created_at TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS anomalies (
-    id TEXT PRIMARY KEY,
-    building_id TEXT NOT NULL,
-    meter_id TEXT NOT NULL,
-    timestamp_utc TEXT NOT NULL,
-    observed_consumption REAL NOT NULL,
-    expected_consumption REAL NOT NULL,
-    absolute_deviation REAL NOT NULL,
-    percentage_deviation REAL,
-    detector_name TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    is_data_quality_eligible INTEGER NOT NULL,
-    detection_timestamp TEXT NOT NULL,
-    FOREIGN KEY (building_id) REFERENCES buildings(id),
-    FOREIGN KEY (meter_id) REFERENCES meters(id)
 );
