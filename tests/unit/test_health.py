@@ -1,3 +1,4 @@
+# Copyright 2026 Lightibulb
 """Minimal health-check tests for CI bootstrapping."""
 
 from ecofac import __version__
