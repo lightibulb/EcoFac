@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=82.0.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecofac"
+version = "0.1.0"
+description = "Open Energy Intelligence for Facilities (synthetic data only)"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "pydantic>=2",
+    "uvicorn",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "httpx",
+    "ruff>=0.8",
+]
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["tests*", "simulator*", "evaluation*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+    "D",
+    "COM812",
+    "ISC001",
+    "ANN401",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "PLR2004", "ANN", "D"]
+"__init__.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = ["-ra", "--import-mode=importlib"]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = ["slow", "integration"]
