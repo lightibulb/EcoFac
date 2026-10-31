@@ -2,17 +2,18 @@
 
 """Regression tests for specific API bugs."""
 
-def test_invalid_source_id_returns_400(client):
-    """Uploading a file with a bad source ID should return 400."""
+def test_new_source_id_is_auto_created(client):
+    """Uploading a file with an unknown source ID should auto-create it and succeed."""
     csv_content = (
         "timestamp,building_id,meter_id,energy_value,unit\n"
         "2026-01-01T12:00:00Z,b1,m1,10.5,kWh\n"
     )
     files = {"file": ("test.csv", csv_content, "text/csv")}
-    data = {"source_id": "bad-source", "batch_id": "ib1"}
+    data = {"source_id": "new-source", "batch_id": "ib1"}
 
     response = client.post("/api/v1/imports", files=files, data=data)
-    assert response.status_code == 400
+    assert response.status_code == 200
+    assert response.json()["accepted_rows"] == 1
 
 def test_quality_rejects_naive_timestamps(client):
     """Naive start/end params must produce a 400, not a 500."""
