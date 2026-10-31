@@ -40,6 +40,6 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v
       - name: Run Evaluation Framework
-        run: python evaluation/runner.py
+        run: python -m evaluation.runner
       - name: Generate API Schema
         run: python scripts/generate_openapi.py
