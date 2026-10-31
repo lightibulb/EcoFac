@@ -3,8 +3,13 @@
 """Generates the OpenAPI JSON schema for CI verification."""
 
 import json
+import os
+import sys
 
-from ecofac.main import app
+# Add the project root to sys.path so it can find 'ecofac' and 'simulator'
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+from ecofac.main import app  # noqa: E402
 
 
 def main() -> None:

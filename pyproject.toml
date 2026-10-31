@@ -42,6 +42,9 @@ select = ["ALL"]
 ignore = [
     "D", "COM812", "ISC001", "ANN401", "CPY", "INP", "PLR0913", 
     "TRY301", "S608", "PTH123", "T201", "PLR2004", "S311", "B008",
+    "C901",    # Too complex
+    "PLR0912", # Too many branches
+    "PLR0915", # Too many statements
 ]
 
 [tool.ruff.lint.isort]

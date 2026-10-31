@@ -23,7 +23,8 @@ def get_dashboard_stats(
     meters = conn.execute("SELECT count(*) as c FROM meters").fetchone()["c"]
     incidents = conn.execute("SELECT count(*) as c FROM incidents").fetchone()["c"]
     open_incidents = conn.execute(
-        "SELECT count(*) as c FROM incidents WHERE status IN ('DETECTED', 'UNDER_REVIEW', 'ACKNOWLEDGED')"
+        "SELECT count(*) as c FROM incidents "
+        "WHERE status IN ('DETECTED', 'UNDER_REVIEW', 'ACKNOWLEDGED')"
     ).fetchone()["c"]
 
     return {
@@ -49,7 +50,7 @@ def get_chart_data(
         "WHERE meter_id = ? ORDER BY timestamp_utc DESC LIMIT 24",
         (meter_id,)
     )
-    rows = cursor.fetchall()[::-1] # Reverse to chronological
+    rows = cursor.fetchall()[::-1]
 
     return {
         "meter_id": meter_id,
@@ -63,21 +64,39 @@ def generate_demo_data(
     conn: Annotated[sqlite3.Connection, Depends(get_db)]
 ) -> dict:
     """Trigger the synthetic data generator, seed metadata, and ingest."""
-    # 1. Generate data to disk
     generate_data()
 
-    # 2. Seed metadata so ingestion doesn't fail on foreign keys
     now = "2026-01-01T00:00:00Z"
-    conn.execute("INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)", (now,))
+    conn.execute(
+        "INSERT OR IGNORE INTO organizations (id, name, created_at) "
+        "VALUES ('o1', 'Org', ?)",
+        (now,)
+    )
     for b in range(1, 6):
-        conn.execute("INSERT OR IGNORE INTO buildings (id, org_id, name, created_at) VALUES (?, 'o1', 'Bldg', ?)", (f"b{b}", now))
+        conn.execute(
+            "INSERT OR IGNORE INTO buildings (id, org_id, name, created_at) "
+            "VALUES (?, 'o1', 'Bldg', ?)",
+            (f"b{b}", now)
+        )
         for m in range(1, 3):
-            conn.execute("INSERT OR IGNORE INTO meters (id, building_id, fuel_type, unit, created_at) VALUES (?, ?, 'elec', 'kWh', ?)", (f"m{b}-{m}", f"b{b}", now))
-    conn.execute("INSERT OR IGNORE INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))
+            conn.execute(
+                "INSERT OR IGNORE INTO meters "
+                "(id, building_id, fuel_type, unit, created_at) "
+                "VALUES (?, ?, 'elec', 'kWh', ?)",
+                (f"m{b}-{m}", f"b{b}", now)
+            )
+    conn.execute(
+        "INSERT OR IGNORE INTO data_sources (id, name, source_type, created_at) "
+        "VALUES ('s1', 'Src', 'csv', ?)",
+        (now,)
+    )
 
-    # 3. Ingest the CSV into the database
     batch_id = f"batch-{now}"
-    conn.execute("INSERT OR IGNORE INTO import_batches (id, source_id, status, imported_at) VALUES (?, 's1', 'started', ?)", (batch_id, now))
+    conn.execute(
+        "INSERT OR IGNORE INTO import_batches "
+        "(id, source_id, status, imported_at) VALUES (?, 's1', 'started', ?)",
+        (batch_id, now)
+    )
 
     with open("synthetic_data.csv", encoding="utf-8") as f:
         csv_content = f.read()
