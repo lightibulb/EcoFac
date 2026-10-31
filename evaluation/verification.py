@@ -77,9 +77,10 @@ def verify_intervention(
     p_mean = statistics.mean(post_vals)
     pct_change = ((p_mean - b_mean) / b_mean) * 100.0 if b_mean > 0 else 0.0
 
-    # Check for recurrence (spike in post period)
-    post_stdev = statistics.stdev(post_vals) if len(post_vals) > 1 else 0.0
-    has_recurrence = any(v > b_mean + (3 * post_stdev) for v in post_vals)
+    # Check for recurrence (a new spike in the post period)
+    b_stdev = statistics.stdev(baseline_vals) if len(baseline_vals) > 1 else 0.0
+    spike_threshold = b_mean + max(3 * b_stdev, 0.2 * b_mean)
+    has_recurrence = any(v > spike_threshold for v in post_vals)
 
     if has_recurrence:
         status = "RECURRENCE"

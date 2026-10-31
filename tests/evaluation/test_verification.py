@@ -7,8 +7,9 @@ import sqlite3
 
 import pytest
 
-from ecofac.persistence.database import init_db
 from evaluation.verification import verify_intervention
+
+from ecofac.persistence.database import init_db
 
 
 @pytest.fixture
