@@ -35,7 +35,14 @@ def test_pr_auc_is_bounded_and_includes_unrecalled_tail():
 
 
 def test_generator_does_not_mutate_global_random_state(tmp_path):
+    """generate_data must not change the global RNG state.
+
+    We compare the RNG *state* directly because random.random() always
+    advances the state — comparing two sequential random.random() values
+    would fail even if the RNG were perfectly preserved.
+    """
     random.seed(991)
-    expected = random.random()
+    state_before = random.getstate()
     generate_data(filename=str(tmp_path / "data.csv"), days=1, seed=42)
-    assert random.random() == expected
+    state_after = random.getstate()
+    assert state_before == state_after
