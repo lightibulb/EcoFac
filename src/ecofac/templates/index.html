@@ -181,6 +181,7 @@
             btn.innerText = "Generating & Ingesting...";
             btn.disabled = true;
             const res = await fetch('/api/v1/dashboard/generate-demo', {method: 'POST'});
+            if (!res.ok) throw new Error(await res.text());
             const data = await res.json();
             btn.innerText = "Generate Demo Data";
             btn.disabled = false;

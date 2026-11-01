@@ -1,22 +1,22 @@
 # Copyright 2026 Lightibulb
+
 """FastAPI dependencies."""
-import pathlib
+
 import sqlite3
 from collections.abc import Generator
 
 from ecofac.persistence.database import get_connection, init_db
 
-DB_PATH = str(pathlib.Path("ecofac_api.db").resolve())
-
-_initialized: set[str] = set()
+DB_PATH = "ecofac_api.db"
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:
-    """Yield a database connection for the request (schema init cached)."""
-    conn = get_connection(DB_PATH)
-    if DB_PATH not in _initialized:
-        init_db(conn)
-        _initialized.add(DB_PATH)
+    """Yield a database connection for the request."""
+    # timeout=30 allows SQLite to wait for locked writes instead of failing instantly
+    conn = sqlite3.connect(DB_PATH, isolation_level=None, check_same_thread=False, timeout=30)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON;")
+    init_db(conn)
     try:
         yield conn
     finally:
