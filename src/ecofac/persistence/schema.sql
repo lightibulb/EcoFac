@@ -82,7 +82,8 @@ CREATE TABLE IF NOT EXISTS anomalies (
     detection_timestamp TEXT NOT NULL,
     detection_parameters TEXT,
     FOREIGN KEY (building_id) REFERENCES buildings(id),
-    FOREIGN KEY (meter_id) REFERENCES meters(id)
+    FOREIGN KEY (meter_id) REFERENCES meters(id),
+    UNIQUE (meter_id, timestamp_utc, detector_name)
 );
 
 CREATE TABLE IF NOT EXISTS incidents (
@@ -120,3 +121,12 @@ CREATE TABLE IF NOT EXISTS audit_events (
     details TEXT NOT NULL,
     created_at TEXT NOT NULL
 );
+
+-- Detection runs per-reading range queries on this pair; without the index
+-- every query full-scans the table (this is what made Render crawl).
+CREATE INDEX IF NOT EXISTS idx_readings_meter_ts
+    ON energy_readings (meter_id, timestamp_utc);
+
+-- Scoped quality-issue lookups (duplicate counts per meter per window).
+CREATE INDEX IF NOT EXISTS idx_dqi_scope
+    ON data_quality_issues (issue_type, meter_id, reading_timestamp_utc);

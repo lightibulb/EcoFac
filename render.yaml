@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: ecofac
+    runtime: python
+    plan: free
+    buildCommand: pip install .
+    startCommand: uvicorn ecofac.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    disk:
+      name: ecofac-data
+      mountPath: /opt/render/data
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.17"
+      - key: ECOFAC_DB_PATH
+        value: /opt/render/data/ecofac_api.db
