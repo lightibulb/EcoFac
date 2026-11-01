@@ -20,6 +20,7 @@ router = APIRouter()
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
 
+
 @router.post("/imports", tags=["Imports"])
 async def upload_csv(
     file: Annotated[UploadFile, File()],
@@ -43,32 +44,50 @@ async def upload_csv(
     conn.execute(
         "INSERT OR IGNORE INTO data_sources (id, name, source_type, created_at) "
         "VALUES (?, ?, 'csv', ?)",
-        (source_id, source_id, now)
+        (source_id, source_id, now),
     )
 
     # 2. Auto-create the batch
     conn.execute(
         "INSERT OR IGNORE INTO import_batches (id, source_id, status, imported_at) "
         "VALUES (?, ?, 'started', ?)",
-        (batch_id, source_id, now)
+        (batch_id, source_id, now),
     )
 
     # 3. Extract buildings and meters from CSV and auto-create them
     try:
         reader = csv.DictReader(io.StringIO(text))
-        pairs = {(row.get("building_id", "").strip(), row.get("meter_id", "").strip()) for row in reader}
+        pairs = {
+            (row.get("building_id", "").strip(), row.get("meter_id", "").strip())
+            for row in reader
+        }
 
         # Create a default org
-        conn.execute("INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES ('o-auto', 'Auto Org', ?)", (now,))
+        conn.execute(
+            "INSERT OR IGNORE INTO organizations (id, name, created_at) "
+            "VALUES ('o-auto', 'Auto Org', ?)",
+            (now,),
+        )
 
         for b_id, m_id in pairs:
             if not b_id or not m_id:
                 continue
-            conn.execute("INSERT OR IGNORE INTO buildings (id, org_id, name, created_at) VALUES (?, 'o-auto', ?, ?)", (b_id, b_id, now))
-            conn.execute("INSERT OR IGNORE INTO meters (id, building_id, fuel_type, unit, created_at) VALUES (?, ?, 'elec', 'kWh', ?)", (m_id, b_id, now))
 
-    except Exception:
-        # If we can't parse the CSV header, just let ingest_csv handle the error properly
+            conn.execute(
+                "INSERT OR IGNORE INTO buildings (id, org_id, name, created_at) "
+                "VALUES (?, 'o-auto', ?, ?)",
+                (b_id, b_id, now),
+            )
+
+            conn.execute(
+                "INSERT OR IGNORE INTO meters "
+                "(id, building_id, fuel_type, unit, created_at) "
+                "VALUES (?, ?, 'elec', 'kWh', ?)",
+                (m_id, b_id, now),
+            )
+
+    except (csv.Error, ValueError):
+        # If we can't parse the CSV header, let ingest_csv handle the error properly
         pass
 
     # 4. Run ingestion
@@ -76,8 +95,9 @@ async def upload_csv(
         summary = ingest_csv(conn, text, source_id, batch_id, max_size_mb=5.0)
 
         conn.execute(
-            "UPDATE import_batches SET status = 'completed', summary_json = ? WHERE id = ?",
-            (json.dumps(dataclasses.asdict(summary)), batch_id)
+            "UPDATE import_batches SET status = 'completed', summary_json = ? "
+            "WHERE id = ?",
+            (json.dumps(dataclasses.asdict(summary)), batch_id),
         )
 
         return ImportSummaryResponse(**dataclasses.asdict(summary))
@@ -88,6 +108,7 @@ async def upload_csv(
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
 
 @router.get("/imports/{batch_id}", tags=["Imports"])
 def get_import(
