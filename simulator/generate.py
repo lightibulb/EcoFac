@@ -4,12 +4,26 @@
 
 import csv
 import datetime as dt
+import functools
 import json
 import math
 import pathlib
 import random
 
 
+def _preserve_random_state(func):  # noqa: ANN001, ANN202
+    """Wrap a function so it never mutates global random state."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        state = random.getstate()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            random.setstate(state)
+    return wrapper
+
+
+@_preserve_random_state
 def generate_data(
     *,
     filename: str = "synthetic_data.csv",
