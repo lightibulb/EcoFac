@@ -97,8 +97,21 @@
     <script>
         let chartInstance = null;
 
+        // Read a response safely: the server may return plain text (e.g. on a 500), not JSON.
+        async function readBody(res) {
+            const text = await res.text();
+            try { return JSON.parse(text); } catch (e) { return { detail: text || res.statusText }; }
+        }
+
+        function errorMessage(res, body) {
+            let detail = body && body.detail;
+            if (detail && typeof detail !== 'string') { detail = JSON.stringify(detail); }
+            return `HTTP ${res.status}: ${detail || 'Request failed'}`;
+        }
+
         async function fetchStats() {
             const res = await fetch('/api/v1/dashboard/stats');
+            if (!res.ok) { console.error('stats failed', res.status); return; }
             const data = await res.json();
             document.getElementById('stat-buildings').innerText = data.buildings;
             document.getElementById('stat-meters').innerText = data.meters;
@@ -108,6 +121,7 @@
 
         async function fetchChart() {
             const res = await fetch('/api/v1/dashboard/chart-data');
+            if (!res.ok) { console.error('chart-data failed', res.status); return; }
             const data = await res.json();
             
             const ctx = document.getElementById('energyChart').getContext('2d');
@@ -142,6 +156,7 @@
 
         async function fetchIncidents() {
             const res = await fetch('/api/v1/incidents?limit=10');
+            if (!res.ok) { console.error('incidents failed', res.status); return; }
             const incidents = await res.json();
             const tbody = document.getElementById('incidents-table');
             
@@ -180,19 +195,22 @@
         async function generateDemo(btn) {
             btn.innerText = "Generating & Ingesting...";
             btn.disabled = true;
-            const res = await fetch('/api/v1/dashboard/generate-demo', {method: 'POST'});
-            if (!res.ok) throw new Error(await res.text());
-            const data = await res.json();
-            btn.innerText = "Generate Demo Data";
-            btn.disabled = false;
-            
-            if (res.ok) {
-                alert(data.message);
-                fetchStats();
-                fetchChart();
-                fetchIncidents();
-            } else {
-                alert("Error: " + data.detail);
+            try {
+                const res = await fetch('/api/v1/dashboard/generate-demo', {method: 'POST'});
+                const data = await readBody(res);
+                if (res.ok) {
+                    alert(data.message || "Demo data generated.");
+                    fetchStats();
+                    fetchChart();
+                    fetchIncidents();
+                } else {
+                    alert("Error: " + errorMessage(res, data));
+                }
+            } catch (e) {
+                alert("Could not reach the server: " + e.message);
+            } finally {
+                btn.innerText = "Generate Demo Data";
+                btn.disabled = false;
             }
         }
 
@@ -209,24 +227,29 @@
             statusDiv.innerText = "Uploading and processing...";
             statusDiv.classList.remove('hidden');
 
+            statusDiv.className = "mt-4 text-sm text-center text-slate-400";
             try {
                 const res = await fetch('/api/v1/imports', {
                     method: 'POST',
                     body: formData
                 });
-                const data = await res.json();
-                
+                const data = await readBody(res);
+
                 if (res.ok) {
                     statusDiv.innerText = `Success! Accepted: ${data.accepted_rows}, Rejected: ${data.rejected_rows}`;
                     statusDiv.className = "mt-4 text-sm text-center text-brand";
                     fetchStats();
                     fetchChart();
+                    fetchIncidents();
                 } else {
-                    statusDiv.innerText = `Error: ${data.detail}`;
+                    statusDiv.innerText = `Error: ${errorMessage(res, data)}`;
                     statusDiv.className = "mt-4 text-sm text-center text-red-400";
                 }
             } catch (e) {
-                statusDiv.innerText = "Network error.";
+                statusDiv.innerText = "Network error: could not reach the server.";
+                statusDiv.className = "mt-4 text-sm text-center text-red-400";
+            } finally {
+                input.value = "";  // allow re-selecting the same file
             }
         }
 

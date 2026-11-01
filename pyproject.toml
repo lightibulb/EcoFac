@@ -32,7 +32,7 @@ include = ["ecofac*", "simulator*", "evaluation*"]
 exclude = ["tests*"]
 
 [tool.setuptools.package-data]
-ecofac = ["templates/*.html", "static/*"]
+ecofac = ["templates/*.html", "static/*", "persistence/*.sql"]
 
 [tool.ruff]
 line-length = 100
