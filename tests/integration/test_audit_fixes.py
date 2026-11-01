@@ -165,4 +165,4 @@ def test_timestamp_strings_in_audit_use_z_suffix(anomaly_db):
     create_incident(anomaly_db, anomaly)
     stamp = anomaly_db.execute("SELECT created_at FROM audit_events").fetchone()["created_at"]
     assert stamp.endswith("Z")
-    assert dt.datetime.fromisoformat(stamp.replace("Z", "+00:00")).tzinfo is not None
+    assert dt.datetime.fromisoformat(stamp).tzinfo is not None

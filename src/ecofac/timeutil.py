@@ -17,8 +17,9 @@ def parse_utc(ts: str) -> dt.datetime:
     """Parse an ISO 8601 timestamp into an aware UTC datetime.
 
     Naive timestamps are rejected instead of being guessed as local time.
+    Python 3.11+ fromisoformat handles the 'Z' suffix natively.
     """
-    parsed = dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    parsed = dt.datetime.fromisoformat(ts)
     if parsed.tzinfo is None:
         msg = f"Naive timestamp not allowed: {ts}"
         raise ValueError(msg)

@@ -4,14 +4,26 @@
 
 import csv
 import datetime as dt
+import functools
 import json
 import math
 import pathlib
 import random
 
-DETECTION_WINDOW = 24
+
+def _preserve_random_state(func):  # noqa: ANN001, ANN202
+    """Wrap a function so it never mutates global random state."""
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+        state = random.getstate()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            random.setstate(state)
+    return wrapper
 
 
+@_preserve_random_state
 def generate_data(
     *,
     filename: str = "synthetic_data.csv",
@@ -20,19 +32,13 @@ def generate_data(
     meters_per_bldg: int = 2,
     seed: int = 42,
     anomaly_prob: float = 0.01,
-) -> None:
-    """Generate synthetic CSV data plus ground-truth labels.
-
-    Writes three files next to ``filename``: the CSV, ``ground_truth.json``
-    (injected spikes that are detectable in principle) and
-    ``quality_ground_truth.json`` (injected defect counts).
-    """
-    rng = random.Random(seed)  # local RNG: same stream, no shared global state
+) -> dict:
+    """Generate synthetic CSV data, ground-truth labels, and manifest."""
+    rng = random.Random(seed)
 
     start_date = dt.datetime(2026, 1, 1, 0, 0, tzinfo=dt.UTC)
     readings = []
     ground_truth = []
-    stale_skipped = 0
 
     for b in range(1, buildings + 1):
         bldg_id = f"b{b}"
@@ -46,9 +52,7 @@ def generate_data(
                 current_date = start_date + dt.timedelta(days=day)
                 is_weekend = current_date.weekday() >= 5
 
-                # Stale data simulation (last 3 days of meter 2, building 3)
                 if b == 3 and m == 2 and day >= days - 3:
-                    stale_skipped += 24
                     continue
 
                 for hour in range(24):
@@ -78,26 +82,27 @@ def generate_data(
                         "unit": "kWh",
                     })
 
-    generated = len(readings)
-    readings = [r for r in readings if rng.random() > 0.01]
-    missing = generated - len(readings)
-
-    # Reconcile labels with what actually survived the missing-data drop. A
-    # spike is only a fair target if its reading exists and the detectors have
-    # a full history window before it.
-    position: dict[tuple[str, str], int] = {}
-    per_meter: dict[str, int] = {}
+    # Inject missing readings (drop ~1%)
+    missing_injected = 0
+    kept_readings = []
     for r in readings:
-        index = per_meter.get(r["meter_id"], 0)
-        position[(r["meter_id"], r["timestamp"])] = index
-        per_meter[r["meter_id"]] = index + 1
-    ground_truth = [
-        t for t in ground_truth
-        if position.get((t["meter_id"], t["timestamp"]), -1) >= DETECTION_WINDOW
-    ]
+        if rng.random() > 0.01:
+            kept_readings.append(r)
+        else:
+            missing_injected += 1
+    readings = kept_readings
 
-    duplicates = rng.sample(readings, int(len(readings) * 0.01))
-    readings.extend(duplicates)
+    # Reconcile: only keep anomalies whose reading is still in the CSV
+    present = {(r["meter_id"], r["timestamp"]) for r in readings}
+    ground_truth = [a for a in ground_truth if (a["meter_id"], a["timestamp"]) in present]
+    exact_injected_anomalies = len(ground_truth)
+
+    # Inject duplicates (~1%)
+    duplicates_injected = int(len(readings) * 0.01)
+    if duplicates_injected > 0:
+        duplicates = rng.sample(readings, duplicates_injected)
+        readings.extend(duplicates)
+
     rng.shuffle(readings)
 
     path = pathlib.Path(filename)
@@ -108,20 +113,34 @@ def generate_data(
         writer.writeheader()
         writer.writerows(readings)
 
-    # Ensure ground_truth.json is always written in the same directory
     gt_path = path.parent / "ground_truth.json"
     with gt_path.open("w", encoding="utf-8") as f:
         json.dump(ground_truth, f, indent=2)
 
     quality_truth = {
-        "duplicates": len(duplicates),
-        "missing": missing,
-        "stale_readings": stale_skipped,
+        "missing": missing_injected,
+        "duplicates": duplicates_injected,
+        "total_readings": len(readings),
     }
-    with (path.parent / "quality_ground_truth.json").open("w", encoding="utf-8") as f:
+    quality_path = path.parent / "quality_ground_truth.json"
+    with quality_path.open("w", encoding="utf-8") as f:
         json.dump(quality_truth, f, indent=2)
+
+    manifest = {
+        "seed": seed,
+        "exact_injected_anomalies": exact_injected_anomalies,
+        "counts": {
+            "missing_injected": missing_injected,
+            "duplicates_injected": duplicates_injected,
+            "total_rows_written": len(readings),
+        },
+    }
+    manifest_path = path.parent / "scenario_manifest.json"
+    with manifest_path.open("w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
 
     print(
         f"Generated {len(readings)} readings and "
         f"{len(ground_truth)} ground truth anomalies."
     )
+    return manifest
