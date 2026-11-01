@@ -64,7 +64,7 @@ button,input { font:inherit; color:inherit; }
 .chart .empty { position:absolute; inset:0; display:grid; place-items:center; text-align:center; padding:1rem; }
 
 .incidents { list-style:none; padding:0; display:grid; gap:.5rem; }
-.inc { display:grid; grid-template-columns:8.5rem 6rem 1fr auto; align-items:center; gap:.5rem 1rem; padding:.7rem .85rem; border:1px solid var(--line); border-radius:12px; }
+.inc { display:grid; grid-template-columns:8.5rem 6rem 1fr auto; align-items:center; gap:.5rem 1rem; padding:.7rem .85rem; border:1px solid var(--line); border-radius:8px; }
 .inc-id { color:var(--muted); font-size:.875rem; font-variant-numeric:tabular-nums; }
 .inc-time { color:var(--muted); font-size:.875rem; }
 .pill { justify-self:start; padding:.15rem .65rem; border-radius:99px; font-size:.8rem; font-weight:600; }
@@ -72,7 +72,7 @@ button,input { font:inherit; color:inherit; }
 .pill.warn { background:var(--warn-soft); color:var(--warn); }
 .pill.ok { background:var(--ok-soft); color:var(--ok); }
 
-.btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:44px; padding:.55rem 1.1rem; border-radius:12px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer; transition:filter .15s; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:.5rem; min-height:44px; padding:.55rem 1.1rem; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:600; cursor:pointer; transition:filter .15s; }
 .btn:hover { filter:brightness(1.08); }
 .btn.ghost { background:transparent; color:var(--accent); }
 .btn.small { min-height:36px; padding:.3rem .8rem; font-size:.875rem; }
@@ -80,7 +80,7 @@ button,input { font:inherit; color:inherit; }
 .btn[aria-busy="true"]::after { content:""; width:.9rem; height:.9rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
 
 .add { display:grid; gap:.9rem; }
-.drop { display:grid; gap:.25rem; justify-items:center; text-align:center; padding:1.25rem 1rem; border:1.5px dashed var(--line); border-radius:14px; cursor:pointer; transition:background .15s,border-color .15s; }
+.drop { display:grid; gap:.25rem; justify-items:center; text-align:center; padding:1.25rem 1rem; border:1.5px dashed var(--line); border-radius:10px; cursor:pointer; transition:background .15s,border-color .15s; }
 .drop:hover,.drop.over,.drop:focus-within { border-color:var(--accent); background:var(--accent-soft); }
 .drop strong { font-weight:600; }
 .drop span { color:var(--muted); font-size:.9rem; }
@@ -89,9 +89,9 @@ button,input { font:inherit; color:inherit; }
 .msg.good { color:var(--ok); } .msg.bad { color:var(--alert); } .msg.busy { color:var(--muted); }
 .hint { color:var(--muted); font-size:.85rem; }
 
-.sk { height:48px; border-radius:12px; background:linear-gradient(90deg,var(--line),transparent,var(--line)); background-size:200% 100%; animation:sh 1.4s linear infinite; }
+.sk { height:48px; border-radius:8px; background:linear-gradient(90deg,var(--line),transparent,var(--line)); background-size:200% 100%; animation:sh 1.4s linear infinite; }
 .toasts { position:fixed; left:50%; bottom:max(1rem,env(safe-area-inset-bottom)); transform:translateX(-50%); display:grid; gap:.5rem; width:min(92vw,26rem); z-index:10; pointer-events:none; }
-.toast { background:var(--ink); color:var(--paper); padding:.7rem 1rem; border-radius:12px; font-size:.925rem; box-shadow:0 6px 24px rgba(40,25,10,.25); animation:rise .2s ease-out; }
+.toast { background:var(--ink); color:var(--paper); padding:.7rem 1rem; border-radius:8px; font-size:.925rem; box-shadow:0 6px 24px rgba(40,25,10,.25); animation:rise .2s ease-out; }
 .toast.bad { background:var(--alert); color:#fff; }
 
 @keyframes spin { to { transform:rotate(360deg); } }
@@ -119,11 +119,7 @@ button,input { font:inherit; color:inherit; }
 ::selection { background:var(--accent); color:var(--accent-ink); }
 html { scroll-behavior:smooth; }
 :where(h1,h2,p) { text-wrap:balance; }
-body { background:
-  radial-gradient(50rem 26rem at 88% -8%, color-mix(in oklab, var(--accent) 16%, transparent), transparent 70%),
-  radial-gradient(36rem 22rem at -8% 6%, color-mix(in oklab, var(--alert) 9%, transparent), transparent 70%),
-  var(--paper); background-repeat:no-repeat; }
-.panel, .strip { border-radius:22px; background:color-mix(in oklab, var(--surface) 86%, transparent); backdrop-filter:blur(10px) saturate(1.2); border-color:color-mix(in oklab, var(--line) 75%, transparent); box-shadow:0 1px 0 color-mix(in oklab, #fff 40%, transparent) inset, 0 18px 40px -26px color-mix(in oklab, var(--accent) 50%, transparent); }
+.panel, .strip { border-radius:12px; background:var(--surface); box-shadow:0 1px 2px rgba(60,35,10,.06); }
 .panel { container-type:inline-size; }
 .chart { height:clamp(220px,42vw,360px); }
 
@@ -143,20 +139,20 @@ body { background:
 .dot { --c:var(--muted); }
 .live[data-state="ok"] .dot { --c:var(--ok); animation:ping 2s ease-out infinite; }
 
-.btn { box-shadow:0 8px 20px -10px var(--accent); transition:transform .2s cubic-bezier(.3,1.5,.5,1), filter .2s, box-shadow .2s; }
+.btn { box-shadow:none; transition:transform .2s cubic-bezier(.3,1.5,.5,1), filter .2s, box-shadow .2s; }
 .btn:hover { transform:translateY(-1px); }
 .btn:active { transform:scale(.96); }
 .btn.ghost { box-shadow:none; }
 
 .tools { display:flex; flex-wrap:wrap; gap:.5rem 1rem; justify-content:space-between; margin-bottom:.75rem; }
-.seg { --n:2; --i:0; position:relative; display:inline-grid; grid-auto-flow:column; grid-auto-columns:1fr; padding:3px; border-radius:12px; background:color-mix(in oklab, var(--line) 55%, transparent); }
-.seg::before { content:""; position:absolute; inset:3px auto 3px 3px; width:calc((100% - 6px) / var(--n)); border-radius:9px; background:var(--surface); box-shadow:0 2px 8px -2px rgba(60,35,10,.35); transform:translateX(calc(var(--i) * 100%)); transition:transform .35s cubic-bezier(.3,1.4,.5,1); }
-.seg button { position:relative; background:none; border:0; padding:.4rem .9rem; min-height:36px; border-radius:9px; color:var(--muted); font-size:.875rem; font-weight:500; cursor:pointer; white-space:nowrap; transition:color .2s; }
+.seg { --n:2; --i:0; position:relative; display:inline-grid; grid-auto-flow:column; grid-auto-columns:1fr; padding:3px; border-radius:8px; background:color-mix(in oklab, var(--line) 55%, transparent); }
+.seg::before { content:""; position:absolute; inset:3px auto 3px 3px; width:calc((100% - 6px) / var(--n)); border-radius:6px; background:var(--surface); box-shadow:0 1px 3px rgba(60,35,10,.35); transform:translateX(calc(var(--i) * 100%)); transition:transform .35s cubic-bezier(.3,1.4,.5,1); }
+.seg button { position:relative; background:none; border:0; padding:.4rem .9rem; min-height:36px; border-radius:6px; color:var(--muted); font-size:.875rem; font-weight:500; cursor:pointer; white-space:nowrap; transition:color .2s; }
 .seg button[aria-pressed="true"] { color:var(--ink); }
 
 .mixwrap { display:grid; gap:.4rem; margin-bottom:.9rem; }
 .mix { display:flex; gap:3px; height:8px; }
-.mix i { border-radius:99px; transform-origin:left; animation:grow .9s cubic-bezier(.2,.7,.2,1) backwards; }
+.mix i { border-radius:3px; transform-origin:left; animation:grow .9s cubic-bezier(.2,.7,.2,1) backwards; }
 .mix i.alert { background:var(--alert); } .mix i.warn { background:var(--warn); } .mix i.ok { background:var(--ok); }
 .mixlegend { color:var(--muted); font-size:.85rem; }
 
@@ -366,7 +362,7 @@ function buildChart() {
     data: { labels, datasets: [{
       label: "Consumption (kWh)", data: values, borderColor: accent, borderWidth: bar ? 0 : 2.5, tension: 0.38, fill: true,
       pointRadius: 0, pointHoverRadius: 6, pointHoverBackgroundColor: cssVar("--paper"), pointHoverBorderColor: accent, pointHoverBorderWidth: 2,
-      borderRadius: 7, borderSkipped: false, hoverBackgroundColor: accent,
+      borderRadius: 4, borderSkipped: false, hoverBackgroundColor: accent,
       backgroundColor: (ctx) => {
         const a = ctx.chart.chartArea;
         if (bar || !a) return rgba(accent, bar ? 0.72 : 0.2);
@@ -387,7 +383,7 @@ function buildChart() {
         legend: { display: false },
         tooltip: {
           backgroundColor: cssVar("--ink"), titleColor: cssVar("--paper"), bodyColor: cssVar("--paper"), footerColor: cssVar("--paper"),
-          displayColors: false, padding: 12, cornerRadius: 12, caretSize: 0,
+          displayColors: false, padding: 12, cornerRadius: 8, caretSize: 0,
           callbacks: {
             label: (c) => kwh.format(c.parsed.y) + " kWh",
             afterLabel: (c) => { const avg = avgOf(c.dataset.data), d = ((c.parsed.y - avg) / avg) * 100; return (d >= 0 ? "+" : "") + Math.round(d) + "% vs average"; }
