@@ -1,58 +1,66 @@
 # Copyright 2026 Lightibulb
 """Calculates anomaly detection and data quality metrics."""
+import itertools
 import json
+import math
 import sqlite3
 
 
 def calculate_pr_auc(precisions: list[float], recalls: list[float]) -> float:
-    """Calculate Area Under the Precision-Recall Curve (trapezoidal rule)."""
-    if not precisions or not recalls:
+    """Integrate a precision-recall curve with explicit (0,1) and (1,0) ends.
+
+    Inputs are operating points, not arbitrary samples. Duplicate recall points
+    are retained because they can represent vertical PR-curve segments.
+    """
+    if not precisions or not recalls or len(precisions) != len(recalls):
         return 0.0
-    sorted_pairs = sorted(zip(recalls, precisions, strict=True))
+    points = sorted(
+        (max(0.0, min(1.0, float(r))), max(0.0, min(1.0, float(p))))
+        for p, r in zip(precisions, recalls, strict=True)
+    )
+    points = [(0.0, 1.0), *points, (1.0, 0.0)]
     auc = 0.0
-    prev_recall = 0.0
-    prev_precision = 1.0
-    for r, p in sorted_pairs:
-        width = r - prev_recall
-        height = (p + prev_precision) / 2.0
-        auc += width * height
-        prev_recall = r
-        prev_precision = p
-    return auc
+    for (r0, p0), (r1, p1) in itertools.pairwise(points):
+        auc += max(0.0, r1 - r0) * (p0 + p1) / 2.0
+    return max(0.0, min(1.0, auc))
 
 
 def _ranked_pr_curve(
     predictions: list[sqlite3.Row], truth_set: set[tuple[str, str]]
 ) -> float:
-    """Build a real PR curve by sweeping a decision threshold over |z|.
-
-    Each anomaly stores its z-score in detection_parameters; ranking by
-    |z-score| and walking the cutoff yields (precision, recall) operating
-    points, which are integrated into PR-AUC.
-    """
+    """Calculate threshold-swept PR-AUC, grouping equal anomaly scores."""
     if not truth_set or not predictions:
         return 0.0
     best: dict[tuple[str, str], float] = {}
-    for p in predictions:
+    for prediction in predictions:
         try:
-            params = json.loads(p["detection_parameters"] or "{}")
+            params = json.loads(prediction["detection_parameters"] or "{}")
             score = abs(float(params.get("z_score", 0.0)))
-        except (TypeError, ValueError):
+            if not math.isfinite(score):
+                score = 0.0
+        except (TypeError, ValueError, json.JSONDecodeError):
             score = 0.0
-        key = (p["meter_id"], p["timestamp_utc"])
+        key = (prediction["meter_id"], prediction["timestamp_utc"])
         best[key] = max(best.get(key, 0.0), score)
 
-    ranked = sorted(best.items(), key=lambda kv: kv[1], reverse=True)
-    precisions: list[float] = []
-    recalls: list[float] = []
+    ranked = sorted(best.items(), key=lambda item: item[1], reverse=True)
+    points_p: list[float] = []
+    points_r: list[float] = []
     tp = 0
-    for i, (key, _score) in enumerate(ranked, start=1):
-        if key in truth_set:
-            tp += 1
-        precisions.append(tp / i)
-        recalls.append(tp / len(truth_set))
-    return calculate_pr_auc(precisions, recalls)
-
+    fp = 0
+    index = 0
+    while index < len(ranked):
+        score = ranked[index][1]
+        # Apply all predictions at a tied score before recording the threshold.
+        while index < len(ranked) and ranked[index][1] == score:
+            if ranked[index][0] in truth_set:
+                tp += 1
+            else:
+                fp += 1
+            index += 1
+        points_p.append(tp / (tp + fp))
+        points_r.append(tp / len(truth_set))
+    return calculate_pr_auc(points_p, points_r)
 
 def evaluate_detection(
     conn: sqlite3.Connection,

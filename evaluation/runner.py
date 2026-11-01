@@ -5,6 +5,7 @@
 import dataclasses
 import datetime as dt
 import json
+import os
 import sqlite3
 import time
 import uuid
@@ -82,7 +83,8 @@ def run_evaluation() -> None:
 
     # 1. Generate data
     start_time = time.time()
-    generate_data()
+    seed_raw = os.environ.get("ECOFAC_SEED")
+    scenario_manifest = generate_data(seed=int(seed_raw) if seed_raw else None)
     gen_time = time.time() - start_time
     print(f"Data generated in {gen_time:.2f}s")
 
@@ -159,6 +161,13 @@ def run_evaluation() -> None:
 
     # 7. Report
     report = {
+        "scenario": {
+            "seed": scenario_manifest["seed"],
+            "seed_was_explicit": scenario_manifest["seed_was_explicit"],
+            "config": scenario_manifest["config"],
+            "counts": scenario_manifest["counts"],
+            "manifest_file": "scenario_manifest.json",
+        },
         "system_performance": {
             "generation_time_sec": round(gen_time, 2),
             "ingestion_time_sec": round(ingest_time, 2),

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Name of the output file
-OUTPUT_FILE="project_code_for_ai.txt"
+OUTPUT_FILE="ecofac.txt"
 
 # Clear or create the output file
 > "$OUTPUT_FILE"

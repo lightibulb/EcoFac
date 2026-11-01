@@ -4,6 +4,7 @@ import csv
 import dataclasses
 import datetime as dt
 import io
+import math
 import sqlite3
 import uuid
 
@@ -156,8 +157,6 @@ def ingest_csv(
                     meter_id=meter_id, reading_timestamp_utc=ts_utc,
                 ))
                 continue
-            seen.add(key)
-
             # 4. Unit normalization
             unit_raw = (row.get("unit") or "").strip().lower()
             if unit_raw not in UNITS:
@@ -178,7 +177,15 @@ def ingest_csv(
                     batch_id, "malformed_value", f"Invalid value: {val_raw}",
                 ))
                 continue
+            if not math.isfinite(val):
+                summary.rejected_rows += 1
+                issues.append(_issue_row(
+                    batch_id, "malformed_value", f"Non-finite value: {val_raw}",
+                ))
+                continue
 
+            # Reserve the timestamp only after all row-local validation passes.
+            seen.add(key)
             val_kwh = val * UNITS[unit_raw]
             reading_id = str(uuid.uuid4())
             is_valid = 1
