@@ -3,7 +3,8 @@
 ## Immediate Next Steps
 - [ ] Implement Authentication & Authorization (OAuth2).
 - [ ] Implement Rate Limiting.
-- [ ] Add more detectors (Comparable Period).
+- [x] Comparable-period confirmation (same hour, same day type) added to both detectors.
+- [ ] Local-time and holiday calendars for the comparable-period check.
 - [ ] Optimize evaluation runner (batch processing).
 
 ## Future Vision

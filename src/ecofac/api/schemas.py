@@ -47,7 +47,7 @@ class IncidentResponse(pydantic.BaseModel):
 
 class IncidentActionRequest(pydantic.BaseModel):
     """Payload for acknowledging or dismissing an incident."""
-    reason: str | None = None
+    reason: str | None = pydantic.Field(default=None, max_length=1000)
 
 
 class EvidenceResponse(pydantic.BaseModel):
@@ -78,6 +78,8 @@ class ImportSummaryResponse(pydantic.BaseModel):
     invalid_units: int
     unknown_meter_ids: int
     negative_consumption: int
+    anomalies_detected: int = 0
+    incidents_created: int = 0
 
 
 class ImportBatchResponse(pydantic.BaseModel):

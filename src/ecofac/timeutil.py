@@ -6,17 +6,28 @@ import datetime as dt
 
 
 def now_z() -> str:
-    """Return the current UTC time in ISO 8601 format with a 'Z' suffix."""
-    return dt.datetime.now(dt.UTC).isoformat().replace("+00:00", "Z")
+    """Return the current UTC time as ISO 8601 (microseconds, 'Z' suffix).
+
+    Microseconds are always present so that string ordering matches time ordering.
+    """
+    return dt.datetime.now(dt.UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def parse_utc(ts: str) -> dt.datetime:
-    """Parse an ISO 8601 timestamp string and return a timezone-aware UTC datetime."""
-    # Python 3.11's fromisoformat handles 'Z' natively, but we normalize it for safety.
-    clean_ts = ts.replace("Z", "+00:00")
-    return dt.datetime.fromisoformat(clean_ts).astimezone(dt.UTC)
+    """Parse an ISO 8601 timestamp into an aware UTC datetime.
+
+    Naive timestamps are rejected instead of being guessed as local time.
+    """
+    parsed = dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        msg = f"Naive timestamp not allowed: {ts}"
+        raise ValueError(msg)
+    return parsed.astimezone(dt.UTC)
 
 
 def to_z(dt_obj: dt.datetime) -> str:
-    """Convert a datetime to an ISO 8601 string with a 'Z' suffix."""
+    """Convert an aware datetime to a canonical ISO 8601 UTC string with a 'Z' suffix."""
+    if dt_obj.tzinfo is None:
+        msg = "Naive datetime not allowed"
+        raise ValueError(msg)
     return dt_obj.astimezone(dt.UTC).isoformat().replace("+00:00", "Z")

@@ -5,13 +5,11 @@
 import dataclasses
 import datetime as dt
 import json
-import os
 import sqlite3
 import time
 import uuid
 
-from ecofac.detection.anomaly import detect_robust_mad, detect_rolling_baseline
-from ecofac.incidents.lifecycle import create_incident
+from ecofac.detection.batch import analyze_all as bulk_analyze
 from ecofac.ingestion.pipeline import ingest_csv
 from ecofac.persistence.database import get_connection, init_db
 from ecofac.timeutil import now_z
@@ -51,30 +49,12 @@ def seed_metadata(conn: sqlite3.Connection, now: str = "2026-01-01T00:00:00Z") -
 
 
 def analyze_all(conn: sqlite3.Connection, *, create_incidents: bool = True) -> int:
-    """Run both detectors over every valid reading.
+    """Run both detectors over every valid reading; return the anomaly count.
 
-    Passes the METER ID (not the reading id) to the detectors. Incidents are
-    created only for anomalies whose data-quality window is eligible.
-    Returns the number of anomalies detected.
+    Incidents are created only for anomalies whose data-quality window is
+    eligible. Screening happens in memory; the detectors decide.
     """
-    cursor = conn.execute(
-        "SELECT id, meter_id, timestamp_utc FROM energy_readings "
-        "WHERE is_valid = 1 ORDER BY timestamp_utc"
-    )
-    readings = cursor.fetchall()
-    detected = 0
-    for r in readings:
-        anomalies = [
-            detect_rolling_baseline(conn, r["meter_id"], r["timestamp_utc"]),
-            detect_robust_mad(conn, r["meter_id"], r["timestamp_utc"]),
-        ]
-        for anomaly in anomalies:
-            if anomaly is None:
-                continue
-            detected += 1
-            if create_incidents and anomaly.is_data_quality_eligible:
-                create_incident(conn, anomaly)
-    return detected
+    return bulk_analyze(conn, create_incidents=create_incidents).anomalies_detected
 
 
 def run_evaluation() -> None:
@@ -83,8 +63,7 @@ def run_evaluation() -> None:
 
     # 1. Generate data
     start_time = time.time()
-    seed_raw = os.environ.get("ECOFAC_SEED")
-    scenario_manifest = generate_data(seed=int(seed_raw) if seed_raw else None)
+    generate_data()
     gen_time = time.time() - start_time
     print(f"Data generated in {gen_time:.2f}s")
 
@@ -103,9 +82,14 @@ def run_evaluation() -> None:
 
     # 4. Analyze data
     start_time = time.time()
-    detected_count = analyze_all(conn)
+    analysis = bulk_analyze(conn)
+    detected_count = analysis.anomalies_detected
     analyze_time = time.time() - start_time
-    print(f"Analysis complete: {detected_count} anomalies in {analyze_time:.2f}s")
+    print(
+        f"Analysis complete: {detected_count} anomalies "
+        f"({analysis.incidents_created} incidents, {analysis.anomalies_gated} gated) "
+        f"in {analyze_time:.2f}s"
+    )
 
     # 5. Evaluate
     detection_metrics = evaluate_detection(conn, "ground_truth.json")
@@ -161,13 +145,6 @@ def run_evaluation() -> None:
 
     # 7. Report
     report = {
-        "scenario": {
-            "seed": scenario_manifest["seed"],
-            "seed_was_explicit": scenario_manifest["seed_was_explicit"],
-            "config": scenario_manifest["config"],
-            "counts": scenario_manifest["counts"],
-            "manifest_file": "scenario_manifest.json",
-        },
         "system_performance": {
             "generation_time_sec": round(gen_time, 2),
             "ingestion_time_sec": round(ingest_time, 2),
@@ -179,6 +156,7 @@ def run_evaluation() -> None:
             "rejected": summary.rejected_rows,
             "duplicates": summary.duplicate_rows,
         },
+        "analysis_summary": dataclasses.asdict(analysis),
         "detection_metrics": detection_metrics,
         "quality_metrics": quality_metrics,
         "verification": {

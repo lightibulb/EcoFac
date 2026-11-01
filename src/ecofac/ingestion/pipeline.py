@@ -6,7 +6,10 @@ import datetime as dt
 import io
 import math
 import sqlite3
+import typing
 import uuid
+
+from ecofac.timeutil import now_z
 
 
 @dataclasses.dataclass
@@ -23,13 +26,30 @@ class IngestionSummary:
     negative_consumption: int = 0
 
 
+class _Reading(typing.NamedTuple):
+    """One validated reading, in the column order of the energy_readings insert."""
+
+    id: str
+    meter_id: str
+    timestamp_utc: str
+    value: float
+    unit: str
+    source_id: str
+    batch_id: str
+    is_valid: int
+    created_at: str
+    raw_value: str
+
+
 UNITS = {"wh": 0.001, "kwh": 1.0, "mwh": 1000.0}
+REQUIRED_COLUMNS = frozenset({"timestamp", "building_id", "meter_id", "energy_value", "unit"})
 
 
 def _issue_row(
     batch_id: str,
     issue_type: str,
     description: str,
+    created_at: str,
     *,
     reading_id: str | None = None,
     meter_id: str | None = None,
@@ -42,7 +62,7 @@ def _issue_row(
         batch_id,
         issue_type,
         description,
-        dt.datetime.now(dt.UTC).isoformat(),
+        created_at,
         meter_id,
         reading_timestamp_utc,
     )
@@ -69,6 +89,26 @@ def _existing_pairs(
     return existing
 
 
+def normalize_headers(reader: csv.DictReader) -> None:
+    """Strip and lower-case header names so ' Timestamp ' still matches."""
+    if reader.fieldnames:
+        reader.fieldnames = [(name or "").strip().lower() for name in reader.fieldnames]
+
+
+def _parse_timestamp(ts_raw: str) -> str:
+    """Return the canonical UTC 'Z' form (whole seconds) or raise ValueError.
+
+    Naive timestamps are rejected. Sub-second precision is dropped so that
+    string ordering of stored timestamps always matches time ordering.
+    """
+    dt_val = dt.datetime.fromisoformat(ts_raw)
+    if dt_val.tzinfo is None:
+        msg = f"Naive timestamp: {ts_raw}"
+        raise ValueError(msg)
+    dt_utc = dt_val.astimezone(dt.UTC).replace(microsecond=0)
+    return dt_utc.isoformat().replace("+00:00", "Z")
+
+
 def ingest_csv(
     conn: sqlite3.Connection,
     csv_content: str,
@@ -81,28 +121,33 @@ def ingest_csv(
     """Parse, validate, and store readings from a CSV string.
 
     Valid readings and quality issues are bulk-inserted with executemany so
-    large imports stay fast on slow hosts (e.g. Render free tier).
+    large imports stay fast on slow hosts (e.g. Render free tier). The whole
+    import is one write transaction: either every accepted row lands or none.
     """
     if len(csv_content) > max_size_mb * 1024 * 1024:
         msg = "File size exceeds limit"
         raise ValueError(msg)
 
     reader = csv.DictReader(io.StringIO(csv_content))
-    required = {"timestamp", "building_id", "meter_id", "energy_value", "unit"}
-    if not reader.fieldnames or not required.issubset(reader.fieldnames):
-        msg = f"Missing required columns. Expected: {required}"
+    normalize_headers(reader)
+    if not reader.fieldnames or not REQUIRED_COLUMNS.issubset(reader.fieldnames):
+        msg = f"Missing required columns. Expected: {sorted(REQUIRED_COLUMNS)}"
         raise ValueError(msg)
 
     summary = IngestionSummary()
-    cursor = conn.execute("SELECT id, building_id FROM meters")
-    meter_map = {row["id"]: row["building_id"] for row in cursor.fetchall()}
+    created_at = now_z()
 
     seen: set[tuple[str, str]] = set()
-    pending: list[tuple] = []
+    pending: list[_Reading] = []
     issues: list[tuple] = []
 
-    conn.execute("BEGIN")
+    # IMMEDIATE takes the write lock up front, so the duplicate check below and
+    # the inserts cannot race with a concurrent import.
+    conn.execute("BEGIN IMMEDIATE")
     try:
+        cursor = conn.execute("SELECT id, building_id FROM meters")
+        meter_map = {row["id"]: row["building_id"] for row in cursor.fetchall()}
+
         for row in reader:
             summary.total_rows += 1
             if summary.total_rows > max_rows:
@@ -117,7 +162,7 @@ def ingest_csv(
                 summary.rejected_rows += 1
                 summary.unknown_meter_ids += 1
                 issues.append(_issue_row(
-                    batch_id, "unknown_meter", f"Unknown meter: {meter_id}",
+                    batch_id, "unknown_meter", f"Unknown meter: {meter_id}", created_at,
                 ))
                 continue
             if meter_map[meter_id] != building_id:
@@ -126,103 +171,91 @@ def ingest_csv(
                     batch_id,
                     "building_mismatch",
                     f"Meter {meter_id} does not belong to building {building_id}",
+                    created_at,
                 ))
                 continue
 
-            # 2. Normalize Timestamp to UTC (naive timestamps are rejected)
+            # 2. Normalize timestamp to UTC (naive timestamps are rejected)
             ts_raw = (row.get("timestamp") or "").strip()
             try:
-                dt_val = dt.datetime.fromisoformat(ts_raw)
-                if dt_val.tzinfo is None:
-                    msg = f"Naive timestamp: {ts_raw}"
-                    raise ValueError(msg)
-                dt_utc = dt_val.astimezone(dt.UTC)
-                ts_utc = dt_utc.isoformat().replace("+00:00", "Z")
+                ts_utc = _parse_timestamp(ts_raw)
             except ValueError:
                 summary.rejected_rows += 1
                 summary.invalid_timestamps += 1
                 issues.append(_issue_row(
-                    batch_id, "invalid_timestamp", f"Invalid timestamp: {ts_raw}",
+                    batch_id, "invalid_timestamp", f"Invalid timestamp: {ts_raw}", created_at,
                 ))
                 continue
 
-            # 3. Duplicate check (within CSV)
+            # 3. Unit normalization
+            unit_raw = (row.get("unit") or "").strip().lower()
+            if unit_raw not in UNITS:
+                summary.rejected_rows += 1
+                summary.invalid_units += 1
+                issues.append(_issue_row(
+                    batch_id, "invalid_unit", f"Unsupported unit: {unit_raw}", created_at,
+                ))
+                continue
+
+            # 4. Value parsing (NaN / infinity would poison every statistic)
+            val_raw = (row.get("energy_value") or "").strip()
+            try:
+                val_kwh = float(val_raw) * UNITS[unit_raw]
+                if not math.isfinite(val_kwh):
+                    msg = "Non-finite value"
+                    raise ValueError(msg)
+            except ValueError:
+                summary.rejected_rows += 1
+                issues.append(_issue_row(
+                    batch_id, "malformed_value", f"Invalid value: {val_raw}", created_at,
+                ))
+                continue
+
+            # 5. Duplicate check (within CSV). Only fully valid rows claim a key,
+            #    so a rejected row can never shadow a good one.
             key = (meter_id, ts_utc)
             if key in seen:
                 summary.rejected_rows += 1
                 summary.duplicate_rows += 1
                 issues.append(_issue_row(
                     batch_id, "duplicate",
-                    f"Duplicate in CSV: {meter_id} @ {ts_utc}",
+                    f"Duplicate in CSV: {meter_id} @ {ts_utc}", created_at,
                     meter_id=meter_id, reading_timestamp_utc=ts_utc,
                 ))
                 continue
-            # 4. Unit normalization
-            unit_raw = (row.get("unit") or "").strip().lower()
-            if unit_raw not in UNITS:
-                summary.rejected_rows += 1
-                summary.invalid_units += 1
-                issues.append(_issue_row(
-                    batch_id, "invalid_unit", f"Unsupported unit: {unit_raw}",
-                ))
-                continue
-
-            # 5. Value parsing
-            val_raw = (row.get("energy_value") or "").strip()
-            try:
-                val = float(val_raw)
-            except ValueError:
-                summary.rejected_rows += 1
-                issues.append(_issue_row(
-                    batch_id, "malformed_value", f"Invalid value: {val_raw}",
-                ))
-                continue
-            if not math.isfinite(val):
-                summary.rejected_rows += 1
-                issues.append(_issue_row(
-                    batch_id, "malformed_value", f"Non-finite value: {val_raw}",
-                ))
-                continue
-
-            # Reserve the timestamp only after all row-local validation passes.
             seen.add(key)
-            val_kwh = val * UNITS[unit_raw]
-            reading_id = str(uuid.uuid4())
-            is_valid = 1
 
-            # 6. Negative consumption flagging
-            if val_kwh < 0:
-                is_valid = 0
-                summary.negative_consumption += 1
-                issues.append(_issue_row(
-                    batch_id,
-                    "negative_consumption",
-                    f"Negative reading: {val_kwh} kWh",
-                    reading_id=reading_id,
-                    meter_id=meter_id,
-                    reading_timestamp_utc=ts_utc,
-                ))
-
-            pending.append((
-                reading_id, meter_id, ts_utc, val_kwh, "kWh", source_id,
-                batch_id, is_valid, dt.datetime.now(dt.UTC).isoformat(), val_raw,
+            pending.append(_Reading(
+                str(uuid.uuid4()), meter_id, ts_utc, val_kwh, "kWh", source_id,
+                batch_id, int(val_kwh >= 0), created_at, val_raw,
             ))
 
-        # 7. Filter rows that already exist in the DB (bulk duplicate check)
-        existing = _existing_pairs(conn, [r[1] for r in pending])
-        final = []
+        # 6. Filter rows that already exist in the DB (bulk duplicate check)
+        existing = _existing_pairs(conn, [r.meter_id for r in pending])
+        final: list[_Reading] = []
         for rec in pending:
-            if (rec[1], rec[2]) in existing:
+            if (rec.meter_id, rec.timestamp_utc) in existing:
                 summary.rejected_rows += 1
                 summary.duplicate_rows += 1
                 issues.append(_issue_row(
                     batch_id, "duplicate",
-                    f"Duplicate in DB: {rec[1]} @ {rec[2]}",
-                    meter_id=rec[1], reading_timestamp_utc=rec[2],
+                    f"Duplicate in DB: {rec.meter_id} @ {rec.timestamp_utc}", created_at,
+                    meter_id=rec.meter_id, reading_timestamp_utc=rec.timestamp_utc,
                 ))
             else:
                 final.append(rec)
         summary.accepted_rows = len(final)
+
+        # 7. Flag negative consumption only for rows that are really stored
+        #    (an issue pointing at a skipped row would violate the FK).
+        for rec in final:
+            if rec.is_valid == 0:
+                summary.negative_consumption += 1
+                issues.append(_issue_row(
+                    batch_id, "negative_consumption", f"Negative reading: {rec.value} kWh",
+                    created_at, reading_id=rec.id, meter_id=rec.meter_id,
+                    reading_timestamp_utc=rec.timestamp_utc,
+                ))
 
         # 8. Bulk insert readings first, then issues (issues may reference
         #    reading ids, so the FK requires this order)

@@ -20,13 +20,14 @@ def build_computation_log(conn: sqlite3.Connection, anomaly: Anomaly) -> str:
     query = (
         "SELECT id, timestamp_utc, value, raw_value, source_id "
         "FROM energy_readings "
-        f"WHERE id IN ({placeholders})"
+        f"WHERE id IN ({placeholders}) "
+        "ORDER BY timestamp_utc, id"
     )
 
     cursor = conn.execute(query, supporting_ids)
     rows = cursor.fetchall()
 
-    if len(rows) != len(supporting_ids):
+    if len(rows) != len(set(supporting_ids)):
         msg = "Supporting observation IDs reference nonexistent readings."
         raise ValueError(msg)
 
@@ -41,8 +42,13 @@ def build_computation_log(conn: sqlite3.Connection, anomaly: Anomaly) -> str:
         msg = "Target reading does not exist."
         raise ValueError(msg)
 
-    # 3. Assemble the reproducible payload
+    # 3. Assemble the reproducible payload (fixed ordering, so the same
+    #    inputs always produce the same evidence)
     payload = {
+        "anomaly_id": anomaly.id,
+        "building_id": anomaly.building_id,
+        "meter_id": anomaly.meter_id,
+        "severity": anomaly.severity,
         "detector_name": anomaly.detector_name,
         "detector_configuration": json.loads(anomaly.detection_parameters),
         "observation_timestamp": anomaly.timestamp_utc,

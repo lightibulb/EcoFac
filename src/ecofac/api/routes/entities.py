@@ -19,7 +19,7 @@ def list_buildings(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[BuildingResponse]:
     """List buildings with pagination."""
-    cursor = conn.execute("SELECT * FROM buildings LIMIT ? OFFSET ?", (limit, offset))
+    cursor = conn.execute("SELECT * FROM buildings ORDER BY id LIMIT ? OFFSET ?", (limit, offset))
     return [BuildingResponse(**dict(row)) for row in cursor.fetchall()]
 
 @router.get("/buildings/{building_id}", tags=["Entities"])
@@ -41,7 +41,7 @@ def list_meters(
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> list[MeterResponse]:
     """List meters with pagination."""
-    cursor = conn.execute("SELECT * FROM meters LIMIT ? OFFSET ?", (limit, offset))
+    cursor = conn.execute("SELECT * FROM meters ORDER BY id LIMIT ? OFFSET ?", (limit, offset))
     return [MeterResponse(**dict(row)) for row in cursor.fetchall()]
 
 @router.get("/meters/{meter_id}", tags=["Entities"])

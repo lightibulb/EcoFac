@@ -15,7 +15,8 @@ EcoFac is a reproducible, explainable, evidence-driven energy intelligence engin
 - CSV-based energy data ingestion
 - Data normalization and quality assessment
 - Historical energy baselines and anomaly detection
-- Evidence-backed findings and incident tracking
+- Evidence-backed findings and incident tracking (one incident per event, one evidence record per detector)
+- Automatic anomaly analysis after every CSV import and demo-data load
 - Before/after energy verification
 - FastAPI REST API
 - Reproducible automated evaluation
@@ -49,7 +50,7 @@ python -m pip install -e ".[dev]"
 ## Test Instructions
 ```bash
 # Run linting
-ruff check src tests simulator evaluation
+ruff check src tests simulator evaluation scripts
 
 # Run all tests
 pytest tests/ -v

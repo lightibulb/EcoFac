@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS energy_readings (
     unit TEXT NOT NULL,
     source_id TEXT NOT NULL,
     batch_id TEXT NOT NULL,
-    is_valid INTEGER NOT NULL DEFAULT 1,
+    is_valid INTEGER NOT NULL DEFAULT 1 CHECK (is_valid IN (0, 1)),
     created_at TEXT NOT NULL,
     raw_value TEXT,
     FOREIGN KEY (meter_id) REFERENCES meters(id),
@@ -77,8 +77,8 @@ CREATE TABLE IF NOT EXISTS anomalies (
     absolute_deviation REAL NOT NULL,
     percentage_deviation REAL,
     detector_name TEXT NOT NULL,
-    severity TEXT NOT NULL,
-    is_data_quality_eligible INTEGER NOT NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high')),
+    is_data_quality_eligible INTEGER NOT NULL CHECK (is_data_quality_eligible IN (0, 1)),
     detection_timestamp TEXT NOT NULL,
     detection_parameters TEXT,
     FOREIGN KEY (building_id) REFERENCES buildings(id),
@@ -89,7 +89,9 @@ CREATE TABLE IF NOT EXISTS anomalies (
 CREATE TABLE IF NOT EXISTS incidents (
     id TEXT PRIMARY KEY,
     anomaly_id TEXT NOT NULL,
-    status TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN (
+        'DETECTED', 'UNDER_REVIEW', 'ACKNOWLEDGED', 'DISMISSED', 'RESOLVED', 'UNRESOLVED'
+    )),
     resolution_notes TEXT,
     dismissal_reason TEXT,
     created_at TEXT NOT NULL,
@@ -130,3 +132,35 @@ CREATE INDEX IF NOT EXISTS idx_readings_meter_ts
 -- Scoped quality-issue lookups (duplicate counts per meter per window).
 CREATE INDEX IF NOT EXISTS idx_dqi_scope
     ON data_quality_issues (issue_type, meter_id, reading_timestamp_utc);
+
+-- Incident lookups: newest-first listing, per-anomaly lookup, evidence per incident.
+CREATE INDEX IF NOT EXISTS idx_incidents_created ON incidents (created_at);
+CREATE INDEX IF NOT EXISTS idx_incidents_anomaly ON incidents (anomaly_id);
+CREATE INDEX IF NOT EXISTS idx_evidence_incident ON evidence_records (incident_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_events (created_at);
+
+-- Evidence and audit rows are immutable: enforce it in the database, not just
+-- in application code.
+CREATE TRIGGER IF NOT EXISTS trg_evidence_no_update
+BEFORE UPDATE ON evidence_records
+BEGIN
+    SELECT RAISE(ABORT, 'evidence_records is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_evidence_no_delete
+BEFORE DELETE ON evidence_records
+BEGIN
+    SELECT RAISE(ABORT, 'evidence_records is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_audit_no_update
+BEFORE UPDATE ON audit_events
+BEGIN
+    SELECT RAISE(ABORT, 'audit_events is append-only');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_audit_no_delete
+BEFORE DELETE ON audit_events
+BEGIN
+    SELECT RAISE(ABORT, 'audit_events is append-only');
+END;

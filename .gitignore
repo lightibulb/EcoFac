@@ -23,5 +23,7 @@ htmlcov/
 # Generated Artifacts
 synthetic_data.csv
 ground_truth.json
+quality_ground_truth.json
+openapi.json
 evaluation_report.json
 evaluation_summary.md

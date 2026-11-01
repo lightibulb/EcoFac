@@ -20,7 +20,7 @@ def list_audit(
 ) -> list[AuditEventResponse]:
     """List audit events."""
     cursor = conn.execute(
-        "SELECT * FROM audit_events ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        "SELECT * FROM audit_events ORDER BY created_at DESC, id LIMIT ? OFFSET ?",
         (limit, offset),
     )
     return [AuditEventResponse(**dict(row)) for row in cursor.fetchall()]
