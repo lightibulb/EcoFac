@@ -23,6 +23,9 @@ MAD_Z_THRESHOLD = 3.5
 MAD_Z_HIGH = 5.0
 ZERO_MAD_EPSILON = 1e-6
 
+# Detector schema version, embedded in every anomaly for reproducibility
+DETECTOR_VERSION = "1.0"
+
 # Comparable-period confirmation
 SLOT_LOOKBACK_DAYS = 28
 SLOT_SAMPLES = 5
@@ -254,8 +257,12 @@ def _build_anomaly(
         conn, meter_id, start_dt, target_dt, expected_frequency_minutes=60
     )
 
-    # Enrich params with data-quality metadata (explainability)
-    enriched = {**params, "quality_flags": quality.flags}
+    # Enrich params with data-quality metadata and detector version
+    enriched = {
+        **params,
+        "quality_flags": quality.flags,
+        "detector_version": DETECTOR_VERSION,
+    }
 
     anomaly = Anomaly(
         id=str(uuid.uuid4()),
