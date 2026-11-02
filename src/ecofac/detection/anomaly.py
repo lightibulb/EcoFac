@@ -6,36 +6,45 @@ import sqlite3
 import statistics
 import uuid
 
-from ecofac.constants import (
-    COMPARABLE_LOOKBACK_DAYS,
-    COMPARABLE_MIN_SAMPLES,
-    COMPARABLE_REL_FLOOR,
-    COMPARABLE_SAMPLES,
-    COMPARABLE_Z_THRESHOLD,
-    MAD_SCALE,
-    MAD_Z_HIGH,
-    MAD_Z_THRESHOLD,
-    ROLLING_Z_HIGH,
-    ROLLING_Z_THRESHOLD,
-    ZERO_MAD_EPSILON,
-)
 from ecofac.domain.models import Anomaly
 from ecofac.quality.assessment import assess_quality
 from ecofac.timeutil import now_z, parse_utc, to_z
+
+# Default detector configuration
+DEFAULT_WINDOW_HOURS = 24
+DEFAULT_MIN_SAMPLES = 20
+
+# Rolling baseline thresholds
+ROLLING_Z_THRESHOLD = 3.0
+ROLLING_Z_HIGH = 4.5
+
+# Robust MAD thresholds
+MAD_Z_THRESHOLD = 3.5
+MAD_Z_HIGH = 5.0
+ZERO_MAD_EPSILON = 1e-6
+
+# Comparable-period confirmation
+SLOT_LOOKBACK_DAYS = 28
+SLOT_SAMPLES = 5
+SLOT_MIN_SAMPLES = 3
+SLOT_Z_THRESHOLD = 3.5
+SLOT_REL_FLOOR = 0.05
+MAD_SCALE = 1.4826
 
 
 def _comparable_period(
     conn: sqlite3.Connection, meter_id: str, target_ts: str, observed: float
 ) -> tuple[bool, dict | None]:
-    """Compare against the same hour on similar days: (explained_by_routine, stats).
+    """Check whether the reading matches its own daily routine.
 
-    Returns (False, None) when fewer than COMPARABLE_MIN_SAMPLES comparable readings
-    exist, in which case the trailing-window verdict stands unchanged.
+    Returns (True, stats) if the reading is explained by routine, (False, None)
+    if fewer than SLOT_MIN_SAMPLES comparable readings exist (fall back to the
+    trailing-window verdict).
     """
     target = parse_utc(target_ts)
     weekend = target.weekday() >= 5
     stamps = []
-    for days_back in range(1, COMPARABLE_LOOKBACK_DAYS + 1):
+    for days_back in range(1, SLOT_LOOKBACK_DAYS + 1):
         day = target - dt.timedelta(days=days_back)
         if (day.weekday() >= 5) == weekend:
             stamps.append(to_z(day))
@@ -43,34 +52,46 @@ def _comparable_period(
     rows = conn.execute(
         "SELECT value FROM energy_readings WHERE meter_id = ? AND is_valid = 1 "
         f"AND timestamp_utc IN ({placeholders}) ORDER BY timestamp_utc DESC LIMIT ?",
-        (meter_id, *stamps, COMPARABLE_SAMPLES),
+        (meter_id, *stamps, SLOT_SAMPLES),
     ).fetchall()
-    if len(rows) < COMPARABLE_MIN_SAMPLES:
+    if len(rows) < SLOT_MIN_SAMPLES:
         return False, None
     values = [row["value"] for row in rows]
     median = statistics.median(values)
     mad = statistics.median([abs(v - median) for v in values])
-    spread = max(MAD_SCALE * mad, COMPARABLE_REL_FLOOR * abs(median), ZERO_MAD_EPSILON)
+    spread = max(MAD_SCALE * mad, SLOT_REL_FLOOR * abs(median), ZERO_MAD_EPSILON)
     z_score = (observed - median) / spread
     stats = {"samples": len(values), "median": median, "z_score": z_score}
-    return abs(z_score) < COMPARABLE_Z_THRESHOLD, stats
+    return abs(z_score) < SLOT_Z_THRESHOLD, stats
 
 
 def detect_rolling_baseline(
     conn: sqlite3.Connection,
     meter_id: str,
     target_ts: str,
-    window_size: int = 24,
+    *,
+    window_hours: int = DEFAULT_WINDOW_HOURS,
+    min_samples: int = DEFAULT_MIN_SAMPLES,
+    z_threshold: float = ROLLING_Z_THRESHOLD,
+    z_high: float = ROLLING_Z_HIGH,
 ) -> Anomaly | None:
-    """Detect anomalies using a rolling window mean and standard deviation."""
+    """Detect anomalies using a time-windowed rolling mean and stdev.
+
+    The window is [target_ts - window_hours, target_ts). Only valid readings
+    in that interval contribute to the baseline. If fewer than ``min_samples``
+    readings exist, the detector abstains (returns None).
+    """
+    target_dt = parse_utc(target_ts)
+    window_start = to_z(target_dt - dt.timedelta(hours=window_hours))
+
     cursor = conn.execute(
         "SELECT id, timestamp_utc, value FROM energy_readings "
-        "WHERE meter_id = ? AND timestamp_utc < ? AND is_valid = 1 "
-        "ORDER BY timestamp_utc DESC LIMIT ?",
-        (meter_id, target_ts, window_size),
+        "WHERE meter_id = ? AND timestamp_utc < ? AND timestamp_utc >= ? "
+        "AND is_valid = 1 ORDER BY timestamp_utc DESC",
+        (meter_id, target_ts, window_start),
     )
     history = cursor.fetchall()
-    if len(history) < window_size:
+    if len(history) < min_samples:
         return None
     values = [row["value"] for row in history]
     obs_ids = [row["id"] for row in history]
@@ -93,7 +114,7 @@ def detect_rolling_baseline(
     if stdev == 0.0:
         stdev = ZERO_MAD_EPSILON
     z_score = deviation / stdev
-    if abs(z_score) < ROLLING_Z_THRESHOLD:
+    if abs(z_score) < z_threshold:
         return None
     explained, slot = _comparable_period(conn, meter_id, target_ts, observed)
     if explained:
@@ -106,9 +127,16 @@ def detect_rolling_baseline(
         observed=observed,
         expected=mean,
         detector_name="rolling_baseline",
-        severity="high" if abs(z_score) > ROLLING_Z_HIGH else "medium",
+        severity="high" if abs(z_score) > z_high else "medium",
         params={
-            "window_size": window_size, "z_score": z_score, "stdev": stdev,
+            "window_hours": window_hours,
+            "window_start": window_start,
+            "window_end": target_ts,
+            "sample_count": len(history),
+            "z_threshold": z_threshold,
+            "z_score": z_score,
+            "mean": mean,
+            "stdev": stdev,
             "comparable_period": slot,
         },
         supporting_ids=obs_ids,
@@ -120,17 +148,24 @@ def detect_robust_mad(
     conn: sqlite3.Connection,
     meter_id: str,
     target_ts: str,
-    window_size: int = 24,
+    *,
+    window_hours: int = DEFAULT_WINDOW_HOURS,
+    min_samples: int = DEFAULT_MIN_SAMPLES,
+    z_threshold: float = MAD_Z_THRESHOLD,
+    z_high: float = MAD_Z_HIGH,
 ) -> Anomaly | None:
-    """Detect anomalies using Median and Median Absolute Deviation (MAD)."""
+    """Detect anomalies using a time-windowed Median and MAD."""
+    target_dt = parse_utc(target_ts)
+    window_start = to_z(target_dt - dt.timedelta(hours=window_hours))
+
     cursor = conn.execute(
         "SELECT id, timestamp_utc, value FROM energy_readings "
-        "WHERE meter_id = ? AND timestamp_utc < ? AND is_valid = 1 "
-        "ORDER BY timestamp_utc DESC LIMIT ?",
-        (meter_id, target_ts, window_size),
+        "WHERE meter_id = ? AND timestamp_utc < ? AND timestamp_utc >= ? "
+        "AND is_valid = 1 ORDER BY timestamp_utc DESC",
+        (meter_id, target_ts, window_start),
     )
     history = cursor.fetchall()
-    if len(history) < window_size:
+    if len(history) < min_samples:
         return None
     values = [row["value"] for row in history]
     obs_ids = [row["id"] for row in history]
@@ -151,11 +186,11 @@ def detect_robust_mad(
     mad = statistics.median(absolute_deviations)
     observed = target["value"]
     deviation = observed - median
-    scaled_mad = 1.4826 * mad
+    scaled_mad = MAD_SCALE * mad
     if scaled_mad == 0.0:
         scaled_mad = ZERO_MAD_EPSILON
     z_score = deviation / scaled_mad
-    if abs(z_score) < MAD_Z_THRESHOLD:
+    if abs(z_score) < z_threshold:
         return None
     explained, slot = _comparable_period(conn, meter_id, target_ts, observed)
     if explained:
@@ -168,9 +203,16 @@ def detect_robust_mad(
         observed=observed,
         expected=median,
         detector_name="robust_mad",
-        severity="high" if abs(z_score) > MAD_Z_HIGH else "medium",
+        severity="high" if abs(z_score) > z_high else "medium",
         params={
-            "window_size": window_size, "z_score": z_score, "mad": mad,
+            "window_hours": window_hours,
+            "window_start": window_start,
+            "window_end": target_ts,
+            "sample_count": len(history),
+            "z_threshold": z_threshold,
+            "z_score": z_score,
+            "median": median,
+            "mad": mad,
             "comparable_period": slot,
         },
         supporting_ids=obs_ids,
@@ -208,7 +250,12 @@ def _build_anomaly(
     pct_dev = (abs_dev / expected * 100) if expected > 0 else None
     target_dt = parse_utc(target_ts)
     start_dt = target_dt - dt.timedelta(hours=1)
-    quality = assess_quality(conn, meter_id, start_dt, target_dt, expected_frequency_minutes=60)
+    quality = assess_quality(
+        conn, meter_id, start_dt, target_dt, expected_frequency_minutes=60
+    )
+
+    # Enrich params with data-quality metadata (explainability)
+    enriched = {**params, "quality_flags": quality.flags}
 
     anomaly = Anomaly(
         id=str(uuid.uuid4()),
@@ -224,7 +271,7 @@ def _build_anomaly(
         is_data_quality_eligible=quality.is_analysis_eligible,
         detection_timestamp=now_z(),
         supporting_observation_ids=supporting_ids,
-        detection_parameters=json.dumps(params),
+        detection_parameters=json.dumps(enriched),
     )
     conn.execute(
         "INSERT INTO anomalies (id, building_id, meter_id, timestamp_utc, "

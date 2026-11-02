@@ -1,25 +1,33 @@
 # Copyright 2026 Lightibulb
+"""Bulk anomaly analysis.
 
-"""Bulk anomaly analysis using in-memory screening."""
-
+Running both detectors against every reading costs several SQL queries per
+reading. This module screens each meter's series in memory first (same
+formulas, slightly looser thresholds, so screening can only over-select) and
+then hands the few candidates to the authoritative detectors. The detectors
+remain the single source of truth for what counts as an anomaly.
+"""
 import dataclasses
 import logging
 import math
 import sqlite3
 
-from ecofac.constants import (
-    DETECTION_WINDOW_SIZE,
-    MAD_SCALE,
+from ecofac.detection.anomaly import (
+    DEFAULT_MIN_SAMPLES,
     MAD_Z_THRESHOLD,
     ROLLING_Z_THRESHOLD,
-    SCREEN_MARGIN,
     ZERO_MAD_EPSILON,
+    detect_robust_mad,
+    detect_rolling_baseline,
 )
-from ecofac.detection.service import analyze_at
+from ecofac.incidents.lifecycle import create_incident
 
 logger = logging.getLogger(__name__)
 
-WINDOW_SIZE = DETECTION_WINDOW_SIZE
+# Slice size for the in-memory screen (previous N readings).
+SCREEN_WINDOW = 24
+SCREEN_MARGIN = 0.98
+MAD_SCALE = 1.4826
 
 
 @dataclasses.dataclass
@@ -58,7 +66,13 @@ def analyze_meter_series(
     *,
     create_incidents: bool = True,
 ) -> tuple[AnalysisSummary, set[str]]:
-    """Analyze every valid reading of one meter. Returns (summary, incident ids)."""
+    """Analyze every valid reading of one meter. Returns (summary, incident ids).
+
+    The loop starts at DEFAULT_MIN_SAMPLES (not SCREEN_WINDOW) so that bulk
+    analysis covers the same candidate space as a per-reading pass. For
+    irregular or gappy data, the slice is capped at index 0 so ``history``
+    never wraps negatively.
+    """
     summary = AnalysisSummary()
     incident_ids: set[str] = set()
     rows = conn.execute(
@@ -68,26 +82,30 @@ def analyze_meter_series(
     ).fetchall()
     values = [row["value"] for row in rows]
 
-    for i in range(WINDOW_SIZE, len(rows)):
-        if not is_candidate(values[i - WINDOW_SIZE:i], values[i]):
+    for i in range(DEFAULT_MIN_SAMPLES, len(rows)):
+        history = values[max(0, i - SCREEN_WINDOW):i]
+        if len(history) < 2:
+            continue
+        if not is_candidate(history, values[i]):
             continue
         timestamp = rows[i]["timestamp_utc"]
-        try:
-            findings = analyze_at(
-                conn, meter_id, timestamp, create_incidents=create_incidents
-            )
-        except Exception:
-            logger.exception("Analysis failed for %s @ %s", meter_id, timestamp)
-            summary.skipped += 1
-            continue
-        for f in findings:
-            if f.already_recorded:
+        for detect in (detect_rolling_baseline, detect_robust_mad):
+            anomaly = detect(conn, meter_id, timestamp)
+            if anomaly is None:
                 continue
             summary.anomalies_detected += 1
-            if f.gated_by_quality:
+            if not anomaly.is_data_quality_eligible:
                 summary.anomalies_gated += 1
-            if f.incident_id:
-                incident_ids.add(f.incident_id)
+                continue
+            if not create_incidents:
+                continue
+            try:
+                incident_ids.add(create_incident(conn, anomaly))
+            except ValueError:
+                logger.warning(
+                    "Skipped incident for anomaly %s", anomaly.id, exc_info=True
+                )
+                summary.skipped += 1
     return summary, incident_ids
 
 
@@ -97,7 +115,10 @@ def analyze_all(
     meter_ids: list[str] | None = None,
     create_incidents: bool = True,
 ) -> AnalysisSummary:
-    """Run both detectors over every valid reading of the given (or all) meters."""
+    """Run both detectors over every valid reading of the given (or all) meters.
+
+    Anomalies already recorded are skipped, so this is safe to call repeatedly.
+    """
     if meter_ids is None:
         meter_ids = [
             row["meter_id"]
