@@ -27,3 +27,9 @@ quality_ground_truth.json
 openapi.json
 evaluation_report.json
 evaluation_summary.md
+
+# Repo hygiene
+*.bak
+ecofac.txt
+b.sh
+tree.txt

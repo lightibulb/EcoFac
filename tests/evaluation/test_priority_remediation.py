@@ -1,3 +1,4 @@
+# Copyright 2026 Lightibulb
 """Regression tests for EcoFac priority remediation."""
 import csv
 import json

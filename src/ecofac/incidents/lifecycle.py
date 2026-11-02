@@ -7,15 +7,16 @@ import uuid
 
 from ecofac.domain.models import Anomaly
 from ecofac.evidence.builder import build_computation_log
+from ecofac.persistence.tx import persist_atomically
 from ecofac.timeutil import now_z
 
 VALID_TRANSITIONS = {
     "DETECTED": ["UNDER_REVIEW"],
     "UNDER_REVIEW": ["ACKNOWLEDGED", "DISMISSED"],
     "ACKNOWLEDGED": ["RESOLVED", "UNRESOLVED"],
-    "DISMISSED": [],       # Terminal
-    "RESOLVED": [],        # Terminal
-    "UNRESOLVED": [],      # Terminal
+    "DISMISSED": [],
+    "RESOLVED": [],
+    "UNRESOLVED": [],
 }
 
 
@@ -41,8 +42,10 @@ def _log_audit(
     )
 
 
-def find_event_incident(conn: sqlite3.Connection, meter_id: str, timestamp_utc: str) -> str | None:
-    """Return the id of the incident already tracking this (meter, timestamp) event."""
+def find_event_incident(
+    conn: sqlite3.Connection, meter_id: str, timestamp_utc: str
+) -> str | None:
+    """Return the id of the incident already tracking this (meter, ts) event."""
     row = conn.execute(
         "SELECT incidents.id FROM incidents "
         "JOIN anomalies ON anomalies.id = incidents.anomaly_id "
@@ -58,24 +61,20 @@ def create_incident(conn: sqlite3.Connection, anomaly: Anomaly) -> str:
 
     Several detectors can flag the same reading. They all describe one event,
     so the first anomaly opens the incident and later ones attach their
-    evidence to it instead of opening duplicates. Calling this twice for the
-    same anomaly returns the same incident.
+    evidence to it instead of opening duplicates.
     """
-    # Build evidence first (validates reading existence)
     try:
         computation_log = build_computation_log(conn, anomaly)
     except ValueError as e:
         msg = f"Cannot create incident: {e}"
         raise ValueError(msg) from e
 
-    now = now_z()
-    conn.execute("BEGIN IMMEDIATE")
-    try:
+    def _do() -> str:
+        now = now_z()
         same_anomaly = conn.execute(
             "SELECT id FROM incidents WHERE anomaly_id = ?", (anomaly.id,)
         ).fetchone()
         if same_anomaly:
-            conn.execute("COMMIT")
             return same_anomaly["id"]
 
         event_incident = find_event_incident(conn, anomaly.meter_id, anomaly.timestamp_utc)
@@ -106,14 +105,11 @@ def create_incident(conn: sqlite3.Connection, anomaly: Anomaly) -> str:
                 conn,
                 incident_id,
                 "EVIDENCE_ADDED",
-                f"Anomaly {anomaly.id} from {anomaly.detector_name} attached to incident",
+                f"Anomaly {anomaly.id} from {anomaly.detector_name} attached",
             )
-        conn.execute("COMMIT")
-    except Exception:
-        conn.execute("ROLLBACK")
-        raise
+        return incident_id
 
-    return incident_id
+    return persist_atomically(conn, _do)
 
 
 def transition_incident(
@@ -122,11 +118,7 @@ def transition_incident(
     new_status: str,
     reason: str | None = None,
 ) -> None:
-    """Advance the incident state, enforcing rules and logging audit events.
-
-    The status check and the update happen in one write transaction, so two
-    concurrent requests cannot both pass the same transition.
-    """
+    """Advance the incident state, enforcing rules and logging audit events."""
     reason = (reason or "").strip() or None
 
     conn.execute("BEGIN IMMEDIATE")

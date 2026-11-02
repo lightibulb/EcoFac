@@ -6,25 +6,22 @@ import sqlite3
 import statistics
 import uuid
 
+from ecofac.constants import (
+    COMPARABLE_LOOKBACK_DAYS,
+    COMPARABLE_MIN_SAMPLES,
+    COMPARABLE_REL_FLOOR,
+    COMPARABLE_SAMPLES,
+    COMPARABLE_Z_THRESHOLD,
+    MAD_SCALE,
+    MAD_Z_HIGH,
+    MAD_Z_THRESHOLD,
+    ROLLING_Z_HIGH,
+    ROLLING_Z_THRESHOLD,
+    ZERO_MAD_EPSILON,
+)
 from ecofac.domain.models import Anomaly
 from ecofac.quality.assessment import assess_quality
 from ecofac.timeutil import now_z, parse_utc, to_z
-
-ROLLING_Z_THRESHOLD = 3.0
-ROLLING_Z_HIGH = 4.5
-MAD_Z_THRESHOLD = 3.5
-MAD_Z_HIGH = 5.0
-ZERO_MAD_EPSILON = 1e-6
-
-# Comparable period: the same hour of day on the same day type (weekday or
-# weekend) over recent days. A reading that matches its own routine is not an
-# anomaly, however far it sits from the trailing 24 readings.
-SLOT_LOOKBACK_DAYS = 28
-SLOT_SAMPLES = 5
-SLOT_MIN_SAMPLES = 3
-SLOT_Z_THRESHOLD = 3.5
-SLOT_REL_FLOOR = 0.05
-MAD_SCALE = 1.4826
 
 
 def _comparable_period(
@@ -32,13 +29,13 @@ def _comparable_period(
 ) -> tuple[bool, dict | None]:
     """Compare against the same hour on similar days: (explained_by_routine, stats).
 
-    Returns (False, None) when fewer than SLOT_MIN_SAMPLES comparable readings
+    Returns (False, None) when fewer than COMPARABLE_MIN_SAMPLES comparable readings
     exist, in which case the trailing-window verdict stands unchanged.
     """
     target = parse_utc(target_ts)
     weekend = target.weekday() >= 5
     stamps = []
-    for days_back in range(1, SLOT_LOOKBACK_DAYS + 1):
+    for days_back in range(1, COMPARABLE_LOOKBACK_DAYS + 1):
         day = target - dt.timedelta(days=days_back)
         if (day.weekday() >= 5) == weekend:
             stamps.append(to_z(day))
@@ -46,17 +43,17 @@ def _comparable_period(
     rows = conn.execute(
         "SELECT value FROM energy_readings WHERE meter_id = ? AND is_valid = 1 "
         f"AND timestamp_utc IN ({placeholders}) ORDER BY timestamp_utc DESC LIMIT ?",
-        (meter_id, *stamps, SLOT_SAMPLES),
+        (meter_id, *stamps, COMPARABLE_SAMPLES),
     ).fetchall()
-    if len(rows) < SLOT_MIN_SAMPLES:
+    if len(rows) < COMPARABLE_MIN_SAMPLES:
         return False, None
     values = [row["value"] for row in rows]
     median = statistics.median(values)
     mad = statistics.median([abs(v - median) for v in values])
-    spread = max(MAD_SCALE * mad, SLOT_REL_FLOOR * abs(median), ZERO_MAD_EPSILON)
+    spread = max(MAD_SCALE * mad, COMPARABLE_REL_FLOOR * abs(median), ZERO_MAD_EPSILON)
     z_score = (observed - median) / spread
     stats = {"samples": len(values), "median": median, "z_score": z_score}
-    return abs(z_score) < SLOT_Z_THRESHOLD, stats
+    return abs(z_score) < COMPARABLE_Z_THRESHOLD, stats
 
 
 def detect_rolling_baseline(

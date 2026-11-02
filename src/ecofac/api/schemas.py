@@ -31,6 +31,7 @@ class MeterResponse(pydantic.BaseModel):
     building_id: str
     fuel_type: str
     unit: str
+    interval_minutes: int = 60
     created_at: str
 
 

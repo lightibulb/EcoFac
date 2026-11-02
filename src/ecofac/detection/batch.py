@@ -1,31 +1,25 @@
 # Copyright 2026 Lightibulb
-"""Bulk anomaly analysis.
 
-Running both detectors against every reading costs several SQL queries per
-reading. This module screens each meter's series in memory first (same
-formulas, slightly looser thresholds, so screening can only over-select) and
-then hands the few candidates to the authoritative detectors. The detectors
-remain the single source of truth for what counts as an anomaly.
-"""
+"""Bulk anomaly analysis using in-memory screening."""
+
 import dataclasses
 import logging
 import math
 import sqlite3
 
-from ecofac.detection.anomaly import (
+from ecofac.constants import (
+    DETECTION_WINDOW_SIZE,
+    MAD_SCALE,
     MAD_Z_THRESHOLD,
     ROLLING_Z_THRESHOLD,
+    SCREEN_MARGIN,
     ZERO_MAD_EPSILON,
-    detect_robust_mad,
-    detect_rolling_baseline,
 )
-from ecofac.incidents.lifecycle import create_incident
+from ecofac.detection.service import analyze_at
 
 logger = logging.getLogger(__name__)
 
-WINDOW_SIZE = 24
-SCREEN_MARGIN = 0.98
-MAD_SCALE = 1.4826
+WINDOW_SIZE = DETECTION_WINDOW_SIZE
 
 
 @dataclasses.dataclass
@@ -78,21 +72,22 @@ def analyze_meter_series(
         if not is_candidate(values[i - WINDOW_SIZE:i], values[i]):
             continue
         timestamp = rows[i]["timestamp_utc"]
-        for detect in (detect_rolling_baseline, detect_robust_mad):
-            anomaly = detect(conn, meter_id, timestamp)
-            if anomaly is None:
+        try:
+            findings = analyze_at(
+                conn, meter_id, timestamp, create_incidents=create_incidents
+            )
+        except Exception:
+            logger.exception("Analysis failed for %s @ %s", meter_id, timestamp)
+            summary.skipped += 1
+            continue
+        for f in findings:
+            if f.already_recorded:
                 continue
             summary.anomalies_detected += 1
-            if not anomaly.is_data_quality_eligible:
+            if f.gated_by_quality:
                 summary.anomalies_gated += 1
-                continue
-            if not create_incidents:
-                continue
-            try:
-                incident_ids.add(create_incident(conn, anomaly))
-            except ValueError:
-                logger.warning("Skipped incident for anomaly %s", anomaly.id, exc_info=True)
-                summary.skipped += 1
+            if f.incident_id:
+                incident_ids.add(f.incident_id)
     return summary, incident_ids
 
 
@@ -102,12 +97,7 @@ def analyze_all(
     meter_ids: list[str] | None = None,
     create_incidents: bool = True,
 ) -> AnalysisSummary:
-    """Run both detectors over every valid reading of the given (or all) meters.
-
-    Anomalies already recorded are skipped, so this is safe to call repeatedly.
-    Incidents are created only for anomalies whose data-quality window is
-    eligible; ineligible findings are counted as gated.
-    """
+    """Run both detectors over every valid reading of the given (or all) meters."""
     if meter_ids is None:
         meter_ids = [
             row["meter_id"]

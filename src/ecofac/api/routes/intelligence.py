@@ -2,6 +2,7 @@
 
 """Endpoints for quality assessment and anomaly detection."""
 
+import dataclasses
 import datetime as dt
 import sqlite3
 from typing import Annotated
@@ -10,8 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ecofac.api.dependencies import get_db
 from ecofac.api.schemas import QualityResponse
-from ecofac.detection.anomaly import detect_robust_mad, detect_rolling_baseline
-from ecofac.incidents.lifecycle import create_incident, find_event_incident
+from ecofac.detection.service import analyze_at
 from ecofac.quality.assessment import assess_quality
 from ecofac.timeutil import parse_utc, to_z
 
@@ -62,7 +62,7 @@ def get_quality(
         latest_observation=report.latest_observation,
         is_stale=report.is_stale,
         is_analysis_eligible=report.is_analysis_eligible,
-        flags=report.flags
+        flags=report.flags,
     )
 
 
@@ -74,52 +74,16 @@ def analyze_meter(
 ) -> dict:
     """Run anomaly detection for one timestamp.
 
-    Incidents are opened only when the data-quality window is eligible; gated
-    findings are reported but never become incidents. Findings recorded by an
-    earlier run (or by import-time analysis) are reported again, flagged
-    with ``already_recorded``.
+    Incidents are opened only when the data-quality window is eligible. Findings
+    recorded by an earlier run are reported again with ``already_recorded``.
     """
     _require_meter(conn, meter_id)
-    # Normalise to the stored form so offsets like +00:00 still match.
     stored_ts = to_z(_parse_aware(timestamp).replace(microsecond=0))
 
-    findings: list[dict] = []
-    fresh: set[str] = set()
-    for detect in (detect_rolling_baseline, detect_robust_mad):
-        anomaly = detect(conn, meter_id, stored_ts)
-        if anomaly is None:
-            continue
-        eligible = anomaly.is_data_quality_eligible
-        fresh.add(anomaly.detector_name)
-        findings.append({
-            "anomaly_id": anomaly.id,
-            "incident_id": create_incident(conn, anomaly) if eligible else None,
-            "detector": anomaly.detector_name,
-            "severity": anomaly.severity,
-            "gated_by_quality": not eligible,
-            "already_recorded": False,
-        })
-
-    recorded = conn.execute(
-        "SELECT id, detector_name, severity, is_data_quality_eligible FROM anomalies "
-        "WHERE meter_id = ? AND timestamp_utc = ? ORDER BY detector_name",
-        (meter_id, stored_ts),
-    ).fetchall()
-    event_incident = find_event_incident(conn, meter_id, stored_ts)
-    findings.extend(
-        {
-            "anomaly_id": row["id"],
-            "incident_id": event_incident if row["is_data_quality_eligible"] else None,
-            "detector": row["detector_name"],
-            "severity": row["severity"],
-            "gated_by_quality": not row["is_data_quality_eligible"],
-            "already_recorded": True,
-        }
-        for row in recorded
-        if row["detector_name"] not in fresh
-    )
-
+    findings = analyze_at(conn, meter_id, stored_ts, create_incidents=True)
     if not findings:
         return {"status": "no_anomalies_detected"}
-
-    return {"status": "anomalies_detected", "findings": findings}
+    return {
+        "status": "anomalies_detected",
+        "findings": [dataclasses.asdict(f) for f in findings],
+    }

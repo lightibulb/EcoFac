@@ -2,9 +2,7 @@
 
 """Endpoints for CSV imports."""
 
-import csv
 import dataclasses
-import io
 import json
 import logging
 import sqlite3
@@ -15,7 +13,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from ecofac.api.dependencies import get_db
 from ecofac.api.schemas import ImportBatchResponse, ImportSummaryResponse
 from ecofac.detection.batch import AnalysisSummary, analyze_all
-from ecofac.ingestion.pipeline import ingest_csv, normalize_headers
+from ecofac.ingestion.entities import (
+    ID_PATTERN,
+    MAX_ID_LENGTH,
+    create_entities,
+    extract_entity_pairs,
+)
+from ecofac.ingestion.pipeline import ingest_csv
 from ecofac.timeutil import now_z
 
 logger = logging.getLogger(__name__)
@@ -23,52 +27,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5 MB
-MAX_AUTO_ENTITIES = 500
-MAX_ID_LENGTH = 100
-ID_PATTERN = r"^[A-Za-z0-9._:-]+$"
 IdField = Annotated[str, Form(min_length=1, max_length=MAX_ID_LENGTH, pattern=ID_PATTERN)]
-
-
-def _entity_pairs(text: str) -> set[tuple[str, str]]:
-    """Collect well-formed (building_id, meter_id) pairs from the CSV."""
-    pairs: set[tuple[str, str]] = set()
-    try:
-        reader = csv.DictReader(io.StringIO(text))
-        normalize_headers(reader)
-        for row in reader:
-            building = (row.get("building_id") or "").strip()
-            meter = (row.get("meter_id") or "").strip()
-            if building and meter and max(len(building), len(meter)) <= MAX_ID_LENGTH:
-                pairs.add((building, meter))
-            if len(pairs) > MAX_AUTO_ENTITIES:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"CSV references more than {MAX_AUTO_ENTITIES} meters",
-                )
-    except csv.Error:
-        # Malformed CSV: ingest_csv reports the precise problem.
-        return set()
-    return pairs
-
-
-def _create_entities(conn: sqlite3.Connection, pairs: set[tuple[str, str]], now: str) -> None:
-    """Auto-create the organization, buildings and meters a CSV refers to."""
-    conn.execute(
-        "INSERT OR IGNORE INTO organizations (id, name, created_at) "
-        "VALUES ('o-auto', 'Auto Org', ?)",
-        (now,),
-    )
-    for building_id, meter_id in sorted(pairs):
-        conn.execute(
-            "INSERT OR IGNORE INTO buildings (id, org_id, name, created_at) "
-            "VALUES (?, 'o-auto', ?, ?)",
-            (building_id, building_id, now),
-        )
-        conn.execute(
-            "INSERT OR IGNORE INTO meters (id, building_id, fuel_type, unit, created_at) "
-            "VALUES (?, ?, 'elec', 'kWh', ?)",
-            (meter_id, building_id, now),
-        )
 
 
 def _set_batch_status(
@@ -113,7 +72,7 @@ def upload_csv(
             status_code=409, detail="This batch_id was already imported; use a new batch_id"
         )
 
-    pairs = _entity_pairs(text)
+    pairs = extract_entity_pairs(text)
     now = now_z()
     conn.execute(
         "INSERT OR IGNORE INTO data_sources (id, name, source_type, created_at) "
@@ -125,7 +84,7 @@ def upload_csv(
         "VALUES (?, ?, 'started', ?)",
         (batch_id, source_id, now),
     )
-    _create_entities(conn, pairs, now)
+    create_entities(conn, pairs, now)
 
     try:
         summary = ingest_csv(conn, text, source_id, batch_id, max_size_mb=5.0)

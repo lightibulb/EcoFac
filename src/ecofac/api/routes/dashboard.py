@@ -131,7 +131,8 @@ def generate_demo_data(
     try:
         accepted = 0
         already_loaded = conn.execute(
-            "SELECT 1 FROM energy_readings WHERE source_id = ? LIMIT 1", (DEMO_SOURCE_ID,)
+            "SELECT 1 FROM energy_readings WHERE source_id = ? AND batch_id = ? LIMIT 1",
+            (DEMO_SOURCE_ID, DEMO_BATCH_ID),
         ).fetchone()
         if not already_loaded:
             with tempfile.TemporaryDirectory() as tmpdir:

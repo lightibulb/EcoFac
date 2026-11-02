@@ -103,6 +103,7 @@ def generate_data(
     ground_truth = valid_ground_truth
 
     path = pathlib.Path(filename)
+    path.parent.mkdir(parents=True, exist_ok=True)
     fields = ["timestamp", "building_id", "meter_id", "energy_value", "unit"]
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fields)
@@ -117,7 +118,7 @@ def generate_data(
     # Write quality ground truth so ingestion capture rates are measurable
     stale_readings_count = 0
     if buildings >= 3 and meters_per_bldg >= 2:
-        stale_readings_count = 3 * 24
+        stale_readings_count = min(3, days) * 24
 
     quality_truth = {
         "duplicates": len(duplicates),
@@ -147,7 +148,8 @@ def generate_data(
             "duplicates_injected": len(duplicates),
             "stale_readings": stale_readings_count,
         },
-        "exact_injected_anomalies": exact_injected,
+        "exact_injected_anomalies": ground_truth,
+        "raw_injected_anomalies": exact_injected,
     }
     sm_path = path.parent / "scenario_manifest.json"
     with sm_path.open("w", encoding="utf-8") as f:
