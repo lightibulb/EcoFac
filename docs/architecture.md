@@ -129,3 +129,38 @@ decision. It does not touch the database, the API, or the dashboard.
 - The engine performs no physical actions and makes no claims about equipment
   condition.
 - Deterministic for identical inputs (verified by test).
+
+## Engineering Calculation Layer (additive)
+
+`src/ecofac/decision/calculations.py` provides the mathematical and
+engineering primitives the decision engine is built on. It is a pure
+function module -- no I/O, no database, no API.
+
+**Two PUE models coexist:**
+
+- `decision/constraints.py` derives PUE from IT + cooling measurements (real-
+  time monitoring model).
+- `decision/calculations.py` treats PUE as a supplied value (measured,
+  configured, or assumed) and computes facility power as `IT * PUE` (capacity
+  planning model).
+
+The two are independent and intentional. Neither imports the other.
+
+**Exposed calculations:**
+
+| Function | Purpose |
+|---|---|
+| `calculate_electrical` | facility power, physical headroom, safety-adjusted headroom |
+| `calculate_cooling` | heat load (IT-electrical approximation), physical headroom, safety-adjusted headroom |
+| `compute_current_state` | combined electrical + cooling snapshot |
+| `compute_predicted_state` | same, after one or more `LoadChange` deltas |
+| `build_report` | full `CalculationReport` with formula log and assumptions |
+
+**Modeling note:**
+
+The `heat_conversion_factor` on `CoolingCapacity` defaults to `1.0`, encoding
+the approximation that IT electrical load equals IT heat output. A future
+airflow or thermal-efficiency model can override it per call without changing
+this module's interface. This approximation is documented in every
+`CalculationReport.assumptions`, so consumers cannot use the numbers without
+seeing the caveat.
