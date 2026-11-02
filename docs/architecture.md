@@ -102,3 +102,30 @@ Currently:
 - **Testing:** pytest
 - **Linting:** Ruff (with a deliberately permissive ignore list to accommodate
   domain-specific branching in the pipeline and detector code)
+
+## Decision Engine (additive)
+
+`src/ecofac/decision/` is a pure, side-effect-free module that consumes
+validated measurements from the intelligence layer and returns a deterministic
+decision. It does not touch the database, the API, or the dashboard.
+
+| Path | Responsibility |
+|---|---|
+| `decision/schemas.py` | Pydantic input and output schemas |
+| `decision/constraints.py` | Pure math: predicted state, per-constraint evaluation |
+| `decision/engine.py` | Orchestration: quality gate -> math -> decision |
+
+**Interface summary:**
+- Input: `OperationalConstraints`, `FacilityMeasurements`, `ProposedChange`,
+  `DataQualitySnapshot`.
+- Output: `Decision` (status, predicted state, per-constraint evaluations,
+  warnings, evidence, explanation).
+
+**Guarantees:**
+- No operational threshold is hard-coded in the engine; all limits come from
+  the caller's `OperationalConstraints`.
+- Missing IT or cooling load, ineligible quality, or stale measurements all
+  produce `INSUFFICIENT_DATA` -- the engine never treats missing values as 0.
+- The engine performs no physical actions and makes no claims about equipment
+  condition.
+- Deterministic for identical inputs (verified by test).
