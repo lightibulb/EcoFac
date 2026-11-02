@@ -6,6 +6,7 @@ import json
 import math
 import pathlib
 import random
+from typing import Any
 
 DETECTION_WINDOW = 24
 
@@ -15,13 +16,19 @@ def generate_data(
     days: int = 90,
     buildings: int = 5,
     meters_per_bldg: int = 2,
-    seed: int = 42,
+    seed: int | None = None,
     anomaly_prob: float = 0.01,
-) -> None:
-    """Generate synthetic CSV data and ground truth labels."""
+) -> dict[str, Any]:
+    """Generate synthetic CSV data and ground truth labels.
+
+    With ``seed=None`` a fresh random seed is chosen; it is always returned in
+    the manifest so any run can be reproduced by passing it back in.
+    """
+    if seed is None:
+        seed = random.SystemRandom().randrange(2**32)
     # Isolate RNG to prevent modifying the global random state
     rng = random.Random(seed)
-    
+
     start_date = dt.datetime(2026, 1, 1, 0, 0, tzinfo=dt.UTC)
     readings = []
     ground_truth = []
@@ -44,12 +51,12 @@ def generate_data(
                     schedule = 5.0 if not is_weekend and 8 <= hour <= 18 else 0.0
                     noise = rng.gauss(0, 1.0)
                     value = base_load + seasonal + schedule + noise
-                    
+
                     is_spike = False
                     if rng.random() < anomaly_prob and value > 0:
                         value *= rng.uniform(1.5, 3.0)
                         is_spike = True
-                        
+
                     readings.append({
                         "timestamp": ts_str,
                         "building_id": bldg_id,
@@ -69,7 +76,7 @@ def generate_data(
     total_before = len(readings)
     readings = [r for r in readings if rng.random() > 0.01]
     missing_count = total_before - len(readings)
-    
+
     # Inject duplicates (duplicate 1% of rows)
     num_dupes = int(len(readings) * 0.01)
     duplicates = rng.sample(readings, num_dupes) if num_dupes > 0 else []
@@ -89,7 +96,7 @@ def generate_data(
         earlier = sum(1 for (m, t) in present_set if m == m_id and t < t_id)
         if earlier >= DETECTION_WINDOW:
             valid_ground_truth.append(g)
-            
+
     ground_truth = valid_ground_truth
 
     path = pathlib.Path(filename)
@@ -108,7 +115,7 @@ def generate_data(
     stale_readings_count = 0
     if buildings >= 3 and meters_per_bldg >= 2:
         stale_readings_count = 3 * 24
-        
+
     quality_truth = {
         "duplicates": len(duplicates),
         "missing": missing_count,
@@ -122,3 +129,19 @@ def generate_data(
         f"Generated {len(readings)} readings and "
         f"{len(ground_truth)} ground truth anomalies."
     )
+
+    return {
+        "seed": seed,
+        "files": {
+            "data": str(path),
+            "ground_truth": str(gt_path),
+            "quality_ground_truth": str(qt_path),
+        },
+        "counts": {
+            "readings": len(readings),
+            "anomalies": len(ground_truth),
+            "missing_injected": missing_count,
+            "duplicates_injected": len(duplicates),
+            "stale_readings": stale_readings_count,
+        },
+    }
