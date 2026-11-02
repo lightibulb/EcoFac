@@ -16,13 +16,14 @@ def generate_data(
     days: int = 90,
     buildings: int = 5,
     meters_per_bldg: int = 2,
-    seed: int | None = None,
+    seed: int | None = 42,
     anomaly_prob: float = 0.01,
 ) -> dict[str, Any]:
     """Generate synthetic CSV data and ground truth labels.
 
-    With ``seed=None`` a fresh random seed is chosen; it is always returned in
-    the manifest so any run can be reproduced by passing it back in.
+    The default seed is fixed, so repeated default runs are identical. Pass
+    ``seed=None`` for a fresh random seed. The seed used is always returned in
+    the manifest so any run can be reproduced.
     """
     if seed is None:
         seed = random.SystemRandom().randrange(2**32)
@@ -83,6 +84,8 @@ def generate_data(
     readings.extend(duplicates)
     rng.shuffle(readings)
 
+    exact_injected = [dict(g) for g in ground_truth]
+
     # Filter ground truth to ensure fairness:
     # 1. The spike itself must survive the missing data drop.
     # 2. There must be at least DETECTION_WINDOW earlier readings for this meter in the final CSV.
@@ -130,7 +133,7 @@ def generate_data(
         f"{len(ground_truth)} ground truth anomalies."
     )
 
-    return {
+    manifest = {
         "seed": seed,
         "files": {
             "data": str(path),
@@ -144,4 +147,9 @@ def generate_data(
             "duplicates_injected": len(duplicates),
             "stale_readings": stale_readings_count,
         },
+        "exact_injected_anomalies": exact_injected,
     }
+    sm_path = path.parent / "scenario_manifest.json"
+    with sm_path.open("w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2)
+    return manifest
