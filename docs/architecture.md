@@ -1,19 +1,104 @@
 # Architecture
 
-EcoFac is a monolithic Python application designed for simplicity and auditability.
+EcoFac is a monolithic Python application designed for simplicity, auditability,
+and reproducibility. Every detection result carries its own evidence, and every
+incident is traceable back to the readings that produced it.
 
 ## Data Flow
-1. **Ingestion:** Data is uploaded via CSV. The `pipeline.py` validates headers, normalizes units to kWh, converts timestamps to UTC, and writes to SQLite.
-2. **Quality Assessment:** The `assessment.py` engine checks for missing, stale, duplicate, or invalid data. It outputs boolean flags and an `is_analysis_eligible` status.
-3. **Detection:** The `anomaly.py` engine computes baselines (Rolling, MAD) and flags deviations. It generates an `Anomaly` record.
-4. **Evidence & Incidents:** If an eligible anomaly is found, the `lifecycle.py` manager creates an `Incident` and an `EvidenceRecord` containing the exact mathematical proof. Several detectors flagging the same reading share one incident (one evidence record each). Anomalies whose quality window is ineligible are recorded but never become incidents.
-   `detection/batch.py` screens each meter's series in memory and hands only candidates to the detectors, so imports and the demo loader can analyze everything quickly. It runs automatically after every import.
-5. **Verification:** The `verification.py` engine compares pre/post consumption periods to validate interventions.
+
+Raw CSV
+│
+▼
+ingestion.pipeline.ingest_csv          ← validation, normalization, dedup, gap/order checks
+│
+▼
+energy_readings (is_valid, raw_value) + data_quality_issues
+│
+▼
+quality.assessment.assess_quality       ← completeness, freshness, duplicates, invalid
+│
+▼
+detection.service.analyze_at            ← rolling_baseline + robust_mad, savepoint per detector
+│
+▼
+anomalies (detector_version, detection_parameters, is_data_quality_eligible)
+│
+▼
+incidents.lifecycle.create_incident     ← idempotent per (meter, ts) event
+│
+▼
+evidence_records (reading_ids, detector_config, quality_flags, explanation)
+│
+▼
+audit_events (append-only, trigger-enforced)
+
+```
+
+Anomalies flagged on an ineligible quality window are recorded but never
+escalated to incidents. `analyze_at` wraps each detector in a savepoint so a
+failed incident creation rolls back its anomaly insert, eliminating orphans.
+
+## Modules
+
+| Path | Responsibility |
+|---|---|
+| `src/ecofac/api/routes/` | FastAPI route handlers (thin; delegate to services) |
+| `src/ecofac/api/schemas.py` | Pydantic response models (frozen contracts) |
+| `src/ecofac/api/dependencies.py` | DB connection lifecycle with WAL + first-use init |
+| `src/ecofac/domain/models.py` | Dataclasses for entities |
+| `src/ecofac/ingestion/pipeline.py` | CSV parse → validate → normalize → bulk insert |
+| `src/ecofac/ingestion/entities.py` | Auto-create buildings/meters from CSV headers |
+| `src/ecofac/quality/assessment.py` | Quality report (missing, stale, dup, invalid) |
+| `src/ecofac/detection/anomaly.py` | Detectors: rolling baseline, robust MAD |
+| `src/ecofac/detection/service.py` | Orchestration: detect → gate → incident |
+| `src/ecofac/detection/batch.py` | In-memory screening + bulk run |
+| `src/ecofac/evidence/builder.py` | Deterministic JSON evidence payloads |
+| `src/ecofac/incidents/lifecycle.py` | State machine, audit logging, idempotency |
+| `src/ecofac/persistence/` | Schema, migrations, tx helper, repository |
+| `src/ecofac/constants.py` | Detection thresholds, window sizes, bounds |
+| `src/ecofac/timeutil.py` | UTC parsing/formatting helpers |
+| `simulator/generate.py` | Multi-scenario synthetic data generator |
+| `evaluation/metrics.py` | Precision, recall, F1, PR-AUC, FPR, FNR, delay |
+| `evaluation/verification.py` | Before/after intervention classification |
+| `evaluation/runner.py` | Full end-to-end evaluation |
+| `evaluation/scenario_eval.py` | Per-scenario harness with report output |
+
+## Deployment
+
+The application is a single FastAPI process backed by SQLite. Deployment is
+configured via `render.yaml` and verified in CI:
+
+1. `ruff check` — lint.
+2. `pytest` — unit, integration, API, evaluation, scenario tests. Includes
+   `test_health` (TestClient startup) and `test_dashboard_root` (template
+   rendering), which together prove the app boots.
+3. `python -m evaluation.runner` — full engine runs end-to-end.
+4. `python scripts/generate_openapi.py` — OpenAPI schema generates (proves
+   the FastAPI app builds).
+5. `python scripts/preflight.py` — optional manual check for local
+   verification before a deploy; runs the same assertions plus a fresh
+   file-DB initialization.
+
+Environment variable `ECOFAC_DB_PATH` overrides the SQLite file path (default
+`ecofac_api.db`). On Render's free plan the file is ephemeral; a persistent
+disk requires a paid plan.
+
+## Migrations
+
+`schema.sql` is idempotent (`CREATE TABLE IF NOT EXISTS`) and is applied on
+every first-use connection. For evolving deployments, numbered SQL files in
+`migrations/` describe incremental changes to apply to existing databases.
+Currently:
+
+- `001_initial.sql` — baseline tables and indexes.
+- `002_add_meter_interval.sql` — adds `meters.interval_minutes` (default 60).
 
 ## Technology Stack
+
 - **Language:** Python 3.11+
 - **Web Framework:** FastAPI
 - **Validation:** Pydantic v2
-- **Database:** SQLite (via stdlib `sqlite3`)
+- **Database:** SQLite (stdlib `sqlite3`)
 - **Testing:** pytest
-- **Linting:** Ruff
+- **Linting:** Ruff (with a deliberately permissive ignore list to accommodate
+  domain-specific branching in the pipeline and detector code)
