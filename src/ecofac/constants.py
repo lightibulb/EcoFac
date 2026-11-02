@@ -25,3 +25,7 @@ COMPARABLE_REL_FLOOR = 0.05
 
 # Batch screening margin
 SCREEN_MARGIN = 0.98
+
+# Numerical sanity bound: a single reading above this value (in kWh)
+# is physically impossible; it is stored but marked is_valid=0.
+MAX_VALID_READING_KWH = 1_000_000_000.0
