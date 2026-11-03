@@ -164,3 +164,32 @@ airflow or thermal-efficiency model can override it per call without changing
 this module's interface. This approximation is documented in every
 `CalculationReport.assumptions`, so consumers cannot use the numbers without
 seeing the caveat.
+
+## Configurable Constraint Engine (additive)
+
+`src/ecofac/decision/limits.py` provides a richer, independently testable
+constraint system than the simpler `decision/constraints.py`. Both coexist:
+
+| Module | Used by | Model |
+|---|---|---|
+| `decision/constraints.py` | `decision/engine.py` | Merges physical + reserve checks into a single PASS/FAIL |
+| `decision/limits.py` | standalone (new) | Distinguishes OK, WARNING, RESERVE_VIOLATION, PHYSICAL_VIOLATION |
+
+**Exposed API:**
+
+- `evaluate_load(config: ReserveConfig, observed: float, name: str) -> LimitEvaluation`
+  Evaluates one observed value against any reserve-based limit.
+- `evaluate_all(config: ConstraintConfig, *, observed_electrical, observed_cooling) -> ConstraintSummary`
+  Evaluates all active constraints, identifies the limiting factor,
+  aggregates violations and warnings.
+- `config_snapshot(config) -> dict` and `config_diff(old, new) -> list[str]`
+  Provide snapshot/diff capabilities for configuration change recording.
+
+**Severity levels** (ordered):
+
+    OK < WARNING < RESERVE_VIOLATION < PHYSICAL_VIOLATION
+
+**Extensibility:** any future constraint (temperature, airflow, redundancy,
+power-distribution) subclasses `ReserveConfig` and is evaluated by
+`evaluate_load` with no code changes. The `test_future_constraint_subclass`
+test locks this contract.
