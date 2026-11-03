@@ -58,6 +58,7 @@ class UncertaintyReport(pydantic.BaseModel):
     model_uncertainty_level: ModelUncertaintyLevel
     rationale: list[str]
     tolerance_used: list[str]
+    quality_flags: list[str] = pydantic.Field(default_factory=list)
 
 
 # Documented model limitations, referenced by every decision.
@@ -155,4 +156,5 @@ def assess_uncertainty(
         model_uncertainty_level=model_level,
         rationale=[*data_rationale, *model_rationale],
         tolerance_used=[m.name for m in measurements if m.band() is not None],
+        quality_flags=list(quality_flags),
     )

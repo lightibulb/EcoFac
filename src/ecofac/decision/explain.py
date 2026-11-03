@@ -63,6 +63,16 @@ def _review_hints(
                 "Resolve quality flags for: "
                 + ", ".join(uncertainty.low_quality_measurements)
             )
+        if not hints and uncertainty.quality_flags:
+            hints.append(
+                "Resolve data-quality flags: "
+                + ", ".join(uncertainty.quality_flags)
+            )
+        if not hints:
+            hints.append(
+                "Resolve data-quality issues before this decision "
+                "can be approved."
+            )
     elif precedence == "near_threshold":
         hints.append(
             "Free capacity headroom by reducing load, or supply measured "

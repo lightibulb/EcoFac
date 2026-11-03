@@ -1,201 +1,126 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
 cd "$(dirname "$0")"
 
-# -----------------------------------------------------------------------------
-# Fix 1 + 2: PERF401 in explain.py (two for-append blocks -> list.extend)
-# -----------------------------------------------------------------------------
-echo "==> Patching explain.py (PERF401 x2)..."
-python3 << 'PYEOF'
-import pathlib
-
-p = pathlib.Path("src/ecofac/decision/explain.py")
-text = p.read_text()
-
-old1 = '''    for s in sensitivity:
-        if s.could_change_verdict:
-            hints.append(
-                f"Measurement '{s.measurement_name}' tolerance could flip the "
-                f"verdict: {s.reason}"
-            )
-    return hints
-'''
-new1 = '''    hints.extend(
-        f"Measurement '{s.measurement_name}' tolerance could flip the "
-        f"verdict: {s.reason}"
-        for s in sensitivity
-        if s.could_change_verdict
-    )
-    return hints
-'''
-assert old1 in text, "explain.py: block 1 not found"
-text = text.replace(old1, new1, 1)
-
-old2 = '''    for s in sensitivity:
-        if s.could_change_verdict:
-            uncertainty_notes.append(
-                f"sensitivity: {s.measurement_name} tolerance could flip verdict"
-            )
-'''
-new2 = '''    uncertainty_notes.extend(
-        f"sensitivity: {s.measurement_name} tolerance could flip verdict"
-        for s in sensitivity
-        if s.could_change_verdict
-    )
-'''
-assert old2 in text, "explain.py: block 2 not found"
-text = text.replace(old2, new2, 1)
-
-p.write_text(text)
-print("  explain.py patched")
-PYEOF
-
-# -----------------------------------------------------------------------------
-# Fix 3: FBT001 in uncertainty.py (make quality_stale keyword-only + update call)
-# -----------------------------------------------------------------------------
-echo "==> Patching uncertainty.py (FBT001)..."
+# ---------------------------------------------------------------------------
+# Fix 1: uncertainty.py — add quality_flags field + populate in assess_uncertainty
+# ---------------------------------------------------------------------------
+echo "==> Patching uncertainty.py..."
 python3 << 'PYEOF'
 import pathlib
 
 p = pathlib.Path("src/ecofac/decision/uncertainty.py")
 text = p.read_text()
 
-old_sig = '''def _assess_data_quality(
-    measurements: list[RichMeasurement],
-    quality_flags: list[str],
-    quality_stale: bool,
-) -> tuple[DataQualityLevel, list[str]]:
+old_fields = '''    rationale: list[str]
+    tolerance_used: list[str]
 '''
-new_sig = '''def _assess_data_quality(
-    measurements: list[RichMeasurement],
-    quality_flags: list[str],
-    *,
-    quality_stale: bool,
-) -> tuple[DataQualityLevel, list[str]]:
+new_fields = '''    rationale: list[str]
+    tolerance_used: list[str]
+    quality_flags: list[str] = pydantic.Field(default_factory=list)
 '''
-assert old_sig in text, "uncertainty.py: signature not found"
-text = text.replace(old_sig, new_sig, 1)
+assert old_fields in text, "uncertainty.py: UncertaintyReport fields block not found"
+text = text.replace(old_fields, new_fields, 1)
 
-old_call = '''    data_level, data_rationale = _assess_data_quality(
-        measurements, quality_flags, quality_stale
+old_ret = '''        rationale=[*data_rationale, *model_rationale],
+        tolerance_used=[m.name for m in measurements if m.band() is not None],
     )
 '''
-new_call = '''    data_level, data_rationale = _assess_data_quality(
-        measurements, quality_flags, quality_stale=quality_stale
+new_ret = '''        rationale=[*data_rationale, *model_rationale],
+        tolerance_used=[m.name for m in measurements if m.band() is not None],
+        quality_flags=list(quality_flags),
     )
 '''
-assert old_call in text, "uncertainty.py: call site not found"
-text = text.replace(old_call, new_call, 1)
+assert old_ret in text, "uncertainty.py: assess_uncertainty return block not found"
+text = text.replace(old_ret, new_ret, 1)
 
 p.write_text(text)
 print("  uncertainty.py patched")
 PYEOF
 
-# -----------------------------------------------------------------------------
-# Fix 4: FBT001 in transparent.py (make changed keyword-only + update 2 callers)
-# -----------------------------------------------------------------------------
-echo "==> Patching transparent.py (FBT001)..."
+# ---------------------------------------------------------------------------
+# Fix 2: explain.py — guarantee at least one hint for data_quality_ineligible
+# ---------------------------------------------------------------------------
+echo "==> Patching explain.py..."
 python3 << 'PYEOF'
 import pathlib
 
-p = pathlib.Path("src/ecofac/decision/transparent.py")
+p = pathlib.Path("src/ecofac/decision/explain.py")
 text = p.read_text()
 
-old_sig = '''def _sensitivity_reason(
-    name: str,
-    low: float,
-    high: float,
-    status_low: str,
-    status_high: str,
-    baseline_status: str,
-    changed: bool,
-) -> str:
+old_block = '''    if precedence == "data_quality_ineligible":
+        if uncertainty.missing_measurements:
+            hints.append(
+                "Provide values for: "
+                + ", ".join(uncertainty.missing_measurements)
+            )
+        if uncertainty.stale_measurements:
+            hints.append(
+                "Provide fresh readings for: "
+                + ", ".join(uncertainty.stale_measurements)
+            )
+        if uncertainty.low_quality_measurements:
+            hints.append(
+                "Resolve quality flags for: "
+                + ", ".join(uncertainty.low_quality_measurements)
+            )
+    elif precedence == "near_threshold":
 '''
-new_sig = '''def _sensitivity_reason(
-    name: str,
-    low: float,
-    high: float,
-    status_low: str,
-    status_high: str,
-    baseline_status: str,
-    *,
-    changed: bool,
-) -> str:
+new_block = '''    if precedence == "data_quality_ineligible":
+        if uncertainty.missing_measurements:
+            hints.append(
+                "Provide values for: "
+                + ", ".join(uncertainty.missing_measurements)
+            )
+        if uncertainty.stale_measurements:
+            hints.append(
+                "Provide fresh readings for: "
+                + ", ".join(uncertainty.stale_measurements)
+            )
+        if uncertainty.low_quality_measurements:
+            hints.append(
+                "Resolve quality flags for: "
+                + ", ".join(uncertainty.low_quality_measurements)
+            )
+        if not hints and uncertainty.quality_flags:
+            hints.append(
+                "Resolve data-quality flags: "
+                + ", ".join(uncertainty.quality_flags)
+            )
+        if not hints:
+            hints.append(
+                "Resolve data-quality issues before this decision "
+                "can be approved."
+            )
+    elif precedence == "near_threshold":
 '''
-assert old_sig in text, "transparent.py: signature not found"
-text = text.replace(old_sig, new_sig, 1)
-
-old_call_it = '''                reason=_sensitivity_reason(
-                    it_load.name,
-                    low,
-                    high,
-                    status_low,
-                    status_high,
-                    baseline_status,
-                    changed,
-                ),
-'''
-new_call_it = '''                reason=_sensitivity_reason(
-                    it_load.name,
-                    low,
-                    high,
-                    status_low,
-                    status_high,
-                    baseline_status,
-                    changed=changed,
-                ),
-'''
-assert old_call_it in text, "transparent.py: it_load caller not found"
-text = text.replace(old_call_it, new_call_it, 1)
-
-old_call_cool = '''                reason=_sensitivity_reason(
-                    cooling_load.name,
-                    low,
-                    high,
-                    status_low,
-                    status_high,
-                    baseline_status,
-                    changed,
-                ),
-'''
-new_call_cool = '''                reason=_sensitivity_reason(
-                    cooling_load.name,
-                    low,
-                    high,
-                    status_low,
-                    status_high,
-                    baseline_status,
-                    changed=changed,
-                ),
-'''
-assert old_call_cool in text, "transparent.py: cooling_load caller not found"
-text = text.replace(old_call_cool, new_call_cool, 1)
+assert old_block in text, "explain.py: _review_hints data_quality block not found"
+text = text.replace(old_block, new_block, 1)
 
 p.write_text(text)
-print("  transparent.py patched")
+print("  explain.py patched")
 PYEOF
 
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Verify
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 echo ""
-echo "==> Repo-wide ruff..."
+echo "==> Ruff..."
 ruff check src tests simulator evaluation scripts
 
 echo ""
-echo "==> New-module targeted tests..."
-pytest tests/unit/test_measurements.py \
-       tests/unit/test_uncertainty.py \
-       tests/unit/test_decision_evidence_bundle.py \
-       tests/unit/test_transparent_decision.py \
-       tests/integration/test_transparent_decision_flow.py -v
+echo "==> Targeted regression (the failing test + its neighbors)..."
+python -m pytest \
+  tests/unit/test_transparent_decision.py \
+  tests/unit/test_uncertainty.py \
+  tests/unit/test_decision_evidence_bundle.py \
+  tests/integration/test_transparent_decision_flow.py -v
 
 echo ""
-echo "==> Full suite (regression guard)..."
-pytest tests/ -v
+echo "==> Full suite (same command your CI runs)..."
+python -m pytest tests/ -v
 
 echo ""
 echo "=================================================="
-echo "  Transparent Decision System — fully green."
+echo "  All green. CI should now pass."
 echo "=================================================="
