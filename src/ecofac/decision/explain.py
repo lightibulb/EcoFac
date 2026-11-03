@@ -65,12 +65,12 @@ def _review_hints(
             )
         if not hints and uncertainty.quality_flags:
             hints.append(
-                "Resolve data-quality flags: "
+                "Resolve quality flags: "
                 + ", ".join(uncertainty.quality_flags)
             )
         if not hints:
             hints.append(
-                "Resolve data-quality issues before this decision "
+                "Resolve quality issues before this decision "
                 "can be approved."
             )
     elif precedence == "near_threshold":
