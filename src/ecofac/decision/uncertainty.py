@@ -118,9 +118,18 @@ def _assess_model_uncertainty(
     else:
         rationale.append("no measurement tolerances provided")
 
+    # Measurement provenance is not the same thing as measurement accuracy.
+    # A MEASURED value without a tolerance is not evidence of low uncertainty.
+    if not has_any_tolerance:
+        rationale.append(
+            "measurement uncertainty is UNKNOWN because no tolerance metadata "
+            "was supplied"
+        )
+        return ModelUncertaintyLevel.UNKNOWN, rationale
+
     if estimated_count == 0 and unknown_count == 0:
-        return ModelUncertaintyLevel.LOW, rationale
-    if estimated_count <= measured_count and has_any_tolerance:
+        return ModelUncertaintyLevel.MODERATE, rationale
+    if estimated_count <= measured_count:
         return ModelUncertaintyLevel.MODERATE, rationale
     return ModelUncertaintyLevel.HIGH, rationale
 

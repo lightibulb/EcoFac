@@ -12,6 +12,7 @@ Missing measurements do not crash the call: they force ``quality_eligible``
 to False and are listed in the uncertainty report, producing a REVIEW.
 """
 
+import math
 from typing import Any
 
 import pydantic
@@ -170,9 +171,9 @@ def _compute_sensitivity(
         def _status_it(measured_value: float) -> str:
             delta = measured_value - current_it
             ctx = build_context(
-                predicted_electrical=max(0.0, predicted_it + delta),
+                predicted_electrical=predicted_it + delta,
                 predicted_cooling=predicted_cooling,
-                current_electrical=max(0.0, measured_value),
+                current_electrical=measured_value,
                 current_cooling=current_cooling,
             )
             return evaluate_decision(ctx).status.value
@@ -209,9 +210,9 @@ def _compute_sensitivity(
             delta = measured_value - current_cooling
             ctx = build_context(
                 predicted_electrical=predicted_it,
-                predicted_cooling=max(0.0, predicted_cooling + delta),
+                predicted_cooling=predicted_cooling + delta,
                 current_electrical=current_it,
-                current_cooling=max(0.0, measured_value),
+                current_cooling=measured_value,
             )
             return evaluate_decision(ctx).status.value
 
@@ -255,6 +256,36 @@ def decide_transparently(
     predicted_it = current_it + effective_it_delta
     predicted_cooling = current_cooling + effective_cooling_delta
 
+    # Reject invalid physical states. Never turn a negative prediction into
+    # zero: doing so could hide an impossible proposal and create a false pass.
+    numeric_values = (
+        current_it,
+        current_cooling,
+        effective_it_delta,
+        effective_cooling_delta,
+        predicted_it,
+        predicted_cooling,
+    )
+    if not all(math.isfinite(value) for value in numeric_values):
+        raise ValueError("Decision loads and proposed changes must be finite numbers.")
+
+    if current_it < 0 or current_cooling < 0:
+        raise ValueError("Current operational loads cannot be negative.")
+
+    if predicted_it < 0:
+        msg = (
+            "Proposed change would drive IT load below zero "
+            f"({predicted_it} kW)."
+        )
+        raise ValueError(msg)
+
+    if predicted_cooling < 0:
+        msg = (
+            "Proposed change would drive cooling load below zero "
+            f"({predicted_cooling} kW)."
+        )
+        raise ValueError(msg)
+
     effective_quality_flags = list(request.quality_flags)
     if not it_present:
         effective_quality_flags.append("missing_it_load")
@@ -284,10 +315,10 @@ def decide_transparently(
         return DecisionContext(
             config=request.config,
             config_version=request.config_version,
-            current_electrical_kw=max(0.0, current_electrical),
-            current_cooling_kw=max(0.0, current_cooling),
-            predicted_electrical_kw=max(0.0, predicted_electrical),
-            predicted_cooling_kw=max(0.0, predicted_cooling),
+            current_electrical_kw=current_electrical,
+            current_cooling_kw=current_cooling,
+            predicted_electrical_kw=predicted_electrical,
+            predicted_cooling_kw=predicted_cooling,
             quality_eligible=effective_quality_eligible,
             quality_stale=request.quality_stale,
             quality_flags=effective_quality_flags,

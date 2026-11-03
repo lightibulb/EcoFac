@@ -1,0 +1,149 @@
+diff --git a/src/ecofac/decision/measurements.py b/src/ecofac/decision/measurements.py
+index 757f1145cf551d855300074c5d4dee65d1f36bb7..0000000000000000000000000000000000000000 100644
+--- a/src/ecofac/decision/measurements.py
++++ b/src/ecofac/decision/measurements.py
+@@ -30,8 +30,8 @@ class UncertaintyMetadata(pydantic.BaseModel):
+ 
+     model_config = pydantic.ConfigDict(frozen=True)
+ 
+-    absolute_tolerance: float | None = pydantic.Field(default=None, ge=0.0)
+-    relative_tolerance: float | None = pydantic.Field(default=None, ge=0.0, lt=1.0)
++    absolute_tolerance: float | None = pydantic.Field(default=None, ge=0.0, allow_inf_nan=False)
++    relative_tolerance: float | None = pydantic.Field(default=None, ge=0.0, lt=1.0, allow_inf_nan=False)
+     notes: str | None = None
+ 
+     def tolerance_band(self, value: float) -> tuple[float, float] | None:
+@@ -57,6 +57,6 @@ class RichMeasurement(pydantic.BaseModel):
+ 
+     name: str
+-    value: float | None
++    value: float | None = pydantic.Field(allow_inf_nan=False)
+     unit: str
+     source: MeasurementSource
+     uncertainty: UncertaintyMetadata | None = None
+diff --git a/src/ecofac/decision/limits.py b/src/ecofac/decision/limits.py
+index 78cf8c1fada6ee28b5a887db739c8a056afcbe81..0000000000000000000000000000000000000000 100644
+--- a/src/ecofac/decision/limits.py
++++ b/src/ecofac/decision/limits.py
+@@ -67,7 +67,7 @@ class ReserveConfig(pydantic.BaseModel):
+ 
+     model_config = pydantic.ConfigDict(frozen=True)
+ 
+-    capacity: float = pydantic.Field(gt=0)
+-    reserve_pct: float = pydantic.Field(ge=0.0, lt=1.0)
+-    warning_threshold_pct: float = pydantic.Field(ge=0.0, lt=1.0, default=0.10)
+-    min_headroom: float = pydantic.Field(ge=0.0, default=0.0)
++    capacity: float = pydantic.Field(gt=0, allow_inf_nan=False)
++    reserve_pct: float = pydantic.Field(ge=0.0, lt=1.0, allow_inf_nan=False)
++    warning_threshold_pct: float = pydantic.Field(ge=0.0, lt=1.0, default=0.10, allow_inf_nan=False)
++    min_headroom: float = pydantic.Field(ge=0.0, default=0.0, allow_inf_nan=False)
+diff --git a/src/ecofac/decision/transparent.py b/src/ecofac/decision/transparent.py
+index 160d99227970a460c143e02160070acabb26c0fe..0000000000000000000000000000000000000000 100644
+--- a/src/ecofac/decision/transparent.py
++++ b/src/ecofac/decision/transparent.py
+@@ -31,9 +31,9 @@ class TransparentDecisionRequest(pydantic.BaseModel):
+     config: ConstraintConfig
+     config_version: str
+     it_load: RichMeasurement
+     cooling_load: RichMeasurement
+-    proposed_it_delta: float = 0.0
+-    proposed_cooling_delta: float = 0.0
++    proposed_it_delta: float = pydantic.Field(default=0.0, allow_inf_nan=False)
++    proposed_cooling_delta: float = pydantic.Field(default=0.0, allow_inf_nan=False)
+     quality_eligible: bool
+     quality_stale: bool = False
+     quality_flags: list[str] = pydantic.Field(default_factory=list)
+@@ -174,5 +174,15 @@ def decide_transparently(
+     if not cooling_present:
+         effective_quality_flags.append("missing_cooling_load")
++
++    # A proposal that drives either projected load below zero is physically
++    # invalid. Do not let the later defensive clamp turn it into an apparent
++    # zero-load, eligible scenario.
++    invalid_projection = predicted_it < 0 or predicted_cooling < 0
++    if predicted_it < 0:
++        effective_quality_flags.append("negative_projected_it_load")
++    if predicted_cooling < 0:
++        effective_quality_flags.append("negative_projected_cooling_load")
++
+     effective_quality_eligible = (
+-        request.quality_eligible and it_present and cooling_present
++        request.quality_eligible and it_present and cooling_present and not invalid_projection
+     )
+diff --git a/tests/test_part13_decision_hardening.py b/tests/test_part13_decision_hardening.py
+new file mode 100644
+index 0000000000000000000000000000000000000000..0000000000000000000000000000000000000000
+--- /dev/null
++++ b/tests/test_part13_decision_hardening.py
+@@ -0,0 +1,71 @@
++"""Regression tests for Part 1.3 decision-engine input hardening."""
++
++import pytest
++from pydantic import ValidationError
++
++from ecofac.decision.limits import ConstraintConfig, CoolingLimits, ElectricalLimits
++from ecofac.decision.measurements import MeasurementSource, RichMeasurement
++from ecofac.decision.transparent import (
++    TransparentDecisionRequest,
++    decide_transparently,
++)
++
++
++def _measurement(name: str, value: float) -> RichMeasurement:
++    return RichMeasurement(
++        name=name,
++        value=value,
++        unit="kW",
++        source=MeasurementSource.MEASURED,
++    )
++
++
++def _request(*, it_delta: float = 0.0, cooling_delta: float = 0.0):
++    return TransparentDecisionRequest(
++        config=ConstraintConfig(
++            electrical=ElectricalLimits(capacity=100, reserve_pct=0.10),
++            cooling=CoolingLimits(capacity=100, reserve_pct=0.10),
++        ),
++        config_version="test-v1",
++        it_load=_measurement("it_load", 20),
++        cooling_load=_measurement("cooling_load", 20),
++        proposed_it_delta=it_delta,
++        proposed_cooling_delta=cooling_delta,
++        quality_eligible=True,
++    )
++
++
++@pytest.mark.parametrize(
++    ("it_delta", "cooling_delta", "expected_flag"),
++    [
++        (-21.0, 0.0, "negative_projected_it_load"),
++        (0.0, -21.0, "negative_projected_cooling_load"),
++    ],
++)
++def test_negative_projected_load_forces_review(
++    it_delta: float,
++    cooling_delta: float,
++    expected_flag: str,
++) -> None:
++    result = decide_transparently(
++        _request(it_delta=it_delta, cooling_delta=cooling_delta)
++    )
++    assert result.status == "REVIEW"
++    assert any(expected_flag in item for item in result.state_machine_decision.unresolved_conditions)
++
++
++def test_nan_measurement_is_rejected() -> None:
++    with pytest.raises(ValidationError):
++        _measurement("it_load", float("nan"))
++
++
++@pytest.mark.parametrize("bad_value", [float("nan"), float("inf"), float("-inf")])
++def test_non_finite_proposed_delta_is_rejected(bad_value: float) -> None:
++    with pytest.raises(ValidationError):
++        _request(it_delta=bad_value)
++
++
++@pytest.mark.parametrize("bad_capacity", [float("nan"), float("inf")])
++def test_non_finite_capacity_is_rejected(bad_capacity: float) -> None:
++    with pytest.raises(ValidationError):
++        ElectricalLimits(capacity=bad_capacity, reserve_pct=0.10)

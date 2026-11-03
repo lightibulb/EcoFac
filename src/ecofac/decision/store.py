@@ -221,37 +221,58 @@ def verify_decision(
 def walk_supersession_chain(
     conn: sqlite3.Connection, decision_id: str
 ) -> list[sqlite3.Row]:
-    """Return every decision in the supersession chain containing ``decision_id``."""
-    root_row = conn.execute(
+    """Return the complete branching supersession history containing an ID.
+
+    The result starts at the root ancestor and includes every descendant,
+    rather than silently following only the first child.
+    """
+    exists = conn.execute(
         "SELECT 1 FROM decisions WHERE id = ?", (decision_id,)
     ).fetchone()
-    if root_row is None:
+    if exists is None:
         return []
+
+    # Find the root ancestor.
     root = decision_id
-    visited = {decision_id}
+    visited_ancestors = {root}
     while True:
         row = conn.execute(
             "SELECT supersedes FROM decisions WHERE id = ?", (root,)
         ).fetchone()
         if row is None or not row["supersedes"]:
             break
-        root = row["supersedes"]
-        if root in visited:
+        parent = row["supersedes"]
+        if parent in visited_ancestors:
             break
-        visited.add(root)
-    chain: list[sqlite3.Row] = []
-    current: str | None = root
-    while current is not None:
-        row = conn.execute(
-            "SELECT * FROM decisions WHERE id = ?", (current,)
-        ).fetchone()
-        if row is None:
-            break
-        chain.append(row)
-        nxt = conn.execute(
+        visited_ancestors.add(parent)
+        root = parent
+
+    # Walk all branches deterministically.
+    ordered_ids: list[str] = []
+    pending = [root]
+    visited: set[str] = set()
+
+    while pending:
+        current = pending.pop(0)
+        if current in visited:
+            continue
+        visited.add(current)
+        ordered_ids.append(current)
+
+        children = conn.execute(
             "SELECT id FROM decisions WHERE supersedes = ? "
-            "ORDER BY created_at, id LIMIT 1",
+            "ORDER BY created_at, id",
             (current,),
-        ).fetchone()
-        current = nxt["id"] if nxt else None
-    return chain
+        ).fetchall()
+        pending.extend(row["id"] for row in children)
+
+    if decision_id not in visited:
+        return []
+
+    placeholders = ",".join("?" for _ in ordered_ids)
+    rows = conn.execute(
+        f"SELECT * FROM decisions WHERE id IN ({placeholders}) "
+        "ORDER BY created_at, id",
+        ordered_ids,
+    ).fetchall()
+    return list(rows)
