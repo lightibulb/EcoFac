@@ -29,11 +29,13 @@
 * { box-sizing:border-box; margin:0; }
 html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
 body { background:var(--paper); color:var(--ink); font:400 1rem/1.5 var(--sans); min-height:100vh; }
-h1,h2,h3 { font-family:var(--serif); font-weight:600; letter-spacing:-.01em; }
-button,input,select { font:inherit; color:inherit; }
+h1,h2,h3,h4 { font-family:var(--serif); font-weight:600; letter-spacing:-.01em; }
+button,input,select,summary { font:inherit; color:inherit; }
 :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 code { font-family:var(--mono); font-size:.85em; }
 .wrap { max-width:1240px; margin:0 auto; padding:clamp(1rem,4vw,2.5rem); }
+.muted { color:var(--muted); }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
 
 .topnav { display:flex; gap:.25rem; margin-bottom:1.25rem; padding-bottom:.75rem; border-bottom:1px solid var(--line); flex-wrap:wrap; }
 .topnav a { color:var(--muted); text-decoration:none; font-weight:500; padding:.4rem .85rem; border-radius:6px; transition:background .2s, color .2s; }
@@ -60,14 +62,13 @@ code { font-family:var(--mono); font-size:.85em; }
 .num.review { color:var(--warn); }
 .lbl { color:var(--muted); font-size:.85rem; }
 
-.latest { display:grid; grid-template-columns:auto 1fr auto; gap:1rem; align-items:center; padding:1rem; border:1px solid var(--line); border-radius:10px; margin-bottom:1rem; }
+.latest { display:grid; grid-template-columns:auto 1fr auto; gap:1rem; align-items:center; padding:1rem; border:1px solid var(--line); border-radius:10px; margin-bottom:1rem; cursor:pointer; transition:background .15s, border-color .15s; }
+.latest:hover { background:color-mix(in oklab, var(--accent) 6%, transparent); border-color:color-mix(in oklab, var(--accent) 30%, var(--line)); }
 .latest-id { font-family:var(--mono); font-size:.8rem; color:var(--muted); }
-.latest-status { justify-self:end; }
 
 .recent { list-style:none; padding:0; display:grid; gap:.4rem; }
 .recent li { display:grid; grid-template-columns:auto auto 1fr auto; gap:.75rem; align-items:center; padding:.55rem .75rem; border:1px solid var(--line); border-radius:8px; font-size:.9rem; cursor:pointer; transition:background .15s, border-color .15s; }
 .recent li:hover { background:color-mix(in oklab, var(--accent) 6%, transparent); border-color:color-mix(in oklab, var(--accent) 30%, var(--line)); }
-.recent li:focus-visible { outline-offset:0; }
 
 .pill { display:inline-flex; align-items:center; padding:.15rem .65rem; border-radius:99px; font-size:.78rem; font-weight:600; letter-spacing:.02em; }
 .pill.ok { background:var(--ok-soft); color:var(--ok); }
@@ -88,10 +89,9 @@ select { background:var(--surface); border:1px solid var(--line); border-radius:
 .btn[aria-busy="true"]::after { content:""; width:.85rem; height:.85rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
 
 .history { list-style:none; padding:0; display:grid; gap:.4rem; }
-.history li { display:grid; grid-template-columns:auto 1fr auto auto auto; gap:.75rem; align-items:center; padding:.65rem .85rem; border:1px solid var(--line); border-radius:8px; cursor:pointer; transition:background .15s, border-color .15s, transform .15s; }
+.history li { display:grid; grid-template-columns:auto 1fr auto auto auto; gap:.75rem; align-items:center; padding:.65rem .85rem; border:1px solid var(--line); border-radius:8px; cursor:pointer; transition:background .15s, border-color .15s; }
 .history li:hover { background:color-mix(in oklab, var(--accent) 6%, transparent); border-color:color-mix(in oklab, var(--accent) 30%, var(--line)); }
 .history li.selected { border-color:var(--accent); background:color-mix(in oklab, var(--accent) 10%, transparent); }
-.history li:focus-visible { outline-offset:0; }
 .history .hid { font-family:var(--mono); font-size:.8rem; color:var(--muted); }
 .history .when { color:var(--muted); font-size:.85rem; white-space:nowrap; }
 .history .cv { font-family:var(--mono); font-size:.78rem; color:var(--muted); }
@@ -99,17 +99,34 @@ select { background:var(--surface); border:1px solid var(--line); border-radius:
 .pager { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:1rem; font-size:.9rem; color:var(--muted); }
 .pager .btns { display:flex; gap:.4rem; }
 
-.engine-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; margin-bottom:1rem; }
+/* ---- inspector ---- */
+.inspector-head { display:flex; flex-wrap:wrap; justify-content:space-between; gap:.75rem; align-items:flex-start; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--line); }
+.inspector-head h2 { font-size:1.25rem; }
+.inspector-meta { display:flex; flex-wrap:wrap; gap:.35rem 1rem; color:var(--muted); font-size:.85rem; margin-top:.35rem; }
+.inspector-meta code { background:color-mix(in oklab, var(--muted) 12%, transparent); padding:.1rem .4rem; border-radius:4px; }
+
+.inspector-summary { padding:.9rem 1rem; background:color-mix(in oklab, var(--accent) 6%, transparent); border-left:3px solid var(--accent); border-radius:0 8px 8px 0; margin-bottom:1rem; }
+.inspector-summary strong { display:block; margin-bottom:.4rem; font-weight:600; }
+
+details.inspector-section { border:1px solid var(--line); border-radius:10px; margin:.65rem 0; background:var(--surface); }
+details.inspector-section > summary { padding:.7rem 1rem; cursor:pointer; font-weight:600; list-style:none; display:flex; align-items:center; justify-content:space-between; user-select:none; }
+details.inspector-section > summary::-webkit-details-marker { display: none; }
+details.inspector-section > summary::after { content:"▾"; color:var(--muted); transition:transform .2s; font-size:.85rem; }
+details.inspector-section[open] > summary::after { transform:rotate(180deg); }
+details.inspector-section > .body { padding:0 1rem 1rem; }
+details.inspector-section > summary > .summary-tag { font-weight:400; font-size:.8rem; color:var(--muted); font-family:var(--sans); margin-left:.5rem; }
+
+.eng-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; margin-bottom:1rem; }
 .eng-card { padding:.85rem 1rem; border:1px solid var(--line); border-radius:10px; background:color-mix(in oklab, var(--surface) 60%, transparent); }
 .eng-card .k { color:var(--muted); font-size:.8rem; margin-bottom:.35rem; }
 .eng-card .v { font:600 1.4rem/1.2 var(--serif); font-variant-numeric:tabular-nums; }
 .eng-card .v.unavail { color:var(--muted); font-family:var(--sans); font-size:1rem; font-weight:400; }
 .eng-card .unit { font-family:var(--sans); font-size:.8rem; color:var(--muted); font-weight:400; margin-left:.15rem; }
 
-.split { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+.split { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin:.75rem 0; }
 .split .col { padding:.85rem 1rem; border:1px solid var(--line); border-radius:10px; }
 .split .col h4 { font-family:var(--sans); font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.5rem; font-weight:600; }
-.split .row { display:flex; justify-content:space-between; padding:.25rem 0; font-size:.9rem; }
+.split .row { display:flex; justify-content:space-between; padding:.25rem 0; font-size:.9rem; gap:1rem; }
 .split .row .val { font-variant-numeric:tabular-nums; }
 
 .bar { position:relative; height:8px; background:color-mix(in oklab, var(--line) 55%, transparent); border-radius:4px; overflow:hidden; margin-top:.35rem; }
@@ -117,25 +134,43 @@ select { background:var(--surface); border:1px solid var(--line); border-radius:
 .bar.warn > i { background:var(--warn); }
 .bar.alert > i { background:var(--alert); }
 
-.explanation-summary { font-size:1rem; margin-bottom:.75rem; padding:.85rem 1rem; background:color-mix(in oklab, var(--accent) 6%, transparent); border-left:3px solid var(--accent); border-radius:0 8px 8px 0; }
-.reason-list { display:grid; gap:.35rem; margin-top:.35rem; }
-.reason-list li { padding:.5rem .75rem; border:1px solid var(--line); border-radius:6px; font-size:.875rem; background:var(--surface); }
-.reason-list.pass li { border-color:color-mix(in oklab, var(--ok) 35%, var(--line)); }
-.reason-list.warn-list li { border-color:color-mix(in oklab, var(--warn) 35%, var(--line)); }
-.reason-list.fail li { border-color:color-mix(in oklab, var(--alert) 35%, var(--line)); }
+.kv { display:grid; grid-template-columns:auto 1fr; gap:.35rem 1rem; font-size:.9rem; align-items:baseline; }
+.kv dt { color:var(--muted); white-space:nowrap; }
+.kv dd { font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+.kv .kv-sub { color:var(--muted); font-size:.85rem; }
 
-.kv { display:grid; grid-template-columns:auto 1fr; gap:.35rem 1rem; font-size:.9rem; }
-.kv dt { color:var(--muted); }
-.kv dd { font-variant-numeric:tabular-nums; }
+.constraint-card { border:1px solid var(--line); border-radius:10px; padding:.85rem 1rem; margin:.5rem 0; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.constraint-card .head { display:flex; justify-content:space-between; align-items:center; gap:.5rem; margin-bottom:.5rem; }
+.constraint-card .head .name { font-family:var(--mono); font-size:.9rem; font-weight:600; }
+.constraint-card .reason { color:var(--muted); font-size:.85rem; margin-top:.5rem; padding-top:.5rem; border-top:1px dashed var(--line); }
+.constraint-card .is-limiting { display:inline-block; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; padding:.1rem .5rem; border-radius:99px; background:var(--warn-soft); color:var(--warn); margin-left:.5rem; }
+
+.input-card { border:1px solid var(--line); border-radius:10px; padding:.75rem 1rem; margin:.5rem 0; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.input-card .input-name { font-family:var(--mono); font-size:.9rem; font-weight:600; margin-bottom:.5rem; }
+.input-card .source-tag { display:inline-block; font-size:.7rem; padding:.1rem .5rem; border-radius:99px; background:var(--accent-soft); color:var(--accent); font-family:var(--mono); margin-left:.5rem; font-weight:600; }
+.input-card .source-tag.measured { background:var(--ok-soft); color:var(--ok); }
+.input-card .source-tag.assumed, .input-card .source-tag.estimated { background:var(--warn-soft); color:var(--warn); }
+
+.fp-line { display:flex; justify-content:space-between; align-items:baseline; gap:.5rem; font-size:.85rem; padding:.3rem 0; border-bottom:1px dashed var(--line); }
+.fp-line:last-child { border-bottom:0; }
+.fp-line code { font-size:.8rem; overflow-wrap:anywhere; word-break:break-all; }
 
 .tags { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.35rem; }
 .tag { font-size:.78rem; padding:.15rem .6rem; border-radius:99px; background:color-mix(in oklab, var(--muted) 12%, transparent); color:var(--muted); font-family:var(--mono); }
+.tag.warn { background:var(--warn-soft); color:var(--warn); }
+.tag.alert { background:var(--alert-soft); color:var(--alert); }
+
+.reason-list { display:grid; gap:.35rem; margin:.5rem 0; padding:0; list-style:none; }
+.reason-list li { padding:.5rem .75rem; border:1px solid var(--line); border-radius:6px; font-size:.875rem; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.reason-list.pass li { border-color:color-mix(in oklab, var(--ok) 35%, var(--line)); }
+.reason-list.warn-list li { border-color:color-mix(in oklab, var(--warn) 35%, var(--line)); }
+.reason-list.fail li { border-color:color-mix(in oklab, var(--alert) 35%, var(--line)); }
 
 .verify-result { padding:.75rem 1rem; border-radius:8px; margin-top:.75rem; font-size:.9rem; }
 .verify-result.ok { background:var(--ok-soft); color:var(--ok); }
 .verify-result.bad { background:var(--alert-soft); color:var(--alert); }
 
-.msg { font-size:.9rem; padding:.75rem 1rem; border-radius:8px; margin:.75rem 0; }
+.msg { font-size:.9rem; padding:.75rem 1rem; border-radius:8px; margin:.5rem 0; }
 .msg.bad { background:var(--alert-soft); color:var(--alert); }
 .msg.empty { background:color-mix(in oklab, var(--muted) 10%, transparent); color:var(--muted); }
 
@@ -149,11 +184,10 @@ select { background:var(--surface); border:1px solid var(--line); border-radius:
   .stat:nth-child(3) { border-left:0; }
   .stat:nth-child(n+3) { border-top:1px solid var(--line); }
   .split { grid-template-columns:1fr; }
-  .history li { grid-template-columns:auto 1fr auto; grid-template-areas:"pill id when" "cv cv cv"; }
-  .history li .hid { grid-area:id; }
-  .history li .when { grid-area:when; }
-  .history li .cv { grid-area:cv; }
+  .history li { grid-template-columns:auto 1fr auto; }
   .latest { grid-template-columns:1fr; }
+  .kv { grid-template-columns:1fr; gap:.1rem; }
+  .kv dt { font-size:.8rem; }
 }
 @media (prefers-reduced-motion:reduce) {
   *,*::before,*::after { animation-duration:.01ms !important; transition:none !important; }
@@ -182,7 +216,7 @@ select { background:var(--surface); border:1px solid var(--line); border-radius:
   </div>
 
   <section id="decision-center" aria-labelledby="overview-heading">
-    <h2 id="overview-heading" class="sr-only" style="position:absolute;left:-9999px">Decision overview</h2>
+    <h2 id="overview-heading" class="sr-only">Decision overview</h2>
     <div class="strip" aria-label="Decision counts">
       <div class="stat"><span class="num" id="stat-total">–</span><span class="lbl">Total decisions</span></div>
       <div class="stat"><span class="num approve" id="stat-approve">–</span><span class="lbl">Approved</span></div>
@@ -193,18 +227,15 @@ select { background:var(--surface); border:1px solid var(--line); border-radius:
     <section class="panel" aria-labelledby="latest-heading">
       <h2 id="latest-heading">Latest decision</h2>
       <p class="sub">Most recently created decision record.</p>
-      <div id="latest-container">
-        <div class="sk" style="height:80px"></div>
-      </div>
+      <div id="latest-container"><div class="sk" style="height:80px"></div></div>
       <h3 style="font-size:.95rem;margin:1.25rem 0 .5rem;color:var(--muted);font-family:var(--sans);font-weight:600;text-transform:uppercase;letter-spacing:.08em">Recent activity</h3>
       <ul class="recent" id="recent-list" aria-live="polite">
         <li class="sk"></li><li class="sk"></li><li class="sk"></li>
       </ul>
     </section>
 
-    <section class="panel" id="inspector-panel" hidden aria-labelledby="inspector-heading">
-      <h2 id="inspector-heading">Decision inspector</h2>
-      <p class="sub" id="inspector-sub">Select a decision from the history below.</p>
+    <section class="panel" id="inspector-panel" hidden aria-labelledby="inspector-heading" data-section="inspector">
+      <h2 id="inspector-heading" class="sr-only">Decision inspector</h2>
       <div id="inspector-content"></div>
     </section>
 
@@ -251,14 +282,8 @@ const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const state = {
-  decisions: [],
-  total: 0,
-  offset: 0,
-  pageSize: 20,
-  status: "",
-  selectedId: null,
-  detail: null,
-  engineering: null,
+  decisions: [], total: 0, offset: 0, pageSize: 20, status: "",
+  selectedId: null, detail: null, engineering: null, engineeringError: null,
   verification: null,
 };
 
@@ -292,25 +317,37 @@ function statusPill(status) {
   return `<span class="pill ${cls}">${esc(status)}</span>`;
 }
 
-function fmtKw(v) {
-  if (v === null || v === undefined || Number.isNaN(v)) return null;
-  return nf1.format(v);
+function severityPill(severity) {
+  const cls = severity === "OK" ? "ok"
+    : severity === "WARNING" ? "warn"
+    : (severity === "RESERVE_VIOLATION" || severity === "PHYSICAL_VIOLATION") ? "alert"
+    : "neutral";
+  return `<span class="pill ${cls}">${esc(severity)}</span>`;
 }
 
-function engCard(label, value, unit) {
-  if (value === null || value === undefined) {
-    return `<div class="eng-card"><div class="k">${esc(label)}</div><div class="v unavail">Unavailable</div></div>`;
+function fnum(v, unit) {
+  if (v === null || v === undefined || (typeof v === "number" && Number.isNaN(v))) {
+    return '<span class="muted">Unavailable</span>';
   }
-  return `<div class="eng-card"><div class="k">${esc(label)}</div><div class="v">${nf1.format(value)}<span class="unit">${esc(unit)}</span></div></div>`;
+  const u = unit ? ` <span class="muted">${esc(unit)}</span>` : "";
+  return `${nf2.format(v)}${u}`;
 }
 
-function bar(headroom, permitted) {
-  if (!permitted || permitted <= 0) return "";
-  const pct = Math.max(0, Math.min(100, (Math.max(0, headroom) / permitted) * 100));
-  const cls = headroom < 0 ? "alert" : pct < 20 ? "warn" : "";
-  return `<div class="bar ${cls}" aria-hidden="true"><i style="width:${pct}%"></i></div>`;
+function fp(s) {
+  if (!s) return '<span class="muted">Unavailable</span>';
+  return `<code title="${esc(s)}">${esc(s.slice(0, 20))}…</code>`;
 }
 
+function splitConstraints(constraints) {
+  const elec = constraints.filter((c) => c.name === "electrical");
+  const cool = constraints.filter((c) => c.name === "cooling");
+  return {
+    current: [elec[0], cool[0]].filter(Boolean),
+    predicted: [elec[1], cool[1]].filter(Boolean),
+  };
+}
+
+/* ---- Overview ---- */
 function renderStats(s) {
   $("#stat-total").textContent = nf.format(s.total);
   $("#stat-approve").textContent = nf.format(s.approved);
@@ -335,7 +372,7 @@ function renderLatest(latest) {
         <div style="color:var(--muted);font-size:.85rem">${esc(timeAgo(latest.created_at))}</div>
       </div>
       <div class="latest-id">config <code>${esc(latest.config_version)}</code> · engine <code>${esc(latest.engine_version)}</code></div>
-      <div class="latest-status">${statusPill(latest.status)}</div>
+      <div>${statusPill(latest.status)}</div>
     </div>`;
 }
 
@@ -358,13 +395,12 @@ function renderRecent(items) {
 
 function renderHistory() {
   const ul = $("#history-list");
-  const items = state.decisions;
-  if (!items.length) {
+  if (!state.decisions.length) {
     ul.innerHTML = '<li class="msg empty" style="display:block">No decisions match this filter.</li>';
     $("#history-pager").hidden = true;
     return;
   }
-  ul.innerHTML = items.map((d) => `
+  ul.innerHTML = state.decisions.map((d) => `
     <li tabindex="0" role="button" data-id="${esc(d.id)}"
         class="${state.selectedId === d.id ? "selected" : ""}"
         aria-label="Open decision ${esc(d.id)}"
@@ -422,150 +458,509 @@ async function loadHistory() {
   }
 }
 
+/* ---- Inspector ---- */
 async function loadDetail(id) {
   const panel = $("#inspector-panel");
   panel.hidden = false;
-  $("#inspector-sub").textContent = "Loading decision " + id.slice(0, 8) + "…";
-  $("#inspector-content").innerHTML = '<div class="sk" style="height:120px"></div>';
-  try {
-    const [detail, eng] = await Promise.all([
-      api("/api/v1/decisions/" + encodeURIComponent(id)),
-      api("/api/v1/decisions/" + encodeURIComponent(id) + "/engineering"),
-    ]);
-    state.detail = detail.body;
-    state.engineering = eng.body;
-    state.verification = null;
-    renderInspector();
-  } catch (err) {
-    $("#inspector-content").innerHTML = '<p class="msg bad">' + esc(err.message) + '</p>';
+  $("#inspector-content").innerHTML = '<div class="sk" style="height:160px"></div>';
+
+  const [detailR, engR] = await Promise.allSettled([
+    api("/api/v1/decisions/" + encodeURIComponent(id)),
+    api("/api/v1/decisions/" + encodeURIComponent(id) + "/engineering"),
+  ]);
+
+  if (detailR.status === "rejected") {
+    $("#inspector-content").innerHTML = '<p class="msg bad">' + esc(detailR.reason.message) + '</p>';
+    return;
   }
+
+  state.detail = detailR.value.body;
+  state.engineering = engR.status === "fulfilled" ? engR.value.body : null;
+  state.engineeringError = engR.status === "rejected" ? engR.reason.message : null;
+  state.verification = null;
+
+  renderInspector();
 }
 
 function selectDecision(id) {
   state.selectedId = id;
   renderHistory();
   loadDetail(id);
-  document.getElementById("inspector-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("#inspector-panel").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 window.selectDecision = selectDecision;
 
 function renderInspector() {
   const d = state.detail;
-  const e = state.engineering;
-  if (!d || !e) return;
+  if (!d) return;
 
+  const req = d.request || {};
   const result = d.result || {};
+  const smDecision = result.state_machine_decision || {};
   const evidence = result.evidence || {};
+  const calcIn = evidence.calculation_inputs || {};
   const uncertainty = result.uncertainty || {};
   const explanation = result.explanation || {};
   const sensitivity = result.sensitivity || [];
+  const fingerprint = result.fingerprint || {};
+  const constraints = smDecision.evaluated_constraints || [];
+  const { current: curC, predicted: predC } = splitConstraints(constraints);
 
-  const passed = evidence.passed_constraints || [];
-  const warnings = evidence.warning_constraints || [];
-  const failed = evidence.failed_constraints || [];
+  const html = [
+    renderIdentity(d),
+    renderSummary(explanation, d),
+    renderEngineering(state.engineering, state.engineeringError),
+    renderProposedChange(req, calcIn),
+    renderInputs(req, uncertainty),
+    renderConstraints(curC, predC),
+    renderEvidence(evidence, fingerprint, d),
+    renderUncertainty(uncertainty, req),
+    renderSensitivity(sensitivity),
+    renderWhy(explanation, smDecision, result, d),
+  ].join("");
 
-  $("#inspector-sub").innerHTML =
-    `${statusPill(d.status)} · <code>${esc(d.config_version)}</code> · engine <code>${esc(d.engine_version)}</code> · ${esc(timeAgo(d.created_at))}`;
+  $("#inspector-content").innerHTML = html;
 
-  const engCurrent = (label, value, unit) => engCard(label, fmtKw(value), unit);
-  const barsBlock = (label, h) => {
-    if (!h || !h.permitted_kw) return "";
-    return `
-      <div class="eng-card">
-        <div class="k">${esc(label)}</div>
-        <div class="v">${nf1.format(h.headroom_to_permitted_kw)}<span class="unit">kW</span></div>
-        <div style="color:var(--muted);font-size:.78rem;margin-top:.25rem">
-          permitted ${nf1.format(h.permitted_kw)} kW / physical ${nf1.format(h.physical_capacity_kw)} kW
+  const btn = $("#verify-btn");
+  if (btn) btn.addEventListener("click", runVerify);
+}
+
+function renderIdentity(d) {
+  const req = d.request || {};
+  return `
+    <header class="inspector-head" data-section="identity">
+      <div>
+        <h2>Decision <code>${esc(String(d.id).slice(0, 16))}…</code></h2>
+        <div class="inspector-meta">
+          ${statusPill(d.status)}
+          <span>Precedence: <code>${esc(d.precedence)}</code></span>
+          <span>Created ${esc(timeAgo(d.created_at))}</span>
+          <span>Decision timestamp: <code>${esc(d.decision_timestamp)}</code></span>
+          <span>Engine <code>${esc(d.engine_version)}</code></span>
+          <span>Config <code>${esc(d.config_version)}</code></span>
+          ${req.mode ? `<span>Mode: <code>${esc(req.mode)}</code></span>` : ""}
         </div>
-        ${bar(h.headroom_to_permitted_kw, h.permitted_kw)}
-      </div>`;
+      </div>
+    </header>`;
+}
+
+function renderSummary(explanation, d) {
+  if (!explanation.summary && !explanation.limiting_constraint) {
+    return `<div class="inspector-summary">
+      <strong>No summary available.</strong>
+      <p class="muted">This record has no explanation bundle recorded.</p>
+    </div>`;
+  }
+  return `
+    <div class="inspector-summary" data-section="summary">
+      <strong>${esc(explanation.summary || "—")}</strong>
+      <dl class="kv" style="margin-top:.5rem">
+        <dt>Status</dt><dd>${esc(d.status)}</dd>
+        <dt>Limiting constraint</dt><dd>${esc(explanation.limiting_constraint || "—")}</dd>
+        <dt>Headroom</dt><dd>${esc(explanation.headroom_summary || "—")}</dd>
+      </dl>
+    </div>`;
+}
+
+function engCard(label, value, unit) {
+  if (value === null || value === undefined || (typeof value === "number" && Number.isNaN(value))) {
+    return `<div class="eng-card"><div class="k">${esc(label)}</div><div class="v unavail">Unavailable</div></div>`;
+  }
+  return `<div class="eng-card"><div class="k">${esc(label)}</div><div class="v">${nf2.format(value)}<span class="unit">${esc(unit)}</span></div></div>`;
+}
+
+function headroomCard(label, h) {
+  if (!h || h.permitted_kw === null || h.permitted_kw === undefined) {
+    return `<div class="eng-card"><div class="k">${esc(label)}</div><div class="v unavail">Unavailable</div></div>`;
+  }
+  const pct = h.permitted_kw > 0 ? Math.max(0, Math.min(100, (Math.max(0, h.headroom_to_permitted_kw) / h.permitted_kw) * 100)) : 0;
+  const cls = h.headroom_to_permitted_kw < 0 ? "alert" : pct < 20 ? "warn" : "";
+  return `
+    <div class="eng-card">
+      <div class="k">${esc(label)}</div>
+      <div class="v">${nf1.format(h.headroom_to_permitted_kw)}<span class="unit">kW</span></div>
+      <div class="muted" style="font-size:.78rem;margin-top:.25rem">
+        permitted ${nf1.format(h.permitted_kw)} kW · physical ${nf1.format(h.physical_capacity_kw)} kW
+      </div>
+      <div class="bar ${cls}" aria-hidden="true"><i style="width:${pct}%"></i></div>
+    </div>`;
+}
+
+function renderEngineering(e, err) {
+  if (!e) {
+    return `
+      <details class="inspector-section" open data-section="engineering">
+        <summary>Engineering snapshot</summary>
+        <div class="body">
+          <div class="msg bad">
+            <strong>Engineering evidence unavailable.</strong><br>
+            ${esc(err || "The stored decision does not contain the required engineering fields.")}
+          </div>
+          <p class="muted" style="font-size:.85rem">
+            This typically means the record predates the PUE integration. The rest of
+            the inspector still reflects exactly what is stored.
+          </p>
+        </div>
+      </details>`;
+  }
+  return `
+    <details class="inspector-section" open data-section="engineering">
+      <summary>Engineering snapshot</summary>
+      <div class="body">
+        <div class="eng-grid">
+          ${engCard("PUE", e.pue, "×")}
+          <div class="eng-card">
+            <div class="k">PUE provenance</div>
+            <div class="v" style="font-size:1rem;font-family:var(--sans);font-weight:600">${esc(e.pue_provenance)}</div>
+          </div>
+        </div>
+        <div class="split">
+          <div class="col">
+            <h4>Current state</h4>
+            <div class="row"><span>IT load</span><span class="val">${fnum(e.current_it_load_kw, "kW")}</span></div>
+            <div class="row"><span>Facility power</span><span class="val">${fnum(e.current_facility_power_kw, "kW")}</span></div>
+            <div class="row"><span>Cooling load</span><span class="val">${fnum(e.current_cooling_load_kw, "kW")}</span></div>
+          </div>
+          <div class="col">
+            <h4>Predicted state</h4>
+            <div class="row"><span>IT load</span><span class="val">${fnum(e.predicted_it_load_kw, "kW")}</span></div>
+            <div class="row"><span>Facility power</span><span class="val">${fnum(e.predicted_facility_power_kw, "kW")}</span></div>
+            <div class="row"><span>Cooling load</span><span class="val">${fnum(e.predicted_cooling_load_kw, "kW")}</span></div>
+          </div>
+        </div>
+        <div class="eng-grid">
+          ${headroomCard("Electrical headroom (current)", e.current_electrical)}
+          ${headroomCard("Electrical headroom (predicted)", e.predicted_electrical)}
+          ${headroomCard("Cooling headroom (current)", e.current_cooling)}
+          ${headroomCard("Cooling headroom (predicted)", e.predicted_cooling)}
+        </div>
+      </div>
+    </details>`;
+}
+
+function renderProposedChange(req, calcIn) {
+  const rawIt = req.proposed_it_delta;
+  const rawCool = req.proposed_cooling_delta;
+  const effIt = calcIn.proposed_it_delta_kw;
+  const effCool = calcIn.proposed_cooling_delta_kw;
+  const invalid = calcIn.invalid_proposal_reasons || [];
+
+  const deltaRow = (label, raw, eff) => {
+    if (raw === undefined) return "";
+    const differs = (eff !== undefined) && (Number(raw) !== Number(eff));
+    return `<div class="row">
+      <span>${esc(label)}</span>
+      <span class="val">${fnum(raw, "kW")}${differs ? ` <span class="muted">(effective ${nf2.format(eff)} kW)</span>` : ""}</span>
+    </div>`;
   };
 
-  const engineeringHtml = `
-    <h3 style="font-size:1.05rem;margin:1rem 0 .5rem">Engineering snapshot</h3>
-    <p class="sub">Computed server-side. Values match the decision's stored evidence exactly.</p>
-    <div class="engine-grid">
-      ${engCurrent("PUE", e.pue, "×")}
-      ${engCard("PUE provenance", null, "")}
-      <div class="eng-card"><div class="k">PUE provenance</div><div class="v" style="font-size:1rem;font-family:var(--sans);font-weight:600">${esc(e.pue_provenance)}</div></div>
-    </div>
-    <div class="split" style="margin-bottom:1rem">
-      <div class="col">
-        <h4>Current state</h4>
-        <div class="row"><span>IT load</span><span class="val">${nf1.format(e.current_it_load_kw)} kW</span></div>
-        <div class="row"><span>Facility power</span><span class="val">${nf1.format(e.current_facility_power_kw)} kW</span></div>
-        <div class="row"><span>Cooling load</span><span class="val">${nf1.format(e.current_cooling_load_kw)} kW</span></div>
+  return `
+    <details class="inspector-section" data-section="proposed-change">
+      <summary>Proposed change <span class="summary-tag">${invalid.length ? `${invalid.length} invalid reason(s)` : "valid"}</span></summary>
+      <div class="body">
+        <div class="split">
+          <div class="col">
+            <h4>Submitted deltas</h4>
+            ${deltaRow("IT load delta", rawIt, effIt)}
+            ${deltaRow("Cooling load delta", rawCool, effCool)}
+            ${(rawIt === undefined && rawCool === undefined) ? '<p class="muted">No change deltas recorded.</p>' : ""}
+          </div>
+          <div class="col">
+            <h4>Measurement availability at request</h4>
+            <dl class="kv">
+              <dt>IT load present</dt><dd>${req.it_load && req.it_load.value !== null ? "yes" : "no"}</dd>
+              <dt>Cooling present</dt><dd>${req.cooling_load && req.cooling_load.value !== null ? "yes" : "no"}</dd>
+            </dl>
+          </div>
+        </div>
+        ${invalid.length ? `
+          <h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Invalid reasons</h4>
+          <ul class="reason-list fail">${invalid.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+        ` : ""}
       </div>
-      <div class="col">
-        <h4>Predicted state</h4>
-        <div class="row"><span>IT load</span><span class="val">${nf1.format(e.predicted_it_load_kw)} kW</span></div>
-        <div class="row"><span>Facility power</span><span class="val">${nf1.format(e.predicted_facility_power_kw)} kW</span></div>
-        <div class="row"><span>Cooling load</span><span class="val">${nf1.format(e.predicted_cooling_load_kw)} kW</span></div>
+    </details>`;
+}
+
+function renderInputs(req, uncertainty) {
+  const measurements = [
+    ["it_load", "IT load"],
+    ["cooling_load", "Cooling load"],
+    ["pue", "PUE"],
+  ];
+  const cards = measurements.map(([key, label]) => {
+    const m = req[key];
+    if (!m) {
+      return `<div class="input-card">
+        <div class="input-name">${esc(key)}</div>
+        <p class="msg empty">Not recorded in this request.</p>
+      </div>`;
+    }
+    const sourceCls = String(m.source || "").toLowerCase();
+    const uncertaintyInfo = m.uncertainty
+      ? `
+        <dt>Absolute tolerance</dt><dd>${fnum(m.uncertainty.absolute_tolerance, "kW")}</dd>
+        <dt>Relative tolerance</dt><dd>${m.uncertainty.relative_tolerance !== null && m.uncertainty.relative_tolerance !== undefined ? `${(m.uncertainty.relative_tolerance * 100).toFixed(2)}%` : '<span class="muted">Unavailable</span>'}</dd>
+        ${m.uncertainty.notes ? `<dt>Notes</dt><dd>${esc(m.uncertainty.notes)}</dd>` : ""}
+      `
+      : `<dt>Tolerance</dt><dd class="muted">Not supplied</dd>`;
+    return `
+      <div class="input-card">
+        <div class="input-name">${esc(key)} — ${esc(label)}
+          <span class="source-tag ${sourceCls}">${esc(m.source || "UNKNOWN")}</span>
+        </div>
+        <dl class="kv">
+          <dt>Value</dt><dd>${fnum(m.value, m.unit || "")}</dd>
+          <dt>Unit</dt><dd>${esc(m.unit || "—")}</dd>
+          <dt>Reference ID</dt><dd>${m.reference_id ? `<code>${esc(m.reference_id)}</code>` : '<span class="muted">Not recorded</span>'}</dd>
+          <dt>Meter ID</dt><dd>${m.meter_id ? `<code>${esc(m.meter_id)}</code>` : '<span class="muted">Not recorded</span>'}</dd>
+          <dt>Timestamp</dt><dd>${m.measurement_timestamp ? `<code>${esc(m.measurement_timestamp)}</code>` : '<span class="muted">Not recorded</span>'}</dd>
+          ${uncertaintyInfo}
+        </dl>
+      </div>`;
+  }).join("");
+
+  const missing = uncertainty.missing_measurements || [];
+  const stale = uncertainty.stale_measurements || [];
+  const qflags = req.quality_flags || uncertainty.quality_flags || [];
+
+  return `
+    <details class="inspector-section" data-section="inputs">
+      <summary>Input measurements <span class="summary-tag">${missing.length || stale.length ? `${missing.length + stale.length} issue(s)` : "clean"}</span></summary>
+      <div class="body">
+        ${cards}
+        <h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Quality eligibility</h4>
+        <dl class="kv">
+          <dt>Eligible for analysis</dt><dd>${req.quality_eligible === true ? "yes" : req.quality_eligible === false ? "no" : '<span class="muted">Unavailable</span>'}</dd>
+          <dt>Marked stale</dt><dd>${req.quality_stale === true ? "yes" : "no"}</dd>
+          <dt>Max measurement age</dt><dd>${req.max_measurement_age_seconds !== null && req.max_measurement_age_seconds !== undefined ? `${nf.format(req.max_measurement_age_seconds)} s` : '<span class="muted">No limit enforced</span>'}</dd>
+        </dl>
+        <div class="tags">
+          ${missing.map((m) => `<span class="tag alert">missing: ${esc(m)}</span>`).join("")}
+          ${stale.map((m) => `<span class="tag warn">stale: ${esc(m)}</span>`).join("")}
+          ${qflags.map((f) => `<span class="tag warn">flag: ${esc(f)}</span>`).join("")}
+          ${(!missing.length && !stale.length && !qflags.length) ? '<span class="tag">no issues</span>' : ""}
+        </div>
       </div>
-    </div>
-    <div class="engine-grid">
-      ${barsBlock("Electrical headroom (current)", e.current_electrical)}
-      ${barsBlock("Electrical headroom (predicted)", e.predicted_electrical)}
-      ${barsBlock("Cooling headroom (current)", e.current_cooling)}
-      ${barsBlock("Cooling headroom (predicted)", e.predicted_cooling)}
-    </div>`;
+    </details>`;
+}
 
-  const reasonList = (items, cls) => items.length
-    ? `<ul class="reason-list ${cls}">${items.map((r) => `<li>${esc(r.reason)}</li>`).join("")}</ul>`
-    : '<p class="msg empty" style="margin-top:.35rem">None.</p>';
+function constraintBlock(label, list) {
+  if (!list || !list.length) {
+    return `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">${esc(label)}</h4><p class="msg empty">No ${esc(label.toLowerCase())} recorded.</p>`;
+  }
+  const cards = list.map((ev) => `
+    <div class="constraint-card">
+      <div class="head">
+        <span class="name">${esc(ev.name)}${ev.is_limiting ? '<span class="is-limiting">limiting</span>' : ""}</span>
+        ${severityPill(ev.severity)}
+      </div>
+      <dl class="kv">
+        <dt>Observed</dt><dd>${fnum(ev.observed, "kW")}</dd>
+        <dt>Permitted limit</dt><dd>${fnum(ev.permitted, "kW")}</dd>
+        <dt>Physical capacity</dt><dd>${fnum(ev.physical_capacity, "kW")}</dd>
+        <dt>Headroom to permitted</dt><dd>${fnum(ev.headroom_to_permitted, "kW")}</dd>
+        <dt>Headroom to physical</dt><dd>${fnum(ev.headroom_to_physical, "kW")}</dd>
+        <dt>Used</dt><dd>${ev.margin_used_pct !== null && ev.margin_used_pct !== undefined ? nf2.format(ev.margin_used_pct) + "%" : '<span class="muted">Unavailable</span>'}</dd>
+      </dl>
+      <p class="reason">${esc(ev.reason || "")}</p>
+    </div>`).join("");
+  return `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">${esc(label)}</h4>${cards}`;
+}
 
-  const sensitivityHtml = sensitivity.length
-    ? `<div style="margin-top:.75rem"><h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.4rem">Sensitivity</h4>
-        <ul class="reason-list ${sensitivity.some(s => s.could_change_verdict) ? "warn-list" : "pass"}">
-          ${sensitivity.map((s) => `<li><strong>${esc(s.measurement_name)}</strong> · could flip: <em>${s.could_change_verdict ? "yes" : "no"}</em><br><span style="color:var(--muted);font-size:.85rem">${esc(s.reason)}</span></li>`).join("")}
-        </ul></div>`
+function renderConstraints(cur, pred) {
+  return `
+    <details class="inspector-section" data-section="constraints">
+      <summary>Constraint inspection <span class="summary-tag">${cur.length + pred.length} evaluation(s)</span></summary>
+      <div class="body">
+        ${constraintBlock("Current state", cur)}
+        ${constraintBlock("Predicted state", pred)}
+      </div>
+    </details>`;
+}
+
+function renderEvidence(evidence, fingerprint, d) {
+  const formulas = evidence.formulas || {};
+  const assumptions = evidence.assumptions || [];
+  const snapshot = evidence.constraints_snapshot || {};
+  const refs = evidence.input_references || [];
+
+  const fingerprintBlock = `
+    <h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.5rem 0 .35rem">Fingerprints</h4>
+    <div class="fp-line"><span>Input fingerprint</span>${fp(d.input_fingerprint || fingerprint.input_fingerprint)}</div>
+    <div class="fp-line"><span>Config fingerprint</span>${fp(d.config_fingerprint || fingerprint.config_fingerprint)}</div>
+    <div class="fp-line"><span>Engine version</span><code>${esc(d.engine_version)}</code></div>
+    <div class="fp-line"><span>Config version</span><code>${esc(d.config_version)}</code></div>`;
+
+  const refsBlock = refs.length
+    ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Input references</h4>
+       <ul class="reason-list">${refs.map((r) => `
+         <li>
+           <strong>${esc(r.name)}</strong> · ${fnum(r.value, r.unit)}
+           ${r.reference_id ? ` · <code>${esc(r.reference_id)}</code>` : ""}
+           ${r.timestamp ? ` · <span class="muted">${esc(r.timestamp)}</span>` : ""}
+           <br><span class="muted" style="font-size:.8rem">source: ${esc(r.source)}</span>
+         </li>`).join("")}</ul>`
+    : '<p class="msg empty">No input references recorded.</p>';
+
+  const formulasBlock = Object.keys(formulas).length
+    ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Formulas used</h4>
+       <dl class="kv">${Object.entries(formulas).map(([k, v]) => `<dt>${esc(k)}</dt><dd><code>${esc(v)}</code></dd>`).join("")}</dl>`
     : "";
 
-  const uncertaintyTags = [
-    ["quality", uncertainty.data_quality_level],
-    ["model", uncertainty.model_uncertainty_level],
-  ].filter(([, v]) => v).map(([k, v]) => `<span class="tag">${esc(k)}: ${esc(v)}</span>`).join("");
+  const assumptionsBlock = assumptions.length
+    ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Assumptions</h4>
+       <ul class="reason-list">${assumptions.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>`
+    : "";
 
-  const missingTags = (uncertainty.missing_measurements || []).map((m) => `<span class="tag">missing: ${esc(m)}</span>`).join("");
-  const staleTags = (uncertainty.stale_measurements || []).map((m) => `<span class="tag">stale: ${esc(m)}</span>`).join("");
-  const qualityTags = (uncertainty.quality_flags || []).map((m) => `<span class="tag">flag: ${esc(m)}</span>`).join("");
+  const snapshotBlock = Object.keys(snapshot).length
+    ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Constraints snapshot</h4>
+       <pre style="background:color-mix(in oklab, var(--muted) 8%, transparent);padding:.75rem;border-radius:8px;overflow-x:auto;font-size:.8rem"><code>${esc(JSON.stringify(snapshot, null, 2))}</code></pre>`
+    : "";
 
-  const explanationHtml = `
-    <h3 style="font-size:1.05rem;margin:1.25rem 0 .5rem">Decision explanation</h3>
-    <div class="explanation-summary">${esc(explanation.summary || "")}</div>
-    <dl class="kv" style="margin-bottom:1rem">
-      <dt>Precedence</dt><dd><code>${esc(d.precedence)}</code></dd>
-      <dt>Limiting constraint</dt><dd>${esc(explanation.limiting_constraint || "—")}</dd>
-      <dt>Headroom</dt><dd>${esc(explanation.headroom_summary || "—")}</dd>
-    </dl>
-    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Passed constraints</h4>
-    ${reasonList(passed, "pass")}
-    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Warnings</h4>
-    ${reasonList(warnings, "warn-list")}
-    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Failed constraints</h4>
-    ${reasonList(failed, "fail")}
-    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Uncertainty</h4>
-    <div class="tags">${uncertaintyTags}${missingTags}${staleTags}${qualityTags}</div>
-    ${(explanation.what_would_change_decision || []).length ? `
-      <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">What would change the outcome</h4>
-      <ul class="reason-list warn-list">${explanation.what_would_change_decision.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
-    ` : ""}
-    ${sensitivityHtml}
-    <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-      <button class="btn ghost" id="verify-btn" type="button" aria-describedby="verify-hint">Verify integrity</button>
-      <span id="verify-hint" style="font-size:.8rem;color:var(--muted)">Recomputes input/config fingerprints and re-runs the engine. The full evidence bundle is not reproduced.</span>
-    </div>
-    <div id="verify-result" role="status" aria-live="polite"></div>`;
+  return `
+    <details class="inspector-section" data-section="evidence">
+      <summary>Evidence & reproducibility</summary>
+      <div class="body">
+        ${fingerprintBlock}
+        ${refsBlock}
+        ${formulasBlock}
+        ${assumptionsBlock}
+        ${snapshotBlock}
+        <h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Verification</h4>
+        <p class="muted" style="font-size:.85rem;margin-bottom:.5rem">
+          Verification recomputes the input and configuration fingerprints and re-runs the engine
+          to confirm the top-level status matches. The full evidence bundle is not reproduced;
+          <code>full_bundle_reproduced</code> is always <code>false</code>.
+        </p>
+        <button class="btn ghost" id="verify-btn" type="button">Verify integrity</button>
+        <div id="verify-result" role="status" aria-live="polite"></div>
+      </div>
+    </details>`;
+}
 
-  $("#inspector-content").innerHTML = engineeringHtml + explanationHtml;
-  document.getElementById("verify-btn").addEventListener("click", runVerify);
+function renderUncertainty(u, req) {
+  const estimated = u.estimated_parameters || [];
+  const tolerances = u.tolerance_used || [];
+  const rationale = u.rationale || [];
+  const limitations = u.model_limitations || [];
+  const assumptions = u.assumptions || [];
+  const conflicts = req.conflicting_inputs || [];
+  const uncertaintyFlags = req.uncertainty_flags || [];
+
+  const levels = `
+    <dl class="kv">
+      <dt>Data quality level</dt><dd>${u.data_quality_level ? `<span class="pill ${u.data_quality_level === "OK" ? "ok" : u.data_quality_level === "DEGRADED" ? "warn" : "alert"}">${esc(u.data_quality_level)}</span>` : '<span class="muted">Unavailable</span>'}</dd>
+      <dt>Model uncertainty</dt><dd>${u.model_uncertainty_level ? `<span class="pill ${u.model_uncertainty_level === "LOW" ? "ok" : u.model_uncertainty_level === "MODERATE" ? "warn" : u.model_uncertainty_level === "HIGH" ? "alert" : "neutral"}">${esc(u.model_uncertainty_level)}</span>` : '<span class="muted">Unavailable</span>'}</dd>
+    </dl>`;
+
+  const tagsBlock = `
+    <div class="tags">
+      ${(u.missing_measurements || []).map((m) => `<span class="tag alert">missing: ${esc(m)}</span>`).join("")}
+      ${(u.stale_measurements || []).map((m) => `<span class="tag warn">stale: ${esc(m)}</span>`).join("")}
+      ${(u.low_quality_measurements || []).map((m) => `<span class="tag warn">low-quality: ${esc(m)}</span>`).join("")}
+      ${estimated.map((m) => `<span class="tag warn">estimated: ${esc(m)}</span>`).join("")}
+      ${tolerances.map((m) => `<span class="tag">tolerance: ${esc(m)}</span>`).join("")}
+      ${conflicts.map((c) => `<span class="tag alert">conflict: ${esc(c)}</span>`).join("")}
+      ${uncertaintyFlags.map((f) => `<span class="tag warn">flag: ${esc(f)}</span>`).join("")}
+    </div>`;
+
+  const listBlock = (title, items, cls) => items.length
+    ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">${esc(title)}</h4>
+       <ul class="reason-list ${cls || ""}">${items.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`
+    : "";
+
+  return `
+    <details class="inspector-section" data-section="uncertainty">
+      <summary>Uncertainty</summary>
+      <div class="body">
+        ${levels}
+        ${tagsBlock}
+        ${listBlock("Rationale", rationale)}
+        ${listBlock("Assumptions in force", assumptions)}
+        ${listBlock("Model limitations", limitations)}
+      </div>
+    </details>`;
+}
+
+function renderSensitivity(sensitivity) {
+  const items = sensitivity || [];
+  const html = items.length
+    ? `<ul class="reason-list ${items.some((s) => s.could_change_verdict) ? "warn-list" : "pass"}">${items.map((s) => `
+        <li>
+          <strong>${esc(s.measurement_name)}</strong> · could flip: <em>${s.could_change_verdict ? "yes" : "no"}</em>
+          ${s.lower_bound !== null && s.lower_bound !== undefined ? ` · band [${nf2.format(s.lower_bound)}, ${nf2.format(s.upper_bound)}]` : ""}
+          <br><span class="muted" style="font-size:.85rem">${esc(s.reason)}</span>
+        </li>`).join("")}</ul>`
+    : '<p class="msg empty">No tolerance metadata was supplied for this decision, so sensitivity analysis was not performed.</p>';
+
+  return `
+    <details class="inspector-section" data-section="sensitivity">
+      <summary>Sensitivity analysis <span class="summary-tag">${items.length} measurement(s)</span></summary>
+      <div class="body">${html}</div>
+    </details>`;
+}
+
+const PRECEDENCE_REASON = {
+  "clean": "APPROVE: All constraints passed with no unresolved issues.",
+  "hard_limit_violation": "REJECT: A projected value exceeded its physical capacity.",
+  "reserve_violation": "REJECT: A projected value exceeded the permitted limit after reserve.",
+  "invalid_proposal": "REJECT: The proposed change was physically invalid.",
+  "data_quality_ineligible": "REVIEW: Data quality is ineligible for automatic approval.",
+  "near_threshold": "REVIEW: A constraint is within its warning margin.",
+  "uncertainty": "REVIEW: Uncertainty flags were present.",
+  "conflicting_inputs": "REVIEW: Conflicting inputs were present.",
+};
+
+function renderWhy(explanation, smDecision, result, d) {
+  const passed = (result.evidence && result.evidence.passed_constraints) || [];
+  const warnings = (result.evidence && result.evidence.warning_constraints) || [];
+  const failed = (result.evidence && result.evidence.failed_constraints) || [];
+  const whatWould = explanation.what_would_change_decision || [];
+  const rawReasons = smDecision.reasons || [];
+  const unresolved = smDecision.unresolved_conditions || [];
+  const precedence = d.precedence;
+  const whyText = PRECEDENCE_REASON[precedence] || `Decision status: ${d.status} (precedence ${precedence}).`;
+
+  const reasonsList = (title, items, cls) => items.length
+    ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">${esc(title)}</h4>
+       <ul class="reason-list ${cls}">${items.map((r) => `<li>${esc(r.reason)}</li>`).join("")}</ul>`
+    : "";
+
+  const pueProv = (result.evidence && result.evidence.calculation_inputs && result.evidence.calculation_inputs.pue_provenance) || "UNKNOWN";
+
+  return `
+    <details class="inspector-section" data-section="why-decision">
+      <summary>Why this decision?</summary>
+      <div class="body">
+        <p style="padding:.75rem 1rem;background:color-mix(in oklab, var(--accent) 6%, transparent);border-radius:8px;font-size:.95rem;margin-bottom:.5rem">
+          ${esc(whyText)}
+        </p>
+        ${rawReasons.length ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Recorded reasons</h4>
+          <ul class="reason-list">${rawReasons.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+        ${unresolved.length ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Unresolved conditions</h4>
+          <ul class="reason-list warn-list">${unresolved.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+        ${reasonsList("Passed constraints", passed, "pass")}
+        ${reasonsList("Warning constraints", warnings, "warn-list")}
+        ${reasonsList("Failed constraints", failed, "fail")}
+        ${whatWould.length ? `<h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">What would change the outcome</h4>
+          <ul class="reason-list warn-list">${whatWould.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+        <h4 class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;margin:.75rem 0 .35rem">Inputs influencing the outcome</h4>
+        <p style="font-size:.9rem">
+          PUE provenance: <code>${esc(pueProv)}</code>.
+          ${pueProv !== "MEASURED" ? `<br><span class="muted">PUE was not measured; facility power (IT load × PUE) was therefore computed from a ${esc(pueProv.toLowerCase())} value.</span>` : ""}
+          ${(result.uncertainty && result.uncertainty.estimated_parameters || []).length ? `<br><span class="muted">Estimated parameters: ${esc((result.uncertainty.estimated_parameters || []).join(", "))}.</span>` : ""}
+        </p>
+      </div>
+    </details>`;
 }
 
 async function runVerify() {
   if (!state.selectedId) return;
   const btn = document.getElementById("verify-btn");
   const out = document.getElementById("verify-result");
-  btn.disabled = true; btn.setAttribute("aria-busy", "true");
+  if (!btn || !out) return;
+  btn.disabled = true;
+  btn.setAttribute("aria-busy", "true");
   out.className = "";
   out.textContent = "";
   try {
@@ -576,20 +971,23 @@ async function runVerify() {
     out.className = "msg bad";
     out.textContent = "Verification failed: " + err.message;
   } finally {
-    btn.disabled = false; btn.removeAttribute("aria-busy");
+    btn.disabled = false;
+    btn.removeAttribute("aria-busy");
   }
 }
 
 function renderVerification(v) {
   const out = document.getElementById("verify-result");
+  if (!out) return;
   const cls = v.verified ? "verify-result ok" : "verify-result bad";
   const label = v.verified ? "Verified" : "Verification failed";
   const detail = [
-    `input_fingerprint: ${v.computed_input_fingerprint === v.stored_input_fingerprint ? "match" : "MISMATCH"}`,
-    `config_fingerprint: ${v.computed_config_fingerprint === v.stored_config_fingerprint ? "match" : "MISMATCH"}`,
-    `status: ${v.recomputed_status === v.stored_status ? "match" : "MISMATCH"}`,
-    `engine_version_match: ${v.engine_version_match ? "yes" : "NO"}`,
-    `scope: ${v.verification_scope}`,
+    `input ${v.computed_input_fingerprint === v.stored_input_fingerprint ? "match" : "MISMATCH"}`,
+    `config ${v.computed_config_fingerprint === v.stored_config_fingerprint ? "match" : "MISMATCH"}`,
+    `status ${v.recomputed_status === v.stored_status ? "match" : "MISMATCH"}`,
+    `engine_version_match ${v.engine_version_match ? "yes" : "NO"}`,
+    `scope ${v.verification_scope}`,
+    `full_bundle_reproduced ${v.full_bundle_reproduced ? "yes" : "no"}`,
   ];
   out.className = cls;
   out.innerHTML = `<strong>${esc(label)}</strong><br><span style="font-family:var(--mono);font-size:.8rem">${esc(detail.join(" · "))}</span>`;
@@ -614,13 +1012,10 @@ $("#refresh-btn").addEventListener("click", async () => {
   if (state.selectedId) await loadDetail(state.selectedId);
 });
 
-/* ---- initial load ---- */
 (async function init() {
   await Promise.all([loadStats(), loadHistory()]);
 })();
 
-/* periodic refresh of overview + history only (never the selected detail,
-   so we do not interrupt an inspector session in progress) */
 setInterval(() => {
   if (document.hidden) return;
   loadStats().catch(() => {});
