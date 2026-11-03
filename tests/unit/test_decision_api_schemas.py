@@ -34,6 +34,13 @@ def _payload(**overrides):
                 "unit": "kW",
                 "source": "MEASURED",
             },
+            "proposed_it_delta": 0.0,
+            "proposed_cooling_delta": 0.0,
+            "quality_eligible": True,
+            "quality_stale": False,
+            "quality_flags": [],
+            "uncertainty_flags": [],
+            "conflicting_inputs": [],
         },
     }
     base.update(overrides)

@@ -19,6 +19,8 @@ htmlcov/
 .idea/
 .vscode/
 .eco.bak/
+ecofac.egg-info/
+.ruff_cache/
 
 # Generated Artifacts
 synthetic_data.csv
