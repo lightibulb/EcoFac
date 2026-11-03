@@ -53,3 +53,8 @@ app.include_router(decisions.router, prefix="/api/v1")
 def serve_dashboard(request: Request) -> HTMLResponse:
     """Serve the main dashboard UI."""
     return templates.TemplateResponse(request=request, name="index.html")
+
+@app.get("/decisions", response_class=HTMLResponse, tags=["Decision Center"])
+def serve_decisions(request: Request) -> HTMLResponse:
+    """Serve the Decision Center UI."""
+    return templates.TemplateResponse(request=request, name="decisions.html")

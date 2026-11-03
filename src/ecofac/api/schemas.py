@@ -194,3 +194,43 @@ class SupersessionChainResponse(pydantic.BaseModel):
     decision_id: str
     chain: list[DecisionHistoryItem]
     branches: list[DecisionHistoryItem] = pydantic.Field(default_factory=list)
+
+class DecisionStats(pydantic.BaseModel):
+    """Aggregate decision metrics for the Overview section."""
+    total: int
+    approved: int
+    rejected: int
+    review: int
+    latest_decision: "DecisionHistoryItem | None"
+    recent_activity: list["DecisionHistoryItem"]
+
+
+class ConstraintHeadroom(pydantic.BaseModel):
+    """Headroom picture for one observed value against one physical limit."""
+    physical_capacity_kw: float
+    permitted_kw: float
+    observed_kw: float
+    headroom_to_permitted_kw: float
+    headroom_to_physical_kw: float
+    reserve_pct: float
+
+
+class EngineeringSummary(pydantic.BaseModel):
+    """Structured engineering values extracted from a stored decision.
+
+    All numbers are computed server-side from the decision's persisted
+    evidence. The frontend renders them verbatim.
+    """
+    pue: float
+    pue_provenance: str
+    current_it_load_kw: float
+    current_facility_power_kw: float
+    current_cooling_load_kw: float
+    predicted_it_load_kw: float
+    predicted_facility_power_kw: float
+    predicted_cooling_load_kw: float
+    current_electrical: ConstraintHeadroom
+    predicted_electrical: ConstraintHeadroom
+    current_cooling: ConstraintHeadroom
+    predicted_cooling: ConstraintHeadroom
+

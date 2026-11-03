@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>EcoFac — Decision Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:#F6EFE4; --surface:#FFFBF5; --ink:#2B2218; --muted:#7A6B5A; --line:#E6DAC8;
+  --accent:#9C5E10; --accent-ink:#FFFBF5; --accent-soft:#F1E1C3;
+  --alert:#A8432B; --alert-soft:#F4DDD3; --warn:#85590C; --warn-soft:#F5E6BF;
+  --ok:#566B42; --ok-soft:#E3E9D3;
+  --sans:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark) {
+  :root {
+    --paper:#1C1712; --surface:#252018; --ink:#F2E8DA; --muted:#A39382; --line:#3A3027;
+    --accent:#E0A34A; --accent-ink:#1C1712; --accent-soft:#3B2E1A;
+    --alert:#E58B6F; --alert-soft:#41241B; --warn:#E6BE63; --warn-soft:#3C2F14;
+    --ok:#A7BE8B; --ok-soft:#263020;
+  }
+}
+* { box-sizing:border-box; margin:0; }
+html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+body { background:var(--paper); color:var(--ink); font:400 1rem/1.5 var(--sans); min-height:100vh; }
+h1,h2,h3 { font-family:var(--serif); font-weight:600; letter-spacing:-.01em; }
+button,input,select { font:inherit; color:inherit; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+code { font-family:var(--mono); font-size:.85em; }
+.wrap { max-width:1240px; margin:0 auto; padding:clamp(1rem,4vw,2.5rem); }
+
+.topnav { display:flex; gap:.25rem; margin-bottom:1.25rem; padding-bottom:.75rem; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.topnav a { color:var(--muted); text-decoration:none; font-weight:500; padding:.4rem .85rem; border-radius:6px; transition:background .2s, color .2s; }
+.topnav a:hover { color:var(--ink); background:color-mix(in oklab, var(--accent) 8%, transparent); }
+.topnav a.active { color:var(--ink); background:var(--accent-soft); }
+
+.top { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:.75rem 1.5rem; margin-bottom:1.25rem; }
+.top h1 { font-size:clamp(1.75rem,5vw,2.5rem); line-height:1.1; }
+.top p { color:var(--muted); margin-top:.25rem; max-width:52ch; }
+
+.disclaimer { display:flex; align-items:center; gap:.5rem; background:var(--warn-soft); color:var(--warn); border-radius:10px; padding:.65rem 1rem; font-size:.9rem; margin-bottom:1.25rem; }
+.disclaimer svg { flex-shrink:0; }
+
+.panel { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:clamp(1rem,3vw,1.5rem); box-shadow:0 1px 2px rgba(60,35,10,.06); margin-bottom:1.25rem; }
+.panel h2 { font-size:1.25rem; margin-bottom:.25rem; }
+.panel .sub { color:var(--muted); font-size:.9rem; margin-bottom:1rem; }
+
+.strip { display:grid; grid-template-columns:repeat(4,1fr); gap:0; background:var(--surface); border:1px solid var(--line); border-radius:12px; margin-bottom:1.25rem; overflow:hidden; box-shadow:0 1px 2px rgba(60,35,10,.06); }
+.stat { padding:1rem 1.15rem; display:flex; flex-direction:column; gap:.15rem; border-left:1px solid var(--line); }
+.stat:first-child { border-left:0; }
+.num { font:600 clamp(1.65rem,4.5vw,2.25rem)/1.1 var(--serif); font-variant-numeric:tabular-nums; }
+.num.approve { color:var(--ok); }
+.num.reject { color:var(--alert); }
+.num.review { color:var(--warn); }
+.lbl { color:var(--muted); font-size:.85rem; }
+
+.latest { display:grid; grid-template-columns:auto 1fr auto; gap:1rem; align-items:center; padding:1rem; border:1px solid var(--line); border-radius:10px; margin-bottom:1rem; }
+.latest-id { font-family:var(--mono); font-size:.8rem; color:var(--muted); }
+.latest-status { justify-self:end; }
+
+.recent { list-style:none; padding:0; display:grid; gap:.4rem; }
+.recent li { display:grid; grid-template-columns:auto auto 1fr auto; gap:.75rem; align-items:center; padding:.55rem .75rem; border:1px solid var(--line); border-radius:8px; font-size:.9rem; cursor:pointer; transition:background .15s, border-color .15s; }
+.recent li:hover { background:color-mix(in oklab, var(--accent) 6%, transparent); border-color:color-mix(in oklab, var(--accent) 30%, var(--line)); }
+.recent li:focus-visible { outline-offset:0; }
+
+.pill { display:inline-flex; align-items:center; padding:.15rem .65rem; border-radius:99px; font-size:.78rem; font-weight:600; letter-spacing:.02em; }
+.pill.ok { background:var(--ok-soft); color:var(--ok); }
+.pill.alert { background:var(--alert-soft); color:var(--alert); }
+.pill.warn { background:var(--warn-soft); color:var(--warn); }
+.pill.neutral { background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); }
+
+.history-toolbar { display:flex; flex-wrap:wrap; gap:.75rem; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+.filters { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.filters label { color:var(--muted); font-size:.85rem; }
+select { background:var(--surface); border:1px solid var(--line); border-radius:6px; padding:.4rem .7rem; min-height:36px; }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; min-height:36px; padding:.4rem .9rem; border-radius:6px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:600; font-size:.875rem; cursor:pointer; transition:filter .15s, transform .15s; }
+.btn:hover { filter:brightness(1.08); }
+.btn:active { transform:scale(.97); }
+.btn.ghost { background:transparent; color:var(--accent); }
+.btn:disabled { opacity:.6; cursor:progress; }
+.btn[aria-busy="true"]::after { content:""; width:.85rem; height:.85rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+
+.history { list-style:none; padding:0; display:grid; gap:.4rem; }
+.history li { display:grid; grid-template-columns:auto 1fr auto auto auto; gap:.75rem; align-items:center; padding:.65rem .85rem; border:1px solid var(--line); border-radius:8px; cursor:pointer; transition:background .15s, border-color .15s, transform .15s; }
+.history li:hover { background:color-mix(in oklab, var(--accent) 6%, transparent); border-color:color-mix(in oklab, var(--accent) 30%, var(--line)); }
+.history li.selected { border-color:var(--accent); background:color-mix(in oklab, var(--accent) 10%, transparent); }
+.history li:focus-visible { outline-offset:0; }
+.history .hid { font-family:var(--mono); font-size:.8rem; color:var(--muted); }
+.history .when { color:var(--muted); font-size:.85rem; white-space:nowrap; }
+.history .cv { font-family:var(--mono); font-size:.78rem; color:var(--muted); }
+
+.pager { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:1rem; font-size:.9rem; color:var(--muted); }
+.pager .btns { display:flex; gap:.4rem; }
+
+.engine-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:.75rem; margin-bottom:1rem; }
+.eng-card { padding:.85rem 1rem; border:1px solid var(--line); border-radius:10px; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.eng-card .k { color:var(--muted); font-size:.8rem; margin-bottom:.35rem; }
+.eng-card .v { font:600 1.4rem/1.2 var(--serif); font-variant-numeric:tabular-nums; }
+.eng-card .v.unavail { color:var(--muted); font-family:var(--sans); font-size:1rem; font-weight:400; }
+.eng-card .unit { font-family:var(--sans); font-size:.8rem; color:var(--muted); font-weight:400; margin-left:.15rem; }
+
+.split { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+.split .col { padding:.85rem 1rem; border:1px solid var(--line); border-radius:10px; }
+.split .col h4 { font-family:var(--sans); font-size:.75rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.5rem; font-weight:600; }
+.split .row { display:flex; justify-content:space-between; padding:.25rem 0; font-size:.9rem; }
+.split .row .val { font-variant-numeric:tabular-nums; }
+
+.bar { position:relative; height:8px; background:color-mix(in oklab, var(--line) 55%, transparent); border-radius:4px; overflow:hidden; margin-top:.35rem; }
+.bar > i { position:absolute; inset:0 auto 0 0; background:var(--ok); border-radius:4px; }
+.bar.warn > i { background:var(--warn); }
+.bar.alert > i { background:var(--alert); }
+
+.explanation-summary { font-size:1rem; margin-bottom:.75rem; padding:.85rem 1rem; background:color-mix(in oklab, var(--accent) 6%, transparent); border-left:3px solid var(--accent); border-radius:0 8px 8px 0; }
+.reason-list { display:grid; gap:.35rem; margin-top:.35rem; }
+.reason-list li { padding:.5rem .75rem; border:1px solid var(--line); border-radius:6px; font-size:.875rem; background:var(--surface); }
+.reason-list.pass li { border-color:color-mix(in oklab, var(--ok) 35%, var(--line)); }
+.reason-list.warn-list li { border-color:color-mix(in oklab, var(--warn) 35%, var(--line)); }
+.reason-list.fail li { border-color:color-mix(in oklab, var(--alert) 35%, var(--line)); }
+
+.kv { display:grid; grid-template-columns:auto 1fr; gap:.35rem 1rem; font-size:.9rem; }
+.kv dt { color:var(--muted); }
+.kv dd { font-variant-numeric:tabular-nums; }
+
+.tags { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.35rem; }
+.tag { font-size:.78rem; padding:.15rem .6rem; border-radius:99px; background:color-mix(in oklab, var(--muted) 12%, transparent); color:var(--muted); font-family:var(--mono); }
+
+.verify-result { padding:.75rem 1rem; border-radius:8px; margin-top:.75rem; font-size:.9rem; }
+.verify-result.ok { background:var(--ok-soft); color:var(--ok); }
+.verify-result.bad { background:var(--alert-soft); color:var(--alert); }
+
+.msg { font-size:.9rem; padding:.75rem 1rem; border-radius:8px; margin:.75rem 0; }
+.msg.bad { background:var(--alert-soft); color:var(--alert); }
+.msg.empty { background:color-mix(in oklab, var(--muted) 10%, transparent); color:var(--muted); }
+
+.sk { height:56px; border-radius:8px; background:linear-gradient(90deg, var(--line), transparent, var(--line)); background-size:200% 100%; animation:sh 1.4s linear infinite; }
+
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes sh { to { background-position:-200% 0; } }
+
+@media (max-width:720px) {
+  .strip { grid-template-columns:1fr 1fr; }
+  .stat:nth-child(3) { border-left:0; }
+  .stat:nth-child(n+3) { border-top:1px solid var(--line); }
+  .split { grid-template-columns:1fr; }
+  .history li { grid-template-columns:auto 1fr auto; grid-template-areas:"pill id when" "cv cv cv"; }
+  .history li .hid { grid-area:id; }
+  .history li .when { grid-area:when; }
+  .history li .cv { grid-area:cv; }
+  .latest { grid-template-columns:1fr; }
+}
+@media (prefers-reduced-motion:reduce) {
+  *,*::before,*::after { animation-duration:.01ms !important; transition:none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="topnav" aria-label="Primary">
+    <a href="/">Dashboard</a>
+    <a href="/decisions" class="active" aria-current="page">Decision Center</a>
+  </nav>
+
+  <header class="top">
+    <div>
+      <h1>Decision Center</h1>
+      <p>Evidence-backed decisions produced by the EcoFac Decision Engine.</p>
+    </div>
+  </header>
+
+  <div class="disclaimer" role="note">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+    </svg>
+    <span><strong>Advisory only.</strong> Decisions are computed from synthetic data. This system does not control physical equipment.</span>
+  </div>
+
+  <section id="decision-center" aria-labelledby="overview-heading">
+    <h2 id="overview-heading" class="sr-only" style="position:absolute;left:-9999px">Decision overview</h2>
+    <div class="strip" aria-label="Decision counts">
+      <div class="stat"><span class="num" id="stat-total">–</span><span class="lbl">Total decisions</span></div>
+      <div class="stat"><span class="num approve" id="stat-approve">–</span><span class="lbl">Approved</span></div>
+      <div class="stat"><span class="num reject" id="stat-reject">–</span><span class="lbl">Rejected</span></div>
+      <div class="stat"><span class="num review" id="stat-review">–</span><span class="lbl">Review</span></div>
+    </div>
+
+    <section class="panel" aria-labelledby="latest-heading">
+      <h2 id="latest-heading">Latest decision</h2>
+      <p class="sub">Most recently created decision record.</p>
+      <div id="latest-container">
+        <div class="sk" style="height:80px"></div>
+      </div>
+      <h3 style="font-size:.95rem;margin:1.25rem 0 .5rem;color:var(--muted);font-family:var(--sans);font-weight:600;text-transform:uppercase;letter-spacing:.08em">Recent activity</h3>
+      <ul class="recent" id="recent-list" aria-live="polite">
+        <li class="sk"></li><li class="sk"></li><li class="sk"></li>
+      </ul>
+    </section>
+
+    <section class="panel" id="inspector-panel" hidden aria-labelledby="inspector-heading">
+      <h2 id="inspector-heading">Decision inspector</h2>
+      <p class="sub" id="inspector-sub">Select a decision from the history below.</p>
+      <div id="inspector-content"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="history-heading">
+      <div class="history-toolbar">
+        <div>
+          <h2 id="history-heading">Decision history</h2>
+          <p class="sub">All decisions, newest first.</p>
+        </div>
+        <div class="filters">
+          <label for="filter-status">Status</label>
+          <select id="filter-status">
+            <option value="">All</option>
+            <option value="APPROVE">Approve</option>
+            <option value="REJECT">Reject</option>
+            <option value="REVIEW">Review</option>
+          </select>
+          <button class="btn ghost" id="refresh-btn" type="button">Refresh</button>
+        </div>
+      </div>
+      <div id="history-error" hidden></div>
+      <ul class="history" id="history-list" aria-live="polite">
+        <li class="sk"></li><li class="sk"></li><li class="sk"></li>
+      </ul>
+      <div class="pager" id="history-pager" hidden>
+        <span id="pager-info"></span>
+        <div class="btns">
+          <button class="btn ghost" id="prev-btn" type="button" aria-label="Previous page">← Prev</button>
+          <button class="btn ghost" id="next-btn" type="button" aria-label="Next page">Next →</button>
+        </div>
+      </div>
+    </section>
+  </section>
+</div>
+
+<script>
+"use strict";
+
+const $ = (s, r) => (r || document).querySelector(s);
+const nf = new Intl.NumberFormat();
+const nf1 = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
+const nf2 = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const state = {
+  decisions: [],
+  total: 0,
+  offset: 0,
+  pageSize: 20,
+  status: "",
+  selectedId: null,
+  detail: null,
+  engineering: null,
+  verification: null,
+};
+
+async function api(url, opts) {
+  let res;
+  try { res = await fetch(url, opts); }
+  catch { throw new Error("Cannot reach the server."); }
+  const text = await res.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = { detail: text || res.statusText }; }
+  if (!res.ok) {
+    let d = body && body.detail;
+    if (d && typeof d !== "string") d = JSON.stringify(d);
+    throw new Error(`Server ${res.status}: ${d || "request failed"}`);
+  }
+  return { body, headers: res.headers };
+}
+
+function timeAgo(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return "—";
+  const s = Math.round((Date.now() - d) / 1000);
+  for (const [u, sec] of [["day", 86400], ["hour", 3600], ["minute", 60]]) {
+    if (Math.abs(s) >= sec) return rtf.format(-Math.round(s / sec), u);
+  }
+  return "just now";
+}
+
+function statusPill(status) {
+  const cls = status === "APPROVE" ? "ok" : status === "REJECT" ? "alert" : status === "REVIEW" ? "warn" : "neutral";
+  return `<span class="pill ${cls}">${esc(status)}</span>`;
+}
+
+function fmtKw(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return null;
+  return nf1.format(v);
+}
+
+function engCard(label, value, unit) {
+  if (value === null || value === undefined) {
+    return `<div class="eng-card"><div class="k">${esc(label)}</div><div class="v unavail">Unavailable</div></div>`;
+  }
+  return `<div class="eng-card"><div class="k">${esc(label)}</div><div class="v">${nf1.format(value)}<span class="unit">${esc(unit)}</span></div></div>`;
+}
+
+function bar(headroom, permitted) {
+  if (!permitted || permitted <= 0) return "";
+  const pct = Math.max(0, Math.min(100, (Math.max(0, headroom) / permitted) * 100));
+  const cls = headroom < 0 ? "alert" : pct < 20 ? "warn" : "";
+  return `<div class="bar ${cls}" aria-hidden="true"><i style="width:${pct}%"></i></div>`;
+}
+
+function renderStats(s) {
+  $("#stat-total").textContent = nf.format(s.total);
+  $("#stat-approve").textContent = nf.format(s.approved);
+  $("#stat-reject").textContent = nf.format(s.rejected);
+  $("#stat-review").textContent = nf.format(s.review);
+  renderLatest(s.latest_decision);
+  renderRecent(s.recent_activity);
+}
+
+function renderLatest(latest) {
+  const el = $("#latest-container");
+  if (!latest) {
+    el.innerHTML = '<p class="msg empty">No decisions recorded yet.</p>';
+    return;
+  }
+  el.innerHTML = `
+    <div class="latest" tabindex="0" role="button" aria-label="Open latest decision"
+         onclick="selectDecision('${esc(latest.id)}')"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDecision('${esc(latest.id)}')}">
+      <div>
+        <div class="latest-id">${esc(latest.id.slice(0, 12))}…</div>
+        <div style="color:var(--muted);font-size:.85rem">${esc(timeAgo(latest.created_at))}</div>
+      </div>
+      <div class="latest-id">config <code>${esc(latest.config_version)}</code> · engine <code>${esc(latest.engine_version)}</code></div>
+      <div class="latest-status">${statusPill(latest.status)}</div>
+    </div>`;
+}
+
+function renderRecent(items) {
+  const ul = $("#recent-list");
+  if (!items || !items.length) {
+    ul.innerHTML = '<li class="msg empty" style="display:block">No recent activity.</li>';
+    return;
+  }
+  ul.innerHTML = items.map((d) => `
+    <li tabindex="0" role="button" aria-label="Open decision ${esc(d.id)}"
+        onclick="selectDecision('${esc(d.id)}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDecision('${esc(d.id)}')}">
+      ${statusPill(d.status)}
+      <span class="hid">${esc(d.id.slice(0, 10))}…</span>
+      <span style="color:var(--muted);font-size:.85rem">${esc(d.precedence)}</span>
+      <span class="when">${esc(timeAgo(d.created_at))}</span>
+    </li>`).join("");
+}
+
+function renderHistory() {
+  const ul = $("#history-list");
+  const items = state.decisions;
+  if (!items.length) {
+    ul.innerHTML = '<li class="msg empty" style="display:block">No decisions match this filter.</li>';
+    $("#history-pager").hidden = true;
+    return;
+  }
+  ul.innerHTML = items.map((d) => `
+    <li tabindex="0" role="button" data-id="${esc(d.id)}"
+        class="${state.selectedId === d.id ? "selected" : ""}"
+        aria-label="Open decision ${esc(d.id)}"
+        onclick="selectDecision('${esc(d.id)}')"
+        onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectDecision('${esc(d.id)}')}">
+      ${statusPill(d.status)}
+      <span class="hid">${esc(d.id.slice(0, 10))}…${d.is_superseded ? " · superseded" : ""}</span>
+      <span class="cv">${esc(d.config_version)}</span>
+      <span style="color:var(--muted);font-size:.85rem">${esc(d.precedence)}</span>
+      <span class="when">${esc(timeAgo(d.created_at))}</span>
+    </li>`).join("");
+
+  const pager = $("#history-pager");
+  pager.hidden = false;
+  const start = state.offset + 1;
+  const end = Math.min(state.offset + state.pageSize, state.total);
+  $("#pager-info").textContent = `Showing ${start}–${end} of ${state.total}`;
+  $("#prev-btn").disabled = state.offset === 0;
+  $("#next-btn").disabled = end >= state.total;
+}
+
+function renderError(container, message) {
+  const el = typeof container === "string" ? $(container) : container;
+  el.hidden = false;
+  el.className = "msg bad";
+  el.textContent = message;
+}
+
+async function loadStats() {
+  try {
+    const { body } = await api("/api/v1/decisions/stats");
+    renderStats(body);
+  } catch (err) {
+    renderError("#history-error", "Could not load overview: " + err.message);
+  }
+}
+
+async function loadHistory() {
+  const ul = $("#history-list");
+  ul.innerHTML = '<li class="sk"></li><li class="sk"></li><li class="sk"></li>';
+  $("#history-error").hidden = true;
+  try {
+    const params = new URLSearchParams({
+      limit: String(state.pageSize),
+      offset: String(state.offset),
+    });
+    if (state.status) params.set("status", state.status);
+    const { body, headers } = await api("/api/v1/decisions?" + params.toString());
+    state.decisions = body;
+    state.total = parseInt(headers.get("X-Total-Count") || "0", 10);
+    renderHistory();
+  } catch (err) {
+    ul.innerHTML = "";
+    renderError("#history-error", "Could not load history: " + err.message);
+  }
+}
+
+async function loadDetail(id) {
+  const panel = $("#inspector-panel");
+  panel.hidden = false;
+  $("#inspector-sub").textContent = "Loading decision " + id.slice(0, 8) + "…";
+  $("#inspector-content").innerHTML = '<div class="sk" style="height:120px"></div>';
+  try {
+    const [detail, eng] = await Promise.all([
+      api("/api/v1/decisions/" + encodeURIComponent(id)),
+      api("/api/v1/decisions/" + encodeURIComponent(id) + "/engineering"),
+    ]);
+    state.detail = detail.body;
+    state.engineering = eng.body;
+    state.verification = null;
+    renderInspector();
+  } catch (err) {
+    $("#inspector-content").innerHTML = '<p class="msg bad">' + esc(err.message) + '</p>';
+  }
+}
+
+function selectDecision(id) {
+  state.selectedId = id;
+  renderHistory();
+  loadDetail(id);
+  document.getElementById("inspector-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+window.selectDecision = selectDecision;
+
+function renderInspector() {
+  const d = state.detail;
+  const e = state.engineering;
+  if (!d || !e) return;
+
+  const result = d.result || {};
+  const evidence = result.evidence || {};
+  const uncertainty = result.uncertainty || {};
+  const explanation = result.explanation || {};
+  const sensitivity = result.sensitivity || [];
+
+  const passed = evidence.passed_constraints || [];
+  const warnings = evidence.warning_constraints || [];
+  const failed = evidence.failed_constraints || [];
+
+  $("#inspector-sub").innerHTML =
+    `${statusPill(d.status)} · <code>${esc(d.config_version)}</code> · engine <code>${esc(d.engine_version)}</code> · ${esc(timeAgo(d.created_at))}`;
+
+  const engCurrent = (label, value, unit) => engCard(label, fmtKw(value), unit);
+  const barsBlock = (label, h) => {
+    if (!h || !h.permitted_kw) return "";
+    return `
+      <div class="eng-card">
+        <div class="k">${esc(label)}</div>
+        <div class="v">${nf1.format(h.headroom_to_permitted_kw)}<span class="unit">kW</span></div>
+        <div style="color:var(--muted);font-size:.78rem;margin-top:.25rem">
+          permitted ${nf1.format(h.permitted_kw)} kW / physical ${nf1.format(h.physical_capacity_kw)} kW
+        </div>
+        ${bar(h.headroom_to_permitted_kw, h.permitted_kw)}
+      </div>`;
+  };
+
+  const engineeringHtml = `
+    <h3 style="font-size:1.05rem;margin:1rem 0 .5rem">Engineering snapshot</h3>
+    <p class="sub">Computed server-side. Values match the decision's stored evidence exactly.</p>
+    <div class="engine-grid">
+      ${engCurrent("PUE", e.pue, "×")}
+      ${engCard("PUE provenance", null, "")}
+      <div class="eng-card"><div class="k">PUE provenance</div><div class="v" style="font-size:1rem;font-family:var(--sans);font-weight:600">${esc(e.pue_provenance)}</div></div>
+    </div>
+    <div class="split" style="margin-bottom:1rem">
+      <div class="col">
+        <h4>Current state</h4>
+        <div class="row"><span>IT load</span><span class="val">${nf1.format(e.current_it_load_kw)} kW</span></div>
+        <div class="row"><span>Facility power</span><span class="val">${nf1.format(e.current_facility_power_kw)} kW</span></div>
+        <div class="row"><span>Cooling load</span><span class="val">${nf1.format(e.current_cooling_load_kw)} kW</span></div>
+      </div>
+      <div class="col">
+        <h4>Predicted state</h4>
+        <div class="row"><span>IT load</span><span class="val">${nf1.format(e.predicted_it_load_kw)} kW</span></div>
+        <div class="row"><span>Facility power</span><span class="val">${nf1.format(e.predicted_facility_power_kw)} kW</span></div>
+        <div class="row"><span>Cooling load</span><span class="val">${nf1.format(e.predicted_cooling_load_kw)} kW</span></div>
+      </div>
+    </div>
+    <div class="engine-grid">
+      ${barsBlock("Electrical headroom (current)", e.current_electrical)}
+      ${barsBlock("Electrical headroom (predicted)", e.predicted_electrical)}
+      ${barsBlock("Cooling headroom (current)", e.current_cooling)}
+      ${barsBlock("Cooling headroom (predicted)", e.predicted_cooling)}
+    </div>`;
+
+  const reasonList = (items, cls) => items.length
+    ? `<ul class="reason-list ${cls}">${items.map((r) => `<li>${esc(r.reason)}</li>`).join("")}</ul>`
+    : '<p class="msg empty" style="margin-top:.35rem">None.</p>';
+
+  const sensitivityHtml = sensitivity.length
+    ? `<div style="margin-top:.75rem"><h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.4rem">Sensitivity</h4>
+        <ul class="reason-list ${sensitivity.some(s => s.could_change_verdict) ? "warn-list" : "pass"}">
+          ${sensitivity.map((s) => `<li><strong>${esc(s.measurement_name)}</strong> · could flip: <em>${s.could_change_verdict ? "yes" : "no"}</em><br><span style="color:var(--muted);font-size:.85rem">${esc(s.reason)}</span></li>`).join("")}
+        </ul></div>`
+    : "";
+
+  const uncertaintyTags = [
+    ["quality", uncertainty.data_quality_level],
+    ["model", uncertainty.model_uncertainty_level],
+  ].filter(([, v]) => v).map(([k, v]) => `<span class="tag">${esc(k)}: ${esc(v)}</span>`).join("");
+
+  const missingTags = (uncertainty.missing_measurements || []).map((m) => `<span class="tag">missing: ${esc(m)}</span>`).join("");
+  const staleTags = (uncertainty.stale_measurements || []).map((m) => `<span class="tag">stale: ${esc(m)}</span>`).join("");
+  const qualityTags = (uncertainty.quality_flags || []).map((m) => `<span class="tag">flag: ${esc(m)}</span>`).join("");
+
+  const explanationHtml = `
+    <h3 style="font-size:1.05rem;margin:1.25rem 0 .5rem">Decision explanation</h3>
+    <div class="explanation-summary">${esc(explanation.summary || "")}</div>
+    <dl class="kv" style="margin-bottom:1rem">
+      <dt>Precedence</dt><dd><code>${esc(d.precedence)}</code></dd>
+      <dt>Limiting constraint</dt><dd>${esc(explanation.limiting_constraint || "—")}</dd>
+      <dt>Headroom</dt><dd>${esc(explanation.headroom_summary || "—")}</dd>
+    </dl>
+    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Passed constraints</h4>
+    ${reasonList(passed, "pass")}
+    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Warnings</h4>
+    ${reasonList(warnings, "warn-list")}
+    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Failed constraints</h4>
+    ${reasonList(failed, "fail")}
+    <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">Uncertainty</h4>
+    <div class="tags">${uncertaintyTags}${missingTags}${staleTags}${qualityTags}</div>
+    ${(explanation.what_would_change_decision || []).length ? `
+      <h4 style="font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:.75rem 0 .35rem">What would change the outcome</h4>
+      <ul class="reason-list warn-list">${explanation.what_would_change_decision.map((r) => `<li>${esc(r)}</li>`).join("")}</ul>
+    ` : ""}
+    ${sensitivityHtml}
+    <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+      <button class="btn ghost" id="verify-btn" type="button" aria-describedby="verify-hint">Verify integrity</button>
+      <span id="verify-hint" style="font-size:.8rem;color:var(--muted)">Recomputes input/config fingerprints and re-runs the engine. The full evidence bundle is not reproduced.</span>
+    </div>
+    <div id="verify-result" role="status" aria-live="polite"></div>`;
+
+  $("#inspector-content").innerHTML = engineeringHtml + explanationHtml;
+  document.getElementById("verify-btn").addEventListener("click", runVerify);
+}
+
+async function runVerify() {
+  if (!state.selectedId) return;
+  const btn = document.getElementById("verify-btn");
+  const out = document.getElementById("verify-result");
+  btn.disabled = true; btn.setAttribute("aria-busy", "true");
+  out.className = "";
+  out.textContent = "";
+  try {
+    const { body } = await api("/api/v1/decisions/" + encodeURIComponent(state.selectedId) + "/verify");
+    state.verification = body;
+    renderVerification(body);
+  } catch (err) {
+    out.className = "msg bad";
+    out.textContent = "Verification failed: " + err.message;
+  } finally {
+    btn.disabled = false; btn.removeAttribute("aria-busy");
+  }
+}
+
+function renderVerification(v) {
+  const out = document.getElementById("verify-result");
+  const cls = v.verified ? "verify-result ok" : "verify-result bad";
+  const label = v.verified ? "Verified" : "Verification failed";
+  const detail = [
+    `input_fingerprint: ${v.computed_input_fingerprint === v.stored_input_fingerprint ? "match" : "MISMATCH"}`,
+    `config_fingerprint: ${v.computed_config_fingerprint === v.stored_config_fingerprint ? "match" : "MISMATCH"}`,
+    `status: ${v.recomputed_status === v.stored_status ? "match" : "MISMATCH"}`,
+    `engine_version_match: ${v.engine_version_match ? "yes" : "NO"}`,
+    `scope: ${v.verification_scope}`,
+  ];
+  out.className = cls;
+  out.innerHTML = `<strong>${esc(label)}</strong><br><span style="font-family:var(--mono);font-size:.8rem">${esc(detail.join(" · "))}</span>`;
+}
+
+/* ---- wiring ---- */
+$("#filter-status").addEventListener("change", (e) => {
+  state.status = e.target.value;
+  state.offset = 0;
+  loadHistory();
+});
+$("#prev-btn").addEventListener("click", () => {
+  state.offset = Math.max(0, state.offset - state.pageSize);
+  loadHistory();
+});
+$("#next-btn").addEventListener("click", () => {
+  state.offset += state.pageSize;
+  loadHistory();
+});
+$("#refresh-btn").addEventListener("click", async () => {
+  await Promise.all([loadStats(), loadHistory()]);
+  if (state.selectedId) await loadDetail(state.selectedId);
+});
+
+/* ---- initial load ---- */
+(async function init() {
+  await Promise.all([loadStats(), loadHistory()]);
+})();
+
+/* periodic refresh of overview + history only (never the selected detail,
+   so we do not interrupt an inspector session in progress) */
+setInterval(() => {
+  if (document.hidden) return;
+  loadStats().catch(() => {});
+  loadHistory().catch(() => {});
+}, 30000);
+</script>
+</body>
+</html>

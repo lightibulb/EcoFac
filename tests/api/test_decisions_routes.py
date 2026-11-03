@@ -488,3 +488,82 @@ def test_verify_and_chain_return_404_for_missing(client):
     assert (
         client.get(f"{BASE}/missing/supersession-chain").status_code == 404
     )
+
+
+# ---- /stats endpoint ----
+def test_stats_empty(client):
+    body = client.get(f"{BASE}/stats").json()
+    assert body["total"] == 0
+    assert body["approved"] == 0
+    assert body["rejected"] == 0
+    assert body["review"] == 0
+    assert body["latest_decision"] is None
+    assert body["recent_activity"] == []
+
+
+def test_stats_counts(client):
+    _evaluate(client)
+    _evaluate(client)
+    _evaluate(client, it_value=1100.0)
+    body = client.get(f"{BASE}/stats").json()
+    assert body["total"] == 3
+    assert body["approved"] == 2
+    assert body["rejected"] == 1
+    assert body["review"] == 0
+
+
+def test_stats_latest_and_recent(client):
+    _evaluate(client)
+    last_id = _evaluate(client, it_value=1100.0).json()["decision_id"]
+    body = client.get(f"{BASE}/stats").json()
+    assert body["latest_decision"]["id"] == last_id
+    assert len(body["recent_activity"]) == 2
+
+
+def test_stats_not_shadowed_by_decision_id_route(client):
+    """A literal ``stats`` path must NOT be treated as a decision_id lookup."""
+    # /stats should return the stats schema, not a 404 "Decision not found"
+    resp = client.get(f"{BASE}/stats")
+    assert resp.status_code == 200
+    assert "total" in resp.json()
+
+
+# ---- /engineering endpoint ----
+def test_engineering_summary_endpoint(client):
+    did = _evaluate(client, pue_value=1.4).json()["decision_id"]
+    body = client.get(f"{BASE}/{did}/engineering").json()
+    assert body["pue"] == 1.4
+    assert body["pue_provenance"] == "MEASURED"
+    assert "current_facility_power_kw" in body
+    assert "current_electrical" in body
+    assert "headroom_to_permitted_kw" in body["current_electrical"]
+
+
+def test_engineering_matches_evidence(client):
+    """The endpoint returns exactly what the engine stored in evidence."""
+    did = _evaluate(client, pue_value=1.4).json()["decision_id"]
+    record = client.get(f"{BASE}/{did}").json()
+    eng = client.get(f"{BASE}/{did}/engineering").json()
+    evidence = record["result"]["evidence"]["calculation_inputs"]
+    assert eng["current_facility_power_kw"] == evidence["current_facility_power_kw"]
+    assert eng["predicted_facility_power_kw"] == evidence["predicted_facility_power_kw"]
+
+
+def test_engineering_404(client):
+    assert client.get(f"{BASE}/missing/engineering").status_code == 404
+
+
+def test_engineering_422_for_old_schema(client, test_db):
+    """A record without the PUE-integrated evidence returns 422."""
+    test_db.execute(
+        "INSERT INTO decisions "
+        "(id, status, precedence, engine_version, config_version, "
+        "input_fingerprint, config_fingerprint, request_json, result_json, "
+        "decision_timestamp, created_at, supersedes, supersession_reason) "
+        "VALUES ('old-1', 'APPROVE', 'clean', '0.9', 'cfg-1', "
+        "'fp1', 'fp2', '{}', '{\"evidence\": {\"calculation_inputs\": {}}}', "
+        "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL, NULL)"
+    )
+    resp = client.get(f"{BASE}/old-1/engineering")
+    assert resp.status_code == 422
+    assert "predates" in resp.json()["detail"]

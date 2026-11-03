@@ -12,13 +12,17 @@ from ecofac.api.schemas import (
     DecisionEvaluateResponse,
     DecisionHistoryItem,
     DecisionRecordResponse,
+    DecisionStats,
     DecisionVerifyResponse,
+    EngineeringSummary,
     SupersessionChainResponse,
 )
+from ecofac.decision.engineering import build_engineering_summary
 from ecofac.decision.measurements import (
     MeasurementSource,
     RichMeasurement,
 )
+from ecofac.decision.stats import aggregate_decisions
 from ecofac.decision.store import (
     batch_supersession_info,
     count_decisions,
@@ -44,15 +48,7 @@ TRUSTED_LOAD_UNIT = "kW"
 def _resolve_trusted(
     conn: sqlite3.Connection, req: TransparentDecisionRequest
 ) -> TransparentDecisionRequest:
-    """Replace caller-supplied measurements with DB-validated readings.
-
-    Per-measurement behavior:
-      - Both meter_id and measurement_timestamp set -> resolve from DB
-      - Neither set -> keep caller value (measurement not referenced)
-      - Only one set -> 400 (partial reference is invalid)
-
-    At least one measurement must be referenced; otherwise 400.
-    """
+    """Replace caller-supplied measurements with DB-validated readings."""
     if req.mode != DecisionMode.TRUSTED:
         return req
 
@@ -182,10 +178,9 @@ def list_decisions_endpoint(
 ) -> list[DecisionHistoryItem]:
     """List stored decisions, newest first.
 
-    Response headers:
-      X-Total-Count: total number of decisions matching the active filters
-      (independent of limit/offset), so paginators can compute page counts
-      without additional round-trips.
+    Response header ``X-Total-Count`` carries the total matching the active
+    filters (independent of limit/offset), so paginators can compute page
+    counts without extra round-trips.
     """
     total = count_decisions(
         conn, status=status, config_version=config_version
@@ -197,6 +192,33 @@ def list_decisions_endpoint(
     )
     successors = batch_supersession_info(conn, [row["id"] for row in rows])
     return [_enrich_history_item(row, successors) for row in rows]
+
+
+@router.get("/stats")
+def decision_stats_endpoint(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> DecisionStats:
+    """Aggregate decision metrics for the Decision Center overview."""
+    stats = aggregate_decisions(conn)
+    latest = stats["latest_row"]
+    recent = stats["recent_rows"]
+    all_ids = (
+        ([latest["id"]] if latest is not None else [])
+        + [row["id"] for row in recent]
+    )
+    successors = batch_supersession_info(conn, all_ids)
+    return DecisionStats(
+        total=stats["total"],
+        approved=stats["approved"],
+        rejected=stats["rejected"],
+        review=stats["review"],
+        latest_decision=(
+            _enrich_history_item(latest, successors) if latest else None
+        ),
+        recent_activity=[
+            _enrich_history_item(row, successors) for row in recent
+        ],
+    )
 
 
 @router.get("/{decision_id}")
@@ -216,15 +238,27 @@ def verify_decision_endpoint(
     decision_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> DecisionVerifyResponse:
-    """Recompute fingerprints AND replay the decision to verify integrity.
-
-    Response ``verification_scope`` names exactly what was checked. The full
-    evidence bundle is not reproduced — see ``full_bundle_reproduced``.
-    """
+    """Recompute fingerprints AND replay the decision to verify integrity."""
     verification = verify_decision(conn, decision_id)
     if verification is None:
         raise HTTPException(status_code=404, detail="Decision not found")
     return DecisionVerifyResponse(**verification)
+
+
+@router.get("/{decision_id}/engineering")
+def engineering_summary_endpoint(
+    decision_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> EngineeringSummary:
+    """Structured engineering summary extracted from the stored decision."""
+    record = get_decision(conn, decision_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Decision not found")
+    try:
+        data = build_engineering_summary(record)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return EngineeringSummary(**data)
 
 
 @router.get("/{decision_id}/supersession-chain")
@@ -232,11 +266,7 @@ def supersession_chain_endpoint(
     decision_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> SupersessionChainResponse:
-    """Return the supersession chain containing this decision.
-
-    ``chain`` is the primary linear sequence. ``branches`` carries any legacy
-    secondary successors so no branch is silently dropped.
-    """
+    """Return the supersession chain containing this decision."""
     chain, branches = walk_supersession_chain_with_branches(conn, decision_id)
     if not chain:
         raise HTTPException(status_code=404, detail="Decision not found")

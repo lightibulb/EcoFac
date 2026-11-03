@@ -167,10 +167,19 @@ html { scroll-behavior:smooth; }
   .inc .pill { grid-area:pill; } .inc-act { grid-area:act; } .inc-id { grid-area:id; } .inc-time { grid-area:time; justify-self:end; }
   .facts { width:100%; justify-content:space-between; }
 }
+
+.topnav { display:flex; gap:.25rem; margin-bottom:1rem; padding-bottom:.75rem; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.topnav a { color:var(--muted); text-decoration:none; font-weight:500; padding:.4rem .85rem; border-radius:6px; transition:background .2s, color .2s; }
+.topnav a:hover { color:var(--ink); background:color-mix(in oklab, var(--accent) 8%, transparent); }
+.topnav a.active { color:var(--ink); background:var(--accent-soft); }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <nav class="topnav" aria-label="Primary">
+    <a href="/" class="active" aria-current="page">Dashboard</a>
+    <a href="/decisions">Decision Center</a>
+  </nav>
   <header class="top">
     <div>
       <h1>EcoFac</h1>
