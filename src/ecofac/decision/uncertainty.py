@@ -24,7 +24,12 @@ class DataQualityLevel(StrEnum):
 
 
 class ModelUncertaintyLevel(StrEnum):
-    """Categorical indicator of physical-model uncertainty."""
+    """Categorical indicator of physical-model uncertainty.
+
+    ``UNKNOWN`` means no tolerance metadata was supplied, so the true
+    uncertainty of the inputs cannot be bounded. This is *not* the same as
+    LOW confidence — it means the evidence is insufficient to say.
+    """
 
     LOW = "LOW"
     MODERATE = "MODERATE"
@@ -61,13 +66,16 @@ class UncertaintyReport(pydantic.BaseModel):
     quality_flags: list[str] = pydantic.Field(default_factory=list)
 
 
-# Documented model limitations, referenced by every decision.
 MODEL_LIMITATIONS: list[str] = [
-    "IT electrical load is treated as approximate heat load (factor 1.0).",
+    (
+        "IT electrical load is not treated as facility power directly; "
+        "facility power = IT load * PUE."
+    ),
     "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
     "Comparable-period checks use UTC only; local work calendars are not modelled.",
     "No weather or occupancy normalisation is applied.",
     "Statistical confidence is categorical only; no calibrated probability is claimed.",
+    "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN.",
 ]
 
 
@@ -98,7 +106,12 @@ def _assess_data_quality(
 def _assess_model_uncertainty(
     measurements: list[RichMeasurement],
 ) -> tuple[ModelUncertaintyLevel, list[str]]:
-    """Determine model uncertainty level and rationale."""
+    """Determine model uncertainty level and rationale.
+
+    Measurement provenance (MEASURED) does not equal accuracy. Only when an
+    explicit tolerance is supplied can we bound the uncertainty. Without any
+    tolerance, the level is UNKNOWN — the engine refuses to claim LOW.
+    """
     rationale: list[str] = []
     measured_count = sum(1 for m in measurements if m.is_measured())
     estimated_count = sum(1 for m in measurements if m.is_estimated())
@@ -113,22 +126,17 @@ def _assess_model_uncertainty(
         f"{measured_count} measured, {estimated_count} estimated, "
         f"{unknown_count} unknown provenance"
     )
-    if has_any_tolerance:
-        rationale.append("explicit tolerances provided for at least one measurement")
-    else:
-        rationale.append("no measurement tolerances provided")
 
-    # Measurement provenance is not the same thing as measurement accuracy.
-    # A MEASURED value without a tolerance is not evidence of low uncertainty.
     if not has_any_tolerance:
         rationale.append(
-            "measurement uncertainty is UNKNOWN because no tolerance metadata "
-            "was supplied"
+            "no tolerance metadata supplied; uncertainty cannot be bounded"
         )
         return ModelUncertaintyLevel.UNKNOWN, rationale
 
+    rationale.append("explicit tolerances provided for at least one measurement")
+
     if estimated_count == 0 and unknown_count == 0:
-        return ModelUncertaintyLevel.MODERATE, rationale
+        return ModelUncertaintyLevel.LOW, rationale
     if estimated_count <= measured_count:
         return ModelUncertaintyLevel.MODERATE, rationale
     return ModelUncertaintyLevel.HIGH, rationale

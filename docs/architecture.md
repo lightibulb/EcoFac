@@ -92,6 +92,8 @@ Currently:
 
 - `001_initial.sql` — baseline tables and indexes.
 - `002_add_meter_interval.sql` — adds `meters.interval_minutes` (default 60).
+- `003_add_decisions.sql` — adds the append-only `decisions` and
+  `decision_configs` tables, their indexes, and immutability triggers.
 
 ## Technology Stack
 
@@ -221,3 +223,15 @@ one of three states: **APPROVE**, **REJECT**, or **REVIEW**. It coexists with
 **Metadata on every decision:** `decision_timestamp`, `engine_version`,
 `config_version`, `evaluated_constraints`, `reasons`, `warnings`,
 `unresolved_conditions`.
+
+
+## Canonical decision pipeline
+
+`decision.transparent.decide_transparently` is the canonical entry point.
+It uses `decision.limits` (constraint evaluation), `decision.state_machine`
+(state), `decision.calculations` (facility power = IT × PUE),
+`decision.uncertainty` (categorical uncertainty), `decision.evidence`
+(bundle), and `decision.reproducibility` (fingerprints).
+
+`decision.engine` and `decision.constraints` are retained for backward
+compatibility but are deprecated. Do not add new features to them.

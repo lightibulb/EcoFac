@@ -6,17 +6,9 @@ three final states: APPROVE, REJECT, or REVIEW. Precedence is fixed and
 explicit; two calls with identical inputs produce identical output except
 for the recorded ``decision_timestamp``.
 
-**Structural guarantees** (enforced by input schema):
+**Precedence order (first match wins):**
 
-- ``DecisionContext`` accepts no anomaly or AI-detection field. The engine
-  cannot approve a proposal "because no anomaly was detected."
-- ``quality_eligible`` must be True and ``quality_stale`` False for an
-  APPROVE. Missing or stale data can never silently become a safe result.
-- Statistical anomaly detection is a separate subsystem. Nothing in this
-  module consumes its outputs.
-
-Precedence order (first match wins):
-
+0. ``invalid_proposal_reasons`` non-empty -> REJECT (``invalid_proposal``)
 1. ``PHYSICAL_VIOLATION``   -> REJECT  (``hard_limit_violation``)
 2. ``RESERVE_VIOLATION``    -> REJECT  (``reserve_violation``)
 3. Quality ineligible/stale -> REVIEW  (``data_quality_ineligible``)
@@ -24,6 +16,11 @@ Precedence order (first match wins):
 5. Uncertainty flags        -> REVIEW  (``uncertainty``)
 6. Conflicting inputs       -> REVIEW  (``conflicting_inputs``)
 7. Otherwise                -> APPROVE (``clean``)
+
+**Corrective-action mode:** when ``corrective_action_mode=True``, only the
+*predicted* state can reject. Current-state violations are still evaluated
+for the audit trail but do not block an action that repairs them. When
+False (default), both current and predicted state are checked.
 """
 
 from enum import StrEnum
@@ -52,6 +49,7 @@ class FinalDecisionStatus(StrEnum):
 class DecisionPrecedence(StrEnum):
     """Which rule produced the final state. Recorded for auditability."""
 
+    INVALID_PROPOSAL = "invalid_proposal"
     HARD_LIMIT_VIOLATION = "hard_limit_violation"
     RESERVE_VIOLATION = "reserve_violation"
     DATA_QUALITY_INELIGIBLE = "data_quality_ineligible"
@@ -82,6 +80,8 @@ class DecisionContext(pydantic.BaseModel):
     quality_flags: list[str] = pydantic.Field(default_factory=list)
     uncertainty_flags: list[str] = pydantic.Field(default_factory=list)
     conflicting_inputs: list[str] = pydantic.Field(default_factory=list)
+    invalid_proposal_reasons: list[str] = pydantic.Field(default_factory=list)
+    corrective_action_mode: bool = False
 
 
 class FinalDecision(pydantic.BaseModel):
@@ -103,20 +103,24 @@ class FinalDecision(pydantic.BaseModel):
 def _evaluate_context_constraints(
     context: DecisionContext,
 ) -> list[LimitEvaluation]:
-    """Evaluate constraints on both current and predicted state.
+    """Evaluate constraints on current and/or predicted state.
 
-    Predicted state is authoritative for status. Current state is included
-    so an already-overloaded input is visible to reviewers.
+    In corrective-action mode only the predicted state is authoritative, so
+    a repair that brings load back under capacity is not blocked by the
+    overload it is repairing. In normal mode both states are checked.
     """
-    current_summary = evaluate_all(
-        context.config,
-        observed_electrical=context.current_electrical_kw,
-        observed_cooling=context.current_cooling_kw,
-    )
     predicted_summary = evaluate_all(
         context.config,
         observed_electrical=context.predicted_electrical_kw,
         observed_cooling=context.predicted_cooling_kw,
+    )
+    if context.corrective_action_mode:
+        return predicted_summary.evaluations
+
+    current_summary = evaluate_all(
+        context.config,
+        observed_electrical=context.current_electrical_kw,
+        observed_cooling=context.current_cooling_kw,
     )
     return current_summary.evaluations + predicted_summary.evaluations
 
@@ -174,6 +178,15 @@ def _build_decision(
 
 def evaluate_decision(context: DecisionContext) -> FinalDecision:
     """Apply the precedence rules and return the final decision."""
+    if context.invalid_proposal_reasons:
+        return _build_decision(
+            context,
+            FinalDecisionStatus.REJECT,
+            DecisionPrecedence.INVALID_PROPOSAL,
+            list(context.invalid_proposal_reasons),
+            [],
+        )
+
     evaluations = _evaluate_context_constraints(context)
 
     if _any_severity(evaluations, ConstraintSeverity.PHYSICAL_VIOLATION):

@@ -3,7 +3,7 @@ services:
     name: ecofac
     runtime: python
     plan: free
-    buildCommand: pip install .
+    buildCommand: pip install --upgrade pip && pip install .
     startCommand: uvicorn ecofac.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     # Free plan: no persistent disk, so the SQLite file (default ecofac_api.db)

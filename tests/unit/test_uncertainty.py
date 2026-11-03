@@ -33,12 +33,27 @@ def _assumed(name: str, value: float) -> RichMeasurement:
     )
 
 
-def test_all_measured_no_flags_is_ok_and_low():
+def test_all_measured_no_tolerance_is_unknown():
+    """Measured provenance does not imply accuracy; without tolerance -> UNKNOWN."""
     report = assess_uncertainty([_measured("a", 1.0), _measured("b", 2.0)])
     assert report.data_quality_level == DataQualityLevel.OK
+    assert report.model_uncertainty_level == ModelUncertaintyLevel.UNKNOWN
+
+
+def test_all_measured_with_tolerance_is_low():
+    report = assess_uncertainty(
+        [_measured("a", 1.0, tol=0.1), _measured("b", 2.0, tol=0.2)]
+    )
+    assert report.data_quality_level == DataQualityLevel.OK
     assert report.model_uncertainty_level == ModelUncertaintyLevel.LOW
-    assert report.missing_measurements == []
-    assert report.estimated_parameters == []
+
+
+def test_partial_tolerance_mixed_with_assumed_is_moderate():
+    report = assess_uncertainty(
+        [_measured("a", 1.0, tol=0.1), _assumed("pue", 1.4)]
+    )
+    assert report.model_uncertainty_level == ModelUncertaintyLevel.MODERATE
+    assert "pue" in report.estimated_parameters
 
 
 def test_quality_flags_degrade():
@@ -64,8 +79,7 @@ def test_missing_measurement_is_unusable():
 
 def test_assumed_parameter_raises_model_level():
     report = assess_uncertainty([_assumed("pue", 1.4)])
-    assert report.model_uncertainty_level == ModelUncertaintyLevel.HIGH
-    assert "pue" in report.estimated_parameters
+    assert report.model_uncertainty_level == ModelUncertaintyLevel.UNKNOWN
 
 
 def test_model_limitations_always_listed():
@@ -79,3 +93,11 @@ def test_tolerance_used_lists_named_measurements():
         [_measured("it", 100.0, tol=5.0), _measured("cool", 50.0)]
     )
     assert report.tolerance_used == ["it"]
+
+
+def test_quality_flags_surfaced():
+    report = assess_uncertainty(
+        [_measured("a", 1.0, tol=0.1)],
+        quality_flags=["flag_a", "flag_b"],
+    )
+    assert report.quality_flags == ["flag_a", "flag_b"]

@@ -90,3 +90,27 @@ not do well.
     logs, tracing, and health/readiness probes beyond `/health`.
 20. **No backup or restore drills.** SQLite file is the single source of
     truth; no backup automation exists.
+
+
+## Decision Engine (updated)
+
+The canonical decision path is `decision.transparent`. It computes
+**facility power = IT load × PUE** before evaluating the electrical
+constraint. PUE provenance (MEASURED/CONFIGURED/ASSUMED) is recorded
+in every decision. When PUE is not supplied it defaults to 1.0 with an
+explicit ASSUMED provenance note in the evidence bundle.
+
+Negative proposed loads (predicted IT or cooling < 0) are rejected
+with precedence `invalid_proposal`. Negative measurement values are
+rejected at the schema boundary.
+
+Measurement units are validated: loads must be `kW`, PUE must be
+`dimensionless`. Freshness can be enforced server-side via
+`max_measurement_age_seconds`.
+
+Uncertainty classification returns `UNKNOWN` (not `LOW`) when no
+tolerance metadata is supplied, because measured is not the same as
+accurate.
+
+Trusted mode (`mode="trusted"`) resolves measurement values and
+quality flags from the database instead of trusting the caller.

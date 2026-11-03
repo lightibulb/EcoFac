@@ -4,6 +4,9 @@ import os
 import pathlib
 import sqlite3
 from collections.abc import Generator
+from typing import Annotated
+
+from fastapi import Header, HTTPException
 
 from ecofac.persistence.database import BUSY_TIMEOUT_SECONDS, enable_wal, init_db
 
@@ -35,3 +38,17 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
         yield conn
     finally:
         conn.close()
+
+
+def require_write_access(
+    x_ecofac_token: Annotated[str | None, Header()] = None,
+) -> None:
+    """Env-gated write auth. When ECOFAC_WRITE_TOKEN is unset, no auth is required."""
+    token = os.environ.get("ECOFAC_WRITE_TOKEN", "").strip()
+    if not token:
+        return
+    if not x_ecofac_token or x_ecofac_token != token:
+        raise HTTPException(
+            status_code=401,
+            detail="Missing or invalid X-EcoFac-Token header",
+        )

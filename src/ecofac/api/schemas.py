@@ -148,12 +148,17 @@ class DecisionRecordResponse(DecisionHistoryItem):
 
 
 class DecisionVerifyResponse(pydantic.BaseModel):
-    """Result of a fingerprint re-verification."""
+    """Result of a full re-verification (fingerprints and decision outcome)."""
     verified: bool
     stored_input_fingerprint: str
     computed_input_fingerprint: str
     stored_config_fingerprint: str
     computed_config_fingerprint: str
+    output_verified: bool = True
+    stored_status: str | None = None
+    recomputed_status: str | None = None
+    stored_precedence: str | None = None
+    recomputed_precedence: str | None = None
 
 
 class SupersessionChainResponse(pydantic.BaseModel):

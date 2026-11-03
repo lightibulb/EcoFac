@@ -8,6 +8,11 @@ reference so it can be traced back to the original reading.
 The system never invents uncertainty values: if neither ``absolute_tolerance``
 nor ``relative_tolerance`` is provided, the measurement has *unknown*
 uncertainty and downstream code must treat it as such.
+
+Negative values are rejected at the model boundary because a physical
+measurement (load, power, capacity) cannot be negative. Callers who want to
+propose *reductions* use ``proposed_it_delta`` on the request — not a
+negative ``value``.
 """
 
 from enum import StrEnum
@@ -59,12 +64,13 @@ class RichMeasurement(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(frozen=True)
 
     name: str
-    value: float | None
+    value: float | None = pydantic.Field(default=None, ge=0.0)
     unit: str
     source: MeasurementSource
     uncertainty: UncertaintyMetadata | None = None
     measurement_timestamp: str | None = None
     reference_id: str | None = None
+    meter_id: str | None = None
 
     def is_present(self) -> bool:
         """True if a value is available and the source is not MISSING."""
@@ -87,3 +93,12 @@ class RichMeasurement(pydantic.BaseModel):
             MeasurementSource.CONFIGURED,
             MeasurementSource.ASSUMED,
         )
+
+    def validate_unit(self, expected: str) -> None:
+        """Raise ``ValueError`` if ``self.unit`` differs from ``expected``."""
+        if self.unit != expected:
+            msg = (
+                f"Measurement '{self.name}' has unit '{self.unit}', "
+                f"expected '{expected}'"
+            )
+            raise ValueError(msg)

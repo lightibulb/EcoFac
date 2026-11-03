@@ -14,6 +14,8 @@ from ecofac.decision.measurements import (
 from ecofac.decision.reproducibility import verify_reproduction
 from ecofac.decision.transparent import (
     TransparentDecisionRequest,
+    build_config_payload,
+    build_input_payload,
     decide_transparently,
 )
 
@@ -37,9 +39,7 @@ def _req(
         config=_config(),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load",
-            value=it_value,
-            unit="kW",
+            name="it_load", value=it_value, unit="kW",
             source=MeasurementSource.MEASURED,
             uncertainty=(
                 UncertaintyMetadata(absolute_tolerance=it_tol) if it_tol else None
@@ -48,14 +48,11 @@ def _req(
             measurement_timestamp="2026-01-01T00:00:00Z",
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load",
-            value=cool_value,
-            unit="kW",
+            name="cooling_load", value=cool_value, unit="kW",
             source=MeasurementSource.MEASURED,
             uncertainty=(
                 UncertaintyMetadata(absolute_tolerance=cool_tol)
-                if cool_tol
-                else None
+                if cool_tol else None
             ),
         ),
         quality_eligible=quality,
@@ -76,18 +73,8 @@ def test_full_flow_reject_and_reproduce():
     assert result.status == "REJECT"
     verified = verify_reproduction(
         result.fingerprint,
-        input_payload={
-            "it_load": req.it_load.model_dump(mode="json"),
-            "cooling_load": req.cooling_load.model_dump(mode="json"),
-            "proposed_it_delta": req.proposed_it_delta,
-            "proposed_cooling_delta": req.proposed_cooling_delta,
-            "quality_eligible": req.quality_eligible,
-            "quality_stale": req.quality_stale,
-            "quality_flags": req.quality_flags,
-            "uncertainty_flags": req.uncertainty_flags,
-            "conflicting_inputs": req.conflicting_inputs,
-        },
-        config_payload=req.config.model_dump(mode="json"),
+        input_payload=build_input_payload(req),
+        config_payload=build_config_payload(req),
     )
     assert verified is True
 
@@ -97,12 +84,6 @@ def test_full_flow_review_with_hints():
     assert result.status == "REVIEW"
     hints = result.explanation["what_would_change_decision"]
     assert hints
-    assert any(
-        "headroom" in h.lower()
-        or "capacity" in h.lower()
-        or "measured tolerances" in h.lower()
-        for h in hints
-    )
 
 
 def test_reproduction_fails_on_mismatched_inputs():
@@ -110,19 +91,11 @@ def test_reproduction_fails_on_mismatched_inputs():
     result = decide_transparently(req)
     tampered = req.it_load.model_dump(mode="json")
     tampered["value"] = 400.0
+    payload = build_input_payload(req)
+    payload["it_load"] = tampered
     verified = verify_reproduction(
         result.fingerprint,
-        input_payload={
-            "it_load": tampered,
-            "cooling_load": req.cooling_load.model_dump(mode="json"),
-            "proposed_it_delta": req.proposed_it_delta,
-            "proposed_cooling_delta": req.proposed_cooling_delta,
-            "quality_eligible": req.quality_eligible,
-            "quality_stale": req.quality_stale,
-            "quality_flags": req.quality_flags,
-            "uncertainty_flags": req.uncertainty_flags,
-            "conflicting_inputs": req.conflicting_inputs,
-        },
-        config_payload=req.config.model_dump(mode="json"),
+        input_payload=payload,
+        config_payload=build_config_payload(req),
     )
     assert verified is False

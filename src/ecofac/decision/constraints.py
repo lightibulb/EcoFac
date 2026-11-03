@@ -1,10 +1,11 @@
 # Copyright 2026 Lightibulb
-"""Pure constraint evaluation functions. No I/O, no DB, no API.
+"""DEPRECATED: superseded by decision.state_machine + decision.limits.
 
-Every function takes explicit inputs and returns a Pydantic model. There are
-no module-level thresholds. This file is where the engineering math lives, so
-it can be unit-tested in isolation.
+Retained for backward compatibility. New code should use the constraint
+evaluators in ``decision.limits`` and the orchestrator in
+``decision.transparent``.
 """
+
 
 from ecofac.decision.schemas import (
     ConstraintEvaluation,

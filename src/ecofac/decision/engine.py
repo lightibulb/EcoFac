@@ -1,10 +1,11 @@
 # Copyright 2026 Lightibulb
-"""Decision engine orchestration.
+"""DEPRECATED: superseded by decision.transparent.
 
-Takes validated measurements, a proposed change, quality metadata, and
-caller-supplied constraints. Returns a Decision with explicit status,
-per-constraint evaluations, warnings, evidence, and a human explanation.
+Retained for backward compatibility with existing callers. New code
+should use ``decision.transparent.decide_transparently``, which wraps the
+state machine and produces evidence-backed decisions.
 """
+
 
 from ecofac.decision.constraints import (
     compute_predicted,
