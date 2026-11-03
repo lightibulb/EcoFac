@@ -42,19 +42,36 @@ TRUSTED_LOAD_UNIT = "kW"
 def _resolve_trusted(
     conn: sqlite3.Connection, req: TransparentDecisionRequest
 ) -> TransparentDecisionRequest:
-    """Replace caller-supplied measurements with DB-validated readings."""
+    """Replace caller-supplied measurements with DB-validated readings.
+
+    Per-measurement behavior:
+      - Both meter_id and measurement_timestamp set -> resolve from DB
+      - Neither set -> keep caller value (measurement not referenced)
+      - Only one set -> 400 (partial reference is invalid)
+
+    At least one measurement must be referenced, otherwise trusted mode
+    is meaningless and the request is rejected.
+    """
     if req.mode != DecisionMode.TRUSTED:
         return req
 
     updates: dict[str, RichMeasurement] = {}
     flags: set[str] = set()
+    resolved_any = False
+    quality_meter: str | None = None
+    quality_ts_str: str | None = None
 
     for field_name in ("it_load", "cooling_load"):
         m = getattr(req, field_name)
-        if not m.meter_id or not m.measurement_timestamp:
+        has_meter = m.meter_id is not None
+        has_ts = m.measurement_timestamp is not None
+        if not has_meter and not has_ts:
+            continue  # no reference -> keep caller-supplied value
+
+        if not has_meter or not has_ts:
             msg = (
-                f"{field_name} requires meter_id and measurement_timestamp "
-                "in trusted mode"
+                f"{field_name} in trusted mode requires both meter_id "
+                "and measurement_timestamp (or neither)"
             )
             raise HTTPException(status_code=400, detail=msg)
 
@@ -81,22 +98,30 @@ def _resolve_trusted(
                 "source": MeasurementSource.MEASURED,
             }
         )
+        resolved_any = True
+        if quality_meter is None:
+            quality_meter = m.meter_id
+            quality_ts_str = m.measurement_timestamp
 
-    # Server-side quality assessment on the it_load meter.
-    try:
-        ts = parse_utc(req.it_load.measurement_timestamp or "")
-    except (ValueError, TypeError):
-        ts = None
-    if ts is not None:
-        import datetime as dt  # noqa: PLC0415
-        quality = assess_quality(
-            conn,
-            req.it_load.meter_id or "",
-            ts - dt.timedelta(hours=1),
-            ts,
+    if not resolved_any:
+        msg = (
+            "Trusted mode requires at least one measurement reference "
+            "(meter_id + measurement_timestamp)"
         )
-        if not quality.is_analysis_eligible:
-            flags.update(quality.flags)
+        raise HTTPException(status_code=400, detail=msg)
+
+    if quality_meter is not None and quality_ts_str is not None:
+        try:
+            ts = parse_utc(quality_ts_str)
+        except (ValueError, TypeError):
+            ts = None
+        if ts is not None:
+            import datetime as dt  # noqa: PLC0415
+            quality = assess_quality(
+                conn, quality_meter, ts - dt.timedelta(hours=1), ts
+            )
+            if not quality.is_analysis_eligible:
+                flags.update(quality.flags)
 
     return req.model_copy(
         update={
@@ -105,7 +130,6 @@ def _resolve_trusted(
             "quality_flags": sorted(flags),
         }
     )
-
 
 @router.post("/evaluate")
 def evaluate_decision(

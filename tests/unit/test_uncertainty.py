@@ -40,12 +40,12 @@ def test_all_measured_no_tolerance_is_unknown():
     assert report.model_uncertainty_level == ModelUncertaintyLevel.UNKNOWN
 
 
-def test_all_measured_with_tolerance_is_low():
+def test_all_measured_with_tolerance_is_moderate():
     report = assess_uncertainty(
         [_measured("a", 1.0, tol=0.1), _measured("b", 2.0, tol=0.2)]
     )
     assert report.data_quality_level == DataQualityLevel.OK
-    assert report.model_uncertainty_level == ModelUncertaintyLevel.LOW
+    assert report.model_uncertainty_level == ModelUncertaintyLevel.MODERATE
 
 
 def test_partial_tolerance_mixed_with_assumed_is_moderate():

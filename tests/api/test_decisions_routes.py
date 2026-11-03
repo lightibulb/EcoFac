@@ -23,6 +23,7 @@ def _req(
     it_meter_id=None,
     it_timestamp=None,
     mode="hypothetical",
+    cap=1000.0,
 ):
     it_uncertainty = (
         {"absolute_tolerance": it_tol} if it_tol is not None else None
@@ -34,13 +35,14 @@ def _req(
         "source": it_source,
         "uncertainty": it_uncertainty,
         "reference_id": "reading-it-1",
-        "measurement_timestamp": it_timestamp or "2026-01-01T00:00:00Z",
     }
+    if it_timestamp is not None:
+        it_load["measurement_timestamp"] = it_timestamp
     if it_meter_id is not None:
         it_load["meter_id"] = it_meter_id
     payload_decision: dict = {
         "config": {
-            "electrical": {"capacity": 1000.0, "reserve_pct": 0.10},
+            "electrical": {"capacity": cap, "reserve_pct": 0.10},
             "cooling": {"capacity": 800.0, "reserve_pct": 0.10},
         },
         "config_version": config_version,
@@ -286,7 +288,7 @@ def test_existing_endpoints_unaffected(client):
 
 # ---- PUE via API ----
 def test_evaluate_pue_flips_verdict(client):
-    resp = _evaluate(client, it_value=400.0, pue_value=1.4)
+    resp = _evaluate(client, it_value=400.0, pue_value=1.4, cap=500.0)
     assert resp.json()["result"]["precedence"] == "hard_limit_violation"
 
 
@@ -363,6 +365,11 @@ def test_trusted_mode_missing_reading_400(client):
 
 def test_trusted_mode_resolves_valid_reading(client, test_db):
     test_db.execute(
+        "INSERT OR IGNORE INTO import_batches "
+        "(id, source_id, status, imported_at) "
+        "VALUES ('ib1', 's1', 'started', '2026-01-01T00:00:00Z')"
+    )
+    test_db.execute(
         "INSERT INTO energy_readings "
         "(id, meter_id, timestamp_utc, value, unit, source_id, batch_id, "
         "is_valid, created_at) "
@@ -383,6 +390,11 @@ def test_trusted_mode_resolves_valid_reading(client, test_db):
 
 
 def test_trusted_mode_rejects_invalid_reading(client, test_db):
+    test_db.execute(
+        "INSERT OR IGNORE INTO import_batches "
+        "(id, source_id, status, imported_at) "
+        "VALUES ('ib1', 's1', 'started', '2026-01-01T00:00:00Z')"
+    )
     test_db.execute(
         "INSERT INTO energy_readings "
         "(id, meter_id, timestamp_utc, value, unit, source_id, batch_id, "

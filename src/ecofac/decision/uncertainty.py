@@ -111,6 +111,10 @@ def _assess_model_uncertainty(
     Measurement provenance (MEASURED) does not equal accuracy. Only when an
     explicit tolerance is supplied can we bound the uncertainty. Without any
     tolerance, the level is UNKNOWN — the engine refuses to claim LOW.
+
+    With tolerance:
+      - All-measured with tolerance is MODERATE (bounded, but not perfect)
+      - Mixed with estimated/assumed is MODERATE or HIGH based on ratio
     """
     rationale: list[str] = []
     measured_count = sum(1 for m in measurements if m.is_measured())
@@ -129,18 +133,22 @@ def _assess_model_uncertainty(
 
     if not has_any_tolerance:
         rationale.append(
-            "no tolerance metadata supplied; uncertainty cannot be bounded"
+            "no tolerance metadata supplied; uncertainty is UNKNOWN and "
+            "cannot be bounded"
         )
         return ModelUncertaintyLevel.UNKNOWN, rationale
 
-    rationale.append("explicit tolerances provided for at least one measurement")
+    rationale.append(
+        "explicit tolerances provided; measurements are not perfect"
+    )
 
     if estimated_count == 0 and unknown_count == 0:
-        return ModelUncertaintyLevel.LOW, rationale
+        # All measured but with explicit non-zero tolerance -> not LOW.
+        return ModelUncertaintyLevel.MODERATE, rationale
+
     if estimated_count <= measured_count:
         return ModelUncertaintyLevel.MODERATE, rationale
     return ModelUncertaintyLevel.HIGH, rationale
-
 
 def assess_uncertainty(
     measurements: list[RichMeasurement],
