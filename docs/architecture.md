@@ -193,3 +193,31 @@ constraint system than the simpler `decision/constraints.py`. Both coexist:
 power-distribution) subclasses `ReserveConfig` and is evaluated by
 `evaluate_load` with no code changes. The `test_future_constraint_subclass`
 test locks this contract.
+
+## Deterministic Decision State Machine (additive)
+
+`src/ecofac/decision/state_machine.py` is a pure decision engine producing
+one of three states: **APPROVE**, **REJECT**, or **REVIEW**. It coexists with
+`decision/engine.py` (APPROVE/REJECT/INSUFFICIENT_DATA) without touching it.
+
+**Precedence (first match wins):**
+
+1. PHYSICAL_VIOLATION      -> REJECT   (hard_limit_violation)
+2. RESERVE_VIOLATION       -> REJECT   (reserve_violation)
+3. Quality ineligible/stale -> REVIEW  (data_quality_ineligible)
+4. WARNING                 -> REVIEW   (near_threshold)
+5. Uncertainty flags       -> REVIEW   (uncertainty)
+6. Conflicting inputs      -> REVIEW   (conflicting_inputs)
+7. Otherwise               -> APPROVE  (clean)
+
+**Structural guarantees:**
+
+- `DecisionContext` accepts no anomaly or AI-detection field. The engine
+  cannot approve a proposal "because no anomaly was detected."
+- `quality_eligible` must be True and `quality_stale` False for APPROVE.
+- Deterministic: identical inputs produce identical output except for the
+  recorded `decision_timestamp`.
+
+**Metadata on every decision:** `decision_timestamp`, `engine_version`,
+`config_version`, `evaluated_constraints`, `reasons`, `warnings`,
+`unresolved_conditions`.
