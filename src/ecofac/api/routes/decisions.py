@@ -4,7 +4,7 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from ecofac.api.dependencies import get_db, require_write_access
 from ecofac.api.schemas import (
@@ -20,11 +20,13 @@ from ecofac.decision.measurements import (
     RichMeasurement,
 )
 from ecofac.decision.store import (
+    batch_supersession_info,
+    count_decisions,
     get_decision,
     list_decisions,
     persist_decision,
     verify_decision,
-    walk_supersession_chain,
+    walk_supersession_chain_with_branches,
 )
 from ecofac.decision.transparent import (
     DecisionMode,
@@ -49,8 +51,7 @@ def _resolve_trusted(
       - Neither set -> keep caller value (measurement not referenced)
       - Only one set -> 400 (partial reference is invalid)
 
-    At least one measurement must be referenced, otherwise trusted mode
-    is meaningless and the request is rejected.
+    At least one measurement must be referenced; otherwise 400.
     """
     if req.mode != DecisionMode.TRUSTED:
         return req
@@ -66,7 +67,7 @@ def _resolve_trusted(
         has_meter = m.meter_id is not None
         has_ts = m.measurement_timestamp is not None
         if not has_meter and not has_ts:
-            continue  # no reference -> keep caller-supplied value
+            continue
 
         if not has_meter or not has_ts:
             msg = (
@@ -131,6 +132,18 @@ def _resolve_trusted(
         }
     )
 
+
+def _enrich_history_item(
+    row: sqlite3.Row, successors: dict[str, str]
+) -> DecisionHistoryItem:
+    """Build a DecisionHistoryItem with supersession indicators populated."""
+    return DecisionHistoryItem(
+        **dict(row),
+        is_superseded=row["id"] in successors,
+        superseded_by=successors.get(row["id"]),
+    )
+
+
 @router.post("/evaluate")
 def evaluate_decision(
     payload: DecisionEvaluateRequest,
@@ -160,18 +173,30 @@ def evaluate_decision(
 
 @router.get("")
 def list_decisions_endpoint(
+    response: Response,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     status: Annotated[str | None, Query()] = None,
     config_version: Annotated[str | None, Query()] = None,
 ) -> list[DecisionHistoryItem]:
-    """List stored decisions, newest first."""
+    """List stored decisions, newest first.
+
+    Response headers:
+      X-Total-Count: total number of decisions matching the active filters
+      (independent of limit/offset), so paginators can compute page counts
+      without additional round-trips.
+    """
+    total = count_decisions(
+        conn, status=status, config_version=config_version
+    )
+    response.headers["X-Total-Count"] = str(total)
     rows = list_decisions(
         conn, limit=limit, offset=offset,
         status=status, config_version=config_version,
     )
-    return [DecisionHistoryItem(**dict(row)) for row in rows]
+    successors = batch_supersession_info(conn, [row["id"] for row in rows])
+    return [_enrich_history_item(row, successors) for row in rows]
 
 
 @router.get("/{decision_id}")
@@ -191,7 +216,11 @@ def verify_decision_endpoint(
     decision_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> DecisionVerifyResponse:
-    """Recompute fingerprints AND replay the decision to verify integrity."""
+    """Recompute fingerprints AND replay the decision to verify integrity.
+
+    Response ``verification_scope`` names exactly what was checked. The full
+    evidence bundle is not reproduced — see ``full_bundle_reproduced``.
+    """
     verification = verify_decision(conn, decision_id)
     if verification is None:
         raise HTTPException(status_code=404, detail="Decision not found")
@@ -203,11 +232,18 @@ def supersession_chain_endpoint(
     decision_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> SupersessionChainResponse:
-    """Return every decision in the supersession chain containing this one."""
-    chain = walk_supersession_chain(conn, decision_id)
+    """Return the supersession chain containing this decision.
+
+    ``chain`` is the primary linear sequence. ``branches`` carries any legacy
+    secondary successors so no branch is silently dropped.
+    """
+    chain, branches = walk_supersession_chain_with_branches(conn, decision_id)
     if not chain:
         raise HTTPException(status_code=404, detail="Decision not found")
+    all_ids = [row["id"] for row in chain] + [row["id"] for row in branches]
+    successors = batch_supersession_info(conn, all_ids)
     return SupersessionChainResponse(
         decision_id=decision_id,
-        chain=[DecisionHistoryItem(**dict(row)) for row in chain],
+        chain=[_enrich_history_item(row, successors) for row in chain],
+        branches=[_enrich_history_item(row, successors) for row in branches],
     )

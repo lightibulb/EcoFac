@@ -127,7 +127,12 @@ class DecisionEvaluateResponse(pydantic.BaseModel):
 
 
 class DecisionHistoryItem(pydantic.BaseModel):
-    """Lightweight view of one stored decision."""
+    """Lightweight view of one stored decision.
+
+    ``is_superseded`` / ``superseded_by`` are populated for the list and
+    supersession-chain endpoints; they default to False/None for callers
+    that construct the model directly.
+    """
     id: str
     status: str
     precedence: str
@@ -137,6 +142,8 @@ class DecisionHistoryItem(pydantic.BaseModel):
     created_at: str
     supersedes: str | None
     supersession_reason: str | None
+    is_superseded: bool = False
+    superseded_by: str | None = None
 
 
 class DecisionRecordResponse(DecisionHistoryItem):
@@ -148,7 +155,17 @@ class DecisionRecordResponse(DecisionHistoryItem):
 
 
 class DecisionVerifyResponse(pydantic.BaseModel):
-    """Result of a full re-verification (fingerprints and decision outcome)."""
+    """Structured verification result.
+
+    ``verified`` is an aggregate over the scope named in ``verification_scope``
+    — currently ``input_config_output_status``: input fingerprint, config
+    fingerprint, and the top-level (status, precedence) pair. The full evidence
+    bundle is not reproduced; ``full_bundle_reproduced`` is therefore False.
+    ``engine_version_match`` signals whether the stored engine version equals
+    the current engine version — when False, a passing ``output_verified``
+    means the outcome matches *by coincidence* under different engine code,
+    and the caller should treat the result with caution.
+    """
     verified: bool
     stored_input_fingerprint: str
     computed_input_fingerprint: str
@@ -159,9 +176,21 @@ class DecisionVerifyResponse(pydantic.BaseModel):
     recomputed_status: str | None = None
     stored_precedence: str | None = None
     recomputed_precedence: str | None = None
+    engine_version_match: bool = True
+    stored_engine_version: str | None = None
+    current_engine_version: str | None = None
+    full_bundle_reproduced: bool = False
+    verification_scope: str = "input_config_output_status"
 
 
 class SupersessionChainResponse(pydantic.BaseModel):
-    """The full supersession chain containing a decision."""
+    """The supersession chain containing a decision.
+
+    ``chain`` is the primary linear sequence. ``branches`` is normally empty
+    (single-child rule enforced at persist time); it is populated only for
+    legacy data whose parent has multiple successors, so no branch is silently
+    omitted from the response.
+    """
     decision_id: str
     chain: list[DecisionHistoryItem]
+    branches: list[DecisionHistoryItem] = pydantic.Field(default_factory=list)

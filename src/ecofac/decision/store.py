@@ -4,8 +4,9 @@
 Decisions are immutable: once written, a decision row cannot be updated or
 deleted (enforced by SQLite triggers). Supersession records a new decision
 that references the old one, leaving the original intact. Each decision may
-have at most one direct successor (single-child rule); attempting a second
-supersession of the same parent is rejected.
+have at most one direct successor enforced at insert time; legacy data with
+multiple children is surfaced through ``walk_supersession_chain_with_branches``
+rather than silently dropped.
 """
 
 import json
@@ -13,6 +14,7 @@ import sqlite3
 import uuid
 
 from ecofac.decision.reproducibility import compute_fingerprint
+from ecofac.decision.state_machine import ENGINE_VERSION as CURRENT_ENGINE_VERSION
 from ecofac.decision.transparent import (
     TransparentDecisionRequest,
     TransparentDecisionResult,
@@ -22,6 +24,8 @@ from ecofac.decision.transparent import (
 )
 from ecofac.persistence.tx import persist_atomically
 from ecofac.timeutil import now_z
+
+VERIFICATION_SCOPE = "input_config_output_status"
 
 
 def _log_audit(
@@ -168,6 +172,35 @@ def get_decision(
     }
 
 
+def _filter_clause(
+    status: str | None, config_version: str | None
+) -> tuple[str, list[object]]:
+    """Return (WHERE-clause-fragment, params) for the two optional filters."""
+    sql = " WHERE 1=1"
+    params: list[object] = []
+    if status is not None:
+        sql += " AND status = ?"
+        params.append(status)
+    if config_version is not None:
+        sql += " AND config_version = ?"
+        params.append(config_version)
+    return sql, params
+
+
+def count_decisions(
+    conn: sqlite3.Connection,
+    *,
+    status: str | None = None,
+    config_version: str | None = None,
+) -> int:
+    """Count decisions matching the given filters. Bounded single query."""
+    clause, params = _filter_clause(status, config_version)
+    row = conn.execute(
+        f"SELECT count(*) AS c FROM decisions{clause}", params
+    ).fetchone()
+    return int(row["c"])
+
+
 def list_decisions(
     conn: sqlite3.Connection,
     *,
@@ -177,32 +210,52 @@ def list_decisions(
     config_version: str | None = None,
 ) -> list[sqlite3.Row]:
     """Return stored decisions, newest first, with optional filters."""
-    sql = "SELECT * FROM decisions WHERE 1=1"
-    params: list[object] = []
-    if status is not None:
-        sql += " AND status = ?"
-        params.append(status)
-    if config_version is not None:
-        sql += " AND config_version = ?"
-        params.append(config_version)
-    sql += " ORDER BY created_at DESC, id LIMIT ? OFFSET ?"
+    clause, params = _filter_clause(status, config_version)
+    sql = (
+        f"SELECT * FROM decisions{clause} "
+        "ORDER BY created_at DESC, id LIMIT ? OFFSET ?"
+    )
     params.extend([limit, offset])
     return conn.execute(sql, params).fetchall()
+
+
+def batch_supersession_info(
+    conn: sqlite3.Connection, decision_ids: list[str]
+) -> dict[str, str]:
+    """Return {parent_id: successor_id} for parents that have a successor.
+
+    If legacy data has multiple successors for one parent, the earliest wins;
+    the rest are surfaced through ``walk_supersession_chain_with_branches``.
+    """
+    if not decision_ids:
+        return {}
+    placeholders = ",".join("?" * len(decision_ids))
+    rows = conn.execute(
+        f"SELECT supersedes, id FROM decisions "
+        f"WHERE supersedes IN ({placeholders}) "
+        f"ORDER BY created_at, id",
+        decision_ids,
+    ).fetchall()
+    result: dict[str, str] = {}
+    for row in rows:
+        parent = row["supersedes"]
+        if parent is not None and parent not in result:
+            result[parent] = row["id"]
+    return result
 
 
 def verify_decision(
     conn: sqlite3.Connection, decision_id: str
 ) -> dict | None:
-    """Recompute and verify both the fingerprints AND the decision outcome.
+    """Recompute and verify both the fingerprints AND the top-level outcome.
 
-    A ``verified: true`` result proves:
-      - The stored request re-fingerprints to the same input/config hashes.
-      - Re-running the decision on the stored request produces the same
-        status and precedence.
+    Scope is explicitly ``VERIFICATION_SCOPE`` — inputs, config, and the
+    (status, precedence) pair. The full evidence bundle is NOT reproduced.
+    Engine-version equality is reported separately.
     """
     row = conn.execute(
         "SELECT request_json, result_json, input_fingerprint, "
-        "config_fingerprint FROM decisions WHERE id = ?",
+        "config_fingerprint, engine_version FROM decisions WHERE id = ?",
         (decision_id,),
     ).fetchone()
     if row is None:
@@ -223,6 +276,9 @@ def verify_decision(
         and stored_result.get("precedence") == recomputed.precedence
     )
 
+    stored_engine = row["engine_version"]
+    engine_version_match = stored_engine == CURRENT_ENGINE_VERSION
+
     return {
         "verified": input_verified and config_verified and output_verified,
         "stored_input_fingerprint": row["input_fingerprint"],
@@ -234,21 +290,28 @@ def verify_decision(
         "recomputed_status": recomputed.status,
         "stored_precedence": stored_result.get("precedence"),
         "recomputed_precedence": recomputed.precedence,
+        "engine_version_match": engine_version_match,
+        "stored_engine_version": stored_engine,
+        "current_engine_version": CURRENT_ENGINE_VERSION,
+        "full_bundle_reproduced": False,
+        "verification_scope": VERIFICATION_SCOPE,
     }
 
 
-def walk_supersession_chain(
+def _walk_supersession_impl(
     conn: sqlite3.Connection, decision_id: str
-) -> list[sqlite3.Row]:
-    """Return every decision in the supersession chain containing ``decision_id``.
+) -> tuple[list[sqlite3.Row], list[sqlite3.Row]]:
+    """Return (primary_chain, branches).
 
-    Single-child rule is enforced at persist time, so this chain is linear.
+    ``branches`` contains any non-primary children of a node in the chain —
+    normally empty because ``persist_decision`` enforces a single-child
+    supersession rule. Non-empty branches signal legacy data.
     """
     present = conn.execute(
         "SELECT 1 FROM decisions WHERE id = ?", (decision_id,)
     ).fetchone()
     if present is None:
-        return []
+        return [], []
 
     root = decision_id
     visited = {decision_id}
@@ -264,6 +327,7 @@ def walk_supersession_chain(
         visited.add(root)
 
     chain: list[sqlite3.Row] = []
+    branches: list[sqlite3.Row] = []
     current: str | None = root
     while current is not None:
         row = conn.execute(
@@ -272,10 +336,29 @@ def walk_supersession_chain(
         if row is None:
             break
         chain.append(row)
-        nxt = conn.execute(
-            "SELECT id FROM decisions WHERE supersedes = ? "
-            "ORDER BY created_at, id LIMIT 1",
+        children = conn.execute(
+            "SELECT * FROM decisions WHERE supersedes = ? "
+            "ORDER BY created_at, id",
             (current,),
-        ).fetchone()
-        current = nxt["id"] if nxt else None
+        ).fetchall()
+        if not children:
+            current = None
+        else:
+            current = children[0]["id"]
+            branches.extend(children[1:])
+    return chain, branches
+
+
+def walk_supersession_chain(
+    conn: sqlite3.Connection, decision_id: str
+) -> list[sqlite3.Row]:
+    """Return the primary supersession chain containing ``decision_id``."""
+    chain, _ = _walk_supersession_impl(conn, decision_id)
     return chain
+
+
+def walk_supersession_chain_with_branches(
+    conn: sqlite3.Connection, decision_id: str
+) -> tuple[list[sqlite3.Row], list[sqlite3.Row]]:
+    """Return (primary_chain, branches) — branches surfaces legacy multi-child data."""
+    return _walk_supersession_impl(conn, decision_id)

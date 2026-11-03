@@ -409,3 +409,82 @@ def test_trusted_mode_rejects_invalid_reading(client, test_db):
         it_timestamp="2026-01-01T00:00:00Z",
     )
     assert resp.status_code == 400
+
+
+# ---- X-Total-Count header ----
+def test_list_decisions_x_total_count_header(client):
+    for _ in range(3):
+        _evaluate(client)
+    resp = client.get(f"{BASE}?limit=2&offset=0")
+    assert resp.headers["X-Total-Count"] == "3"
+    assert len(resp.json()) == 2
+
+
+def test_list_decisions_x_total_count_respects_filters(client):
+    _evaluate(client)
+    _evaluate(client, it_value=1100.0)
+    _evaluate(client, it_value=1100.0)
+    resp = client.get(f"{BASE}?status=REJECT")
+    assert resp.headers["X-Total-Count"] == "2"
+    assert len(resp.json()) == 2
+
+
+def test_list_decisions_x_total_count_respects_config_filter(client):
+    _evaluate(client, config_version="cfg-A")
+    _evaluate(client, config_version="cfg-A")
+    _evaluate(client, config_version="cfg-B")
+    resp = client.get(f"{BASE}?config_version=cfg-A")
+    assert resp.headers["X-Total-Count"] == "2"
+
+
+# ---- is_superseded / superseded_by ----
+def test_list_decisions_is_superseded_and_superseded_by(client):
+    id_a = _evaluate(client).json()["decision_id"]
+    id_b = _evaluate(
+        client, supersedes=id_a, supersession_reason="refresh"
+    ).json()["decision_id"]
+    rows = client.get(f"{BASE}").json()
+    by_id = {row["id"]: row for row in rows}
+    assert by_id[id_a]["is_superseded"] is True
+    assert by_id[id_a]["superseded_by"] == id_b
+    assert by_id[id_b]["is_superseded"] is False
+    assert by_id[id_b]["superseded_by"] is None
+
+
+# ---- Verify response extensions ----
+def test_verify_response_engine_version_fields(client):
+    did = _evaluate(client).json()["decision_id"]
+    body = client.get(f"{BASE}/{did}/verify").json()
+    assert body["engine_version_match"] is True
+    assert body["stored_engine_version"] == "1.0"
+    assert body["current_engine_version"] == "1.0"
+    assert body["full_bundle_reproduced"] is False
+    assert body["verification_scope"] == "input_config_output_status"
+
+
+# ---- Chain extensions ----
+def test_supersession_chain_branches_empty_by_default(client):
+    id_a = _evaluate(client).json()["decision_id"]
+    id_b = _evaluate(
+        client, supersedes=id_a, supersession_reason="refresh"
+    ).json()["decision_id"]
+    body = client.get(f"{BASE}/{id_b}/supersession-chain").json()
+    assert body["branches"] == []
+    assert [item["id"] for item in body["chain"]] == [id_a, id_b]
+    assert body["chain"][0]["is_superseded"] is True
+    assert body["chain"][1]["is_superseded"] is False
+
+
+# ---- Query parameter validation ----
+def test_list_decisions_limit_validation(client):
+    assert client.get(f"{BASE}?limit=0").status_code == 422
+    assert client.get(f"{BASE}?limit=101").status_code == 422
+    assert client.get(f"{BASE}?offset=-1").status_code == 422
+
+
+# ---- 404s still correct ----
+def test_verify_and_chain_return_404_for_missing(client):
+    assert client.get(f"{BASE}/missing/verify").status_code == 404
+    assert (
+        client.get(f"{BASE}/missing/supersession-chain").status_code == 404
+    )
