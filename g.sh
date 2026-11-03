@@ -2,25 +2,44 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-echo "==> Patching explain.py (Resolve data-quality -> Resolve quality)..."
+echo "==> Patching test helper _req: positional booleans -> keyword-only (FBT002)..."
 python3 << 'PYEOF'
 import pathlib
 
-p = pathlib.Path("src/ecofac/decision/explain.py")
+p = pathlib.Path("tests/api/test_decisions_routes.py")
 text = p.read_text()
 
-old1 = '"Resolve data-quality flags: "'
-new1 = '"Resolve quality flags: "'
-assert old1 in text, "first string not found"
-text = text.replace(old1, new1, 1)
-
-old2 = '"Resolve data-quality issues before this decision "'
-new2 = '"Resolve quality issues before this decision "'
-assert old2 in text, "second string not found"
-text = text.replace(old2, new2, 1)
-
+old = '''def _req(
+    it_value=400.0,
+    cool_value=300.0,
+    it_tol=None,
+    quality=True,
+    quality_stale=False,
+    quality_flags=None,
+    it_source="MEASURED",
+    config_version="cfg-1",
+    supersedes=None,
+    supersession_reason=None,
+):
+'''
+new = '''def _req(
+    *,
+    it_value=400.0,
+    cool_value=300.0,
+    it_tol=None,
+    quality=True,
+    quality_stale=False,
+    quality_flags=None,
+    it_source="MEASURED",
+    config_version="cfg-1",
+    supersedes=None,
+    supersession_reason=None,
+):
+'''
+assert old in text, "_req signature not found"
+text = text.replace(old, new, 1)
 p.write_text(text)
-print("  explain.py patched")
+print("  test helper patched")
 PYEOF
 
 echo ""
@@ -28,16 +47,17 @@ echo "==> Ruff..."
 ruff check src tests simulator evaluation scripts
 
 echo ""
-echo "==> Failing test + neighbors..."
+echo "==> New tests..."
 python -m pytest \
-  tests/unit/test_transparent_decision.py \
-  tests/integration/test_transparent_decision_flow.py -v
+  tests/unit/test_decision_api_schemas.py \
+  tests/integration/test_decisions_persistence.py \
+  tests/api/test_decisions_routes.py -v
 
 echo ""
 echo "==> Full suite (same command CI runs)..."
 python -m pytest tests/ -v
 
 echo ""
-echo "=================================================="
+echo "================================================================"
 echo "  All green."
-echo "=================================================="
+echo "================================================================"

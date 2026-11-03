@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from ecofac.api.routes import (
     audit,
     dashboard,
+    decisions,
     entities,
     health,
     imports,
@@ -45,6 +46,7 @@ app.include_router(intelligence.router, prefix="/api/v1")
 app.include_router(incidents.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
+app.include_router(decisions.router, prefix="/api/v1")
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Dashboard"])

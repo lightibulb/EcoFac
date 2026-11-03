@@ -4,6 +4,11 @@
 
 import pydantic
 
+from ecofac.decision.transparent import (
+    TransparentDecisionRequest,
+    TransparentDecisionResult,
+)
+
 
 class HealthResponse(pydantic.BaseModel):
     """Health check response."""
@@ -106,3 +111,52 @@ class QualityResponse(pydantic.BaseModel):
     is_stale: bool
     is_analysis_eligible: bool
     flags: list[str]
+
+
+class DecisionEvaluateRequest(pydantic.BaseModel):
+    """Request body for the decision evaluation endpoint."""
+    decision: TransparentDecisionRequest
+    supersedes: str | None = None
+    supersession_reason: str | None = pydantic.Field(default=None, max_length=1000)
+
+
+class DecisionEvaluateResponse(pydantic.BaseModel):
+    """Response from the decision evaluation endpoint."""
+    decision_id: str
+    result: TransparentDecisionResult
+
+
+class DecisionHistoryItem(pydantic.BaseModel):
+    """Lightweight view of one stored decision."""
+    id: str
+    status: str
+    precedence: str
+    engine_version: str
+    config_version: str
+    decision_timestamp: str
+    created_at: str
+    supersedes: str | None
+    supersession_reason: str | None
+
+
+class DecisionRecordResponse(DecisionHistoryItem):
+    """Full record for a single decision."""
+    input_fingerprint: str
+    config_fingerprint: str
+    request: dict
+    result: dict
+
+
+class DecisionVerifyResponse(pydantic.BaseModel):
+    """Result of a fingerprint re-verification."""
+    verified: bool
+    stored_input_fingerprint: str
+    computed_input_fingerprint: str
+    stored_config_fingerprint: str
+    computed_config_fingerprint: str
+
+
+class SupersessionChainResponse(pydantic.BaseModel):
+    """The full supersession chain containing a decision."""
+    decision_id: str
+    chain: list[DecisionHistoryItem]

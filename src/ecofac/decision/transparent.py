@@ -107,6 +107,26 @@ def _formulas() -> dict[str, str]:
     }
 
 
+def build_input_payload(request: TransparentDecisionRequest) -> dict:
+    """Extract the fingerprintable input payload from a request."""
+    return {
+        "it_load": request.it_load.model_dump(mode="json"),
+        "cooling_load": request.cooling_load.model_dump(mode="json"),
+        "proposed_it_delta": request.proposed_it_delta,
+        "proposed_cooling_delta": request.proposed_cooling_delta,
+        "quality_eligible": request.quality_eligible,
+        "quality_stale": request.quality_stale,
+        "quality_flags": request.quality_flags,
+        "uncertainty_flags": request.uncertainty_flags,
+        "conflicting_inputs": request.conflicting_inputs,
+    }
+
+
+def build_config_payload(request: TransparentDecisionRequest) -> dict:
+    """Extract the fingerprintable config payload from a request."""
+    return request.config.model_dump(mode="json")
+
+
 def _sensitivity_reason(
     name: str,
     low: float,
@@ -336,18 +356,8 @@ def decide_transparently(
         sensitivity=sensitivity,
     )
 
-    input_payload = {
-        "it_load": request.it_load.model_dump(mode="json"),
-        "cooling_load": request.cooling_load.model_dump(mode="json"),
-        "proposed_it_delta": request.proposed_it_delta,
-        "proposed_cooling_delta": request.proposed_cooling_delta,
-        "quality_eligible": request.quality_eligible,
-        "quality_stale": request.quality_stale,
-        "quality_flags": request.quality_flags,
-        "uncertainty_flags": request.uncertainty_flags,
-        "conflicting_inputs": request.conflicting_inputs,
-    }
-    config_payload = request.config.model_dump(mode="json")
+    input_payload = build_input_payload(request)
+    config_payload = build_config_payload(request)
 
     fingerprint = build_fingerprint(
         engine_version=base_decision.engine_version,
