@@ -2,10 +2,14 @@
 
 """FastAPI application entry point."""
 
+import math
 import pathlib
+from typing import Any
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -65,3 +69,30 @@ def serve_decisions(request: Request) -> HTMLResponse:
 def serve_scenarios(request: Request) -> HTMLResponse:
     """Serve the Scenario Workbench UI."""
     return templates.TemplateResponse(request=request, name="scenarios.html")
+
+def _sanitize_json(obj: Any) -> Any:
+    """Recursively replace non-finite floats with strings for JSON safety.
+
+    Pydantic numeric constraints reject NaN and infinity, but FastAPI's
+    default RequestValidationError handler echoes the raw invalid input
+    back in the response. JSONResponse uses allow_nan=False, so a NaN
+    response body raises ValueError and the client sees a crash instead
+    of a 422. This converts NaN/inf to readable strings before the
+    response is serialised.
+    """
+    if isinstance(obj, float) and not math.isfinite(obj):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _sanitize_json(v) for k, v in obj.items()}
+    if isinstance(obj, list | tuple):
+        return [_sanitize_json(v) for v in obj]
+    return obj
+
+
+@app.exception_handler(RequestValidationError)
+async def _sanitize_validation_error(
+    _request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Return a JSON-safe 422 even when the invalid input was NaN/inf."""
+    detail = _sanitize_json(jsonable_encoder(exc.errors()))
+    return JSONResponse(status_code=422, content={"detail": detail})
