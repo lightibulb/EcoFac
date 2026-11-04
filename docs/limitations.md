@@ -114,3 +114,52 @@ accurate.
 
 Trusted mode (`mode="trusted"`) resolves measurement values and
 quality flags from the database instead of trusting the caller.
+
+
+## Part 2.2 operational foundations
+
+Implemented in this milestone (single-process, no extra infrastructure):
+
+- **`X-Request-ID`** on every request/response. Client-supplied IDs are
+  echoed so distributed traces can correlate.
+- **Defensive headers** (`X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`) on every
+  response. No CSP is set — the HTML pages use inline scripts/styles.
+- **`/ready`** endpoint distinct from `/health`. `/health` is a liveness
+  probe; `/ready` queries the DB and returns 503 when unreachable.
+- **In-process rate limiting** — opt-in via
+  `ECOFAC_RATE_LIMIT_ENABLED=true`. Defaults: 600 reads/min, 60
+  writes/min per client identity (`X-EcoFac-Token` if present, else
+  `X-Forwarded-For`, else client IP). Per-process state; a
+  multi-process deployment would need shared state.
+
+Still missing before production:
+
+- Authentication remains env-gated (`ECOFAC_WRITE_TOKEN`) and off by
+  default.
+- Authorization (RBAC) is not implemented.
+- Rate-limit state is not shared across processes.
+- No structured logging / request-ID propagation into log records yet.
+- No Content-Security-Policy (would require refactoring inline scripts).
+
+
+## Virtual Facility visualization
+
+The `/world` page renders a data-driven view of the demo facility. Known
+limitations:
+
+- **Polling, not streaming.** Refreshes every 5 s while the tab is
+  visible. Not a WebSocket stream.
+- **Single-process assumption.** Polling works from any client; state is
+  per-request, no server-side push.
+- **No thermal/airflow modeling.** Rack colors reflect incident counts
+  and reading validity, not temperature or airflow (neither is modeled
+  by the backend).
+- **Two views, one dataset.** Data Center (floor plan) and Building
+  (skyline) are different layouts of the same `/api/v1/world/state`
+  response.
+- **Test drive actions require auth only if the deployment sets
+  `ECOFAC_WRITE_TOKEN`.** On a public read-only deployment, the
+  scenario-evaluation button will return 401 unless the deployment is
+  configured to allow writes. This is consistent with the rest of the
+  app.
