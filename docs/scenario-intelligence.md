@@ -85,3 +85,72 @@ Verification
 GET /api/v1/scenarios/{id}/verify recomputes fingerprints and re-runs
 the engine on stored inputs. Scope is input_config_output_status;
 full_bundle_reproduced is always false.
+
+## Analysis endpoints
+
+Four read-only endpoints expose derived analysis on any stored
+scenario. None of them persist new rows or re-write the decision
+engine — every number is produced by decide_transparently or
+extracted from the stored result payload.
+
+### GET /api/v1/scenarios/{id}/engineering
+
+Returns the same EngineeringSummary shape used by the Decision
+Center (current / predicted IT load, facility power, cooling
+load, PUE and its provenance, electrical + cooling headroom to
+both permitted and physical bounds). Returns 422 for records
+that predate the PUE integration.
+
+### GET /api/v1/scenarios/{id}/bottlenecks
+
+Returns ScenarioBottleneckReport:
+
+- most_restrictive_constraint — predicted constraint with the
+  smallest headroom-to-permitted.
+- findings — one entry per constraint per state where the
+  classification is non-trivial. Categories:
+  - {electrical|cooling}_over_physical (CRITICAL)
+  - {electrical|cooling}_over_permitted (CRITICAL)
+  - {electrical|cooling}_approaching_physical (WARNING)
+  - {electrical|cooling}_approaching_permitted (WARNING)
+  - {electrical|cooling}_insufficient_margin (INFO, APPROVE-only)
+- has_enough_information — False for invalid-proposal records
+  where the engine did not produce constraint evaluations.
+
+Policy constants:
+
+- APPROACHING_PHYSICAL_RATIO = 0.10
+- APPROACHING_PERMITTED_RATIO = 0.10
+- INSUFFICIENT_MARGIN_RATIO = 0.20
+
+These are policy choices, not calibrated confidence scores.
+
+### GET /api/v1/scenarios/{id}/sensitivity
+
+Returns SensitivityAnalysisResponse with baseline_status,
+baseline_precedence, and per-parameter steps.
+
+Sweeps are deterministic:
+
+- Multiplicative (loads, PUE, capacities): x0.8, x0.9, x1.0,
+  x1.1, x1.2
+- Additive (reserve percentages): -0.05, -0.02, 0, +0.02, +0.05
+
+Invalid steps (negative loads, PUE < 0.1, reserve outside
+[0, 1)) are skipped. No probability distributions or confidence
+intervals are fabricated.
+
+### POST /api/v1/scenarios/compare
+
+Body: {"scenario_ids": ["uuid1", "uuid2", "uuid3"]}
+
+Returns ScenarioComparisonResponse:
+
+- scenarios[] — per-scenario engineering snapshot plus
+  most_restrictive_constraint and uncertainty levels
+- input_differences[] — per-field values and differs flag
+- mixed_config_versions / config_versions — surfaces when
+  scenarios were evaluated under different config versions
+- outcome_explanation — deterministic narrative
+
+Validation: 2-10 scenario IDs; unknown IDs return 404.

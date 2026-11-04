@@ -298,3 +298,7 @@ class ScenarioVerifyResponse(pydantic.BaseModel):
     current_engine_version: str | None = None
     verification_scope: str
     full_bundle_reproduced: bool
+
+class ScenarioComparisonRequest(pydantic.BaseModel):
+    """Request body for multi-scenario comparison."""
+    scenario_ids: list[str] = pydantic.Field(min_length=2, max_length=10)

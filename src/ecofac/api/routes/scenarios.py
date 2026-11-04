@@ -8,11 +8,22 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
 from ecofac.api.dependencies import get_db, require_write_access
 from ecofac.api.schemas import (
+    EngineeringSummary,
+    ScenarioComparisonRequest,
     ScenarioCreateRequest,
     ScenarioEvaluateResponse,
     ScenarioHistoryItem,
     ScenarioRecordResponse,
     ScenarioVerifyResponse,
+)
+from ecofac.decision.engineering import build_engineering_summary
+from ecofac.decision.scenario_analysis import (
+    ScenarioBottleneckReport,
+    ScenarioComparisonResponse,
+    SensitivityAnalysisResponse,
+    analyze_sensitivity,
+    compare_scenarios,
+    detect_bottlenecks,
 )
 from ecofac.decision.scenarios import (
     build_transparent_request,
@@ -53,12 +64,7 @@ def evaluate_scenario(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     _auth: Annotated[None, Depends(require_write_access)],
 ) -> ScenarioEvaluateResponse:
-    """Evaluate a hypothetical scenario through the canonical engine.
-
-    Rejects NaN / infinity inputs with a 400. Negative predicted loads are
-    classified by the engine (``REJECT / invalid_proposal``), not rejected
-    here, so the caller sees the engine's reasoning.
-    """
+    """Evaluate a hypothetical scenario through the canonical engine."""
     config_dump = payload.config.model_dump(mode="json")
     try:
         validate_scenario_numerics(
@@ -106,6 +112,31 @@ def evaluate_scenario(
     )
 
 
+@router.post("/compare")
+def compare_scenarios_endpoint(
+    payload: ScenarioComparisonRequest,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> ScenarioComparisonResponse:
+    """Compare 2-10 stored scenarios."""
+    records: list[dict] = []
+    missing: list[str] = []
+    for sid in payload.scenario_ids:
+        record = get_scenario(conn, sid)
+        if record is None:
+            missing.append(sid)
+        else:
+            records.append(record)
+    if missing:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Scenarios not found: {', '.join(missing)}",
+        )
+    try:
+        return compare_scenarios(records)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.get("")
 def list_scenarios_endpoint(
     response: Response,
@@ -117,8 +148,8 @@ def list_scenarios_endpoint(
 ) -> list[ScenarioHistoryItem]:
     """List stored scenarios, newest first.
 
-    Response header ``X-Total-Count`` carries the total matching the active
-    filters (independent of limit/offset).
+    Response header X-Total-Count carries the total matching the
+    active filters.
     """
     total = count_scenarios(
         conn, status=status, config_version=config_version
@@ -143,17 +174,55 @@ def get_scenario_endpoint(
     return ScenarioRecordResponse(**record)
 
 
+@router.get("/{scenario_id}/engineering")
+def scenario_engineering_endpoint(
+    scenario_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> EngineeringSummary:
+    """Structured engineering summary extracted from the stored scenario."""
+    record = get_scenario(conn, scenario_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    try:
+        data = build_engineering_summary(record)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    return EngineeringSummary(**data)
+
+
+@router.get("/{scenario_id}/bottlenecks")
+def scenario_bottlenecks_endpoint(
+    scenario_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> ScenarioBottleneckReport:
+    """Bottleneck analysis derived from stored constraint evaluations."""
+    record = get_scenario(conn, scenario_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return detect_bottlenecks(record)
+
+
+@router.get("/{scenario_id}/sensitivity")
+def scenario_sensitivity_endpoint(
+    scenario_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> SensitivityAnalysisResponse:
+    """Deterministic multi-parameter sweep over supported inputs."""
+    record = get_scenario(conn, scenario_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    try:
+        return analyze_sensitivity(record)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
 @router.get("/{scenario_id}/verify")
 def verify_scenario_endpoint(
     scenario_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
 ) -> ScenarioVerifyResponse:
-    """Recompute fingerprints and re-run the canonical engine on the inputs.
-
-    Scope is ``input_config_output_status``: input fingerprint, config
-    fingerprint, and top-level (status, precedence). The full evidence
-    bundle is not reproduced.
-    """
+    """Recompute fingerprints and re-run the canonical engine."""
     verification = verify_scenario(conn, scenario_id)
     if verification is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
