@@ -60,3 +60,8 @@ def serve_dashboard(request: Request) -> HTMLResponse:
 def serve_decisions(request: Request) -> HTMLResponse:
     """Serve the Decision Center UI."""
     return templates.TemplateResponse(request=request, name="decisions.html")
+
+@app.get("/scenarios", response_class=HTMLResponse, tags=["Scenario Workbench"])
+def serve_scenarios(request: Request) -> HTMLResponse:
+    """Serve the Scenario Workbench UI."""
+    return templates.TemplateResponse(request=request, name="scenarios.html")
