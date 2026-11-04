@@ -18,6 +18,7 @@ from ecofac.api.routes import (
     imports,
     incidents,
     intelligence,
+    scenarios,
 )
 
 BASE_DIR = pathlib.Path(__file__).parent
@@ -47,6 +48,7 @@ app.include_router(incidents.router, prefix="/api/v1")
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(decisions.router, prefix="/api/v1")
+app.include_router(scenarios.router, prefix="/api/v1")
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Dashboard"])

@@ -4,6 +4,8 @@
 
 import pydantic
 
+from ecofac.decision.limits import ConstraintConfig
+from ecofac.decision.measurements import MeasurementSource
 from ecofac.decision.transparent import (
     TransparentDecisionRequest,
     TransparentDecisionResult,
@@ -234,3 +236,65 @@ class EngineeringSummary(pydantic.BaseModel):
     current_cooling: ConstraintHeadroom
     predicted_cooling: ConstraintHeadroom
 
+class ScenarioCreateRequest(pydantic.BaseModel):
+    """Inputs for a hypothetical scenario evaluation.
+
+    Every numeric value must be finite. The engine will reject negative
+    predicted loads with ``REJECT / invalid_proposal`` rather than 400 —
+    the caller sees the classification.
+    """
+    name: str = pydantic.Field(min_length=1, max_length=200)
+    config: ConstraintConfig
+    config_version: str = pydantic.Field(default="", max_length=100)
+    it_load_kw: float = pydantic.Field(ge=0)
+    cooling_load_kw: float = pydantic.Field(ge=0)
+    pue: float = pydantic.Field(gt=0)
+    proposed_it_delta_kw: float = 0.0
+    proposed_cooling_delta_kw: float = 0.0
+    it_source: MeasurementSource = MeasurementSource.ASSUMED
+    cooling_source: MeasurementSource = MeasurementSource.ASSUMED
+    pue_source: MeasurementSource = MeasurementSource.ASSUMED
+    persist_as_decision: bool = False
+
+
+class ScenarioHistoryItem(pydantic.BaseModel):
+    """Lightweight view of a stored scenario."""
+    id: str
+    name: str
+    created_at: str
+    status: str
+    precedence: str
+    engine_version: str
+    config_version: str
+    decision_id: str | None
+
+
+class ScenarioRecordResponse(ScenarioHistoryItem):
+    """Full record for one scenario."""
+    input_fingerprint: str
+    config_fingerprint: str
+    inputs: dict
+    config: dict
+    result: dict
+
+
+class ScenarioEvaluateResponse(pydantic.BaseModel):
+    """Response from the scenario evaluation endpoint."""
+    scenario_id: str
+    decision_id: str | None
+    result: TransparentDecisionResult
+
+
+class ScenarioVerifyResponse(pydantic.BaseModel):
+    """Verification result for one scenario."""
+    verified: bool
+    output_verified: bool
+    stored_input_fingerprint: str
+    computed_input_fingerprint: str
+    stored_config_fingerprint: str
+    computed_config_fingerprint: str
+    engine_version_match: bool
+    stored_engine_version: str | None = None
+    current_engine_version: str | None = None
+    verification_scope: str
+    full_bundle_reproduced: bool
