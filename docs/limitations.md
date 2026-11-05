@@ -163,3 +163,9 @@ limitations:
   scenario-evaluation button will return 401 unless the deployment is
   configured to allow writes. This is consistent with the rest of the
   app.
+
+## Added by the Part 1 remediation
+7. **Operational decisions are conservative by design.** In `trusted` mode an unknown tolerance, assumed PUE, unclassified meter role or a tolerance band that could change the verdict yields REVIEW, not APPROVE. See `docs/part1-handoff.md`.
+8. **No trusted PUE source.** Trusted mode accepts only an explicitly configured PUE.
+9. **Meter metadata is set via SQL.** `interval_minutes`, `role` and `relative_tolerance` have no API yet.
+

@@ -41,7 +41,7 @@ def test_ready_returns_200_when_db_available(client):
 
 
 def test_ready_returns_503_when_db_unavailable(client, monkeypatch):
-    monkeypatch.setattr(ecofac_main, "_check_db_ready", lambda: False)
+    monkeypatch.setattr(ecofac_main, "_check_db_ready", lambda: ["database unreachable"])
     resp = client.get("/ready")
     assert resp.status_code == 503
     assert "unreachable" in resp.json()["detail"].lower()

@@ -3,6 +3,7 @@
 
 import math
 
+import pydantic
 import pytest
 
 from ecofac.decision.limits import (
@@ -20,14 +21,20 @@ def _config_dump(
     elec_res: float = 0.10,
     cool_res: float = 0.10,
 ) -> dict:
-    return ConstraintConfig(
-        electrical=ElectricalLimits(
-            capacity=elec_cap, reserve_pct=elec_res
-        ),
-        cooling=CoolingLimits(
-            capacity=cool_cap, reserve_pct=cool_res
-        ),
-    ).model_dump(mode="json")
+    return {
+        "electrical": {
+            "capacity": elec_cap,
+            "reserve_pct": elec_res,
+            "warning_threshold_pct": 0.10,
+            "min_headroom": 0.0,
+        },
+        "cooling": {
+            "capacity": cool_cap,
+            "reserve_pct": cool_res,
+            "warning_threshold_pct": 0.10,
+            "min_headroom": 0.0,
+        },
+    }
 
 
 def _default_kwargs(**overrides):
@@ -81,11 +88,12 @@ def test_nan_proposed_delta_rejected():
 
 
 def test_inf_capacity_rejected():
-    dump = _config_dump(elec_cap=float("inf"))
-    with pytest.raises(
-        ValueError, match=r"config\.electrical\.capacity must be finite"
-    ):
-        validate_scenario_numerics(**_default_kwargs(config_dump=dump))
+    """Infinity in a config capacity is rejected at the Pydantic boundary."""
+    with pytest.raises(pydantic.ValidationError):
+        ConstraintConfig(
+            electrical=ElectricalLimits(capacity=float("inf"), reserve_pct=0.10),
+            cooling=CoolingLimits(capacity=800.0, reserve_pct=0.10),
+        )
 
 
 def test_nan_min_headroom_rejected():

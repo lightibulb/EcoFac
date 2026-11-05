@@ -1,6 +1,7 @@
 # Copyright 2026 Lightibulb
 """Decision Engine API routes."""
 
+import datetime as dt
 import sqlite3
 from typing import Annotated
 
@@ -21,6 +22,7 @@ from ecofac.decision.engineering import build_engineering_summary
 from ecofac.decision.measurements import (
     MeasurementSource,
     RichMeasurement,
+    UncertaintyMetadata,
 )
 from ecofac.decision.stats import aggregate_decisions
 from ecofac.decision.store import (
@@ -37,8 +39,13 @@ from ecofac.decision.transparent import (
     TransparentDecisionRequest,
     decide_transparently,
 )
-from ecofac.quality.assessment import assess_quality
-from ecofac.timeutil import parse_utc
+from ecofac.decision.trust import (
+    TrustedReading,
+    TrustError,
+    resolve_trusted_pair,
+    server_max_age_seconds,
+)
+from ecofac.timeutil import to_z
 
 router = APIRouter(prefix="/decisions", tags=["Decisions"])
 
@@ -48,83 +55,94 @@ TRUSTED_LOAD_UNIT = "kW"
 def _resolve_trusted(
     conn: sqlite3.Connection, req: TransparentDecisionRequest
 ) -> TransparentDecisionRequest:
-    """Replace caller-supplied measurements with DB-validated readings."""
+    """Resolve operational inputs server-side; never mix trusted and caller data.
+
+    HYPOTHETICAL requests pass through (only the server-only provenance fields
+    are reset so a caller cannot pose as server-resolved).
+
+    TRUSTED requests are rebuilt from the database:
+
+    * BOTH ``it_load`` and ``cooling_load`` need a trusted reference
+      (``meter_id`` + ``measurement_timestamp``); a partial reference set is
+      rejected instead of silently accepting caller-supplied values.
+    * Values, units, source, reference ids and tolerances come from stored
+      readings and meter metadata. Energy (kWh per interval) is converted to
+      average kW using the meter's own interval; the raw reading is preserved.
+    * Quality is assessed for EVERY measurement against its own meter cadence.
+    * Quality flags, stale flag, uncertainty flags, freshness policy and the
+      evaluation time are server-derived; the caller's values are discarded.
+    * PUE must be an explicitly CONFIGURED value; a caller cannot claim
+      MEASURED (no trusted PUE source exists) and a missing/assumed PUE is
+      carried through so the engine downgrades the decision to REVIEW.
+    """
     if req.mode != DecisionMode.TRUSTED:
+        if req.inputs_resolved_by_server or req.trust_caveats:
+            return req.model_copy(
+                update={"inputs_resolved_by_server": False, "trust_caveats": []}
+            )
         return req
 
-    updates: dict[str, RichMeasurement] = {}
-    flags: set[str] = set()
-    resolved_any = False
-    quality_meter: str | None = None
-    quality_ts_str: str | None = None
-
-    for field_name in ("it_load", "cooling_load"):
-        m = getattr(req, field_name)
-        has_meter = m.meter_id is not None
-        has_ts = m.measurement_timestamp is not None
-        if not has_meter and not has_ts:
-            continue
-
-        if not has_meter or not has_ts:
-            msg = (
-                f"{field_name} in trusted mode requires both meter_id "
-                "and measurement_timestamp (or neither)"
-            )
-            raise HTTPException(status_code=400, detail=msg)
-
-        row = conn.execute(
-            "SELECT id, value, is_valid FROM energy_readings "
-            "WHERE meter_id = ? AND timestamp_utc = ?",
-            (m.meter_id, m.measurement_timestamp),
-        ).fetchone()
-        if row is None:
-            msg = (
-                f"Reading not found for {field_name} "
-                f"(meter={m.meter_id}, ts={m.measurement_timestamp})"
-            )
-            raise HTTPException(status_code=400, detail=msg)
-        if row["is_valid"] == 0:
-            msg = f"Reading for {field_name} is marked invalid"
-            raise HTTPException(status_code=400, detail=msg)
-
-        updates[field_name] = m.model_copy(
-            update={
-                "value": float(row["value"]),
-                "unit": TRUSTED_LOAD_UNIT,
-                "reference_id": row["id"],
-                "source": MeasurementSource.MEASURED,
-            }
+    evaluation_dt = dt.datetime.now(dt.UTC)
+    try:
+        it, cooling = resolve_trusted_pair(
+            conn,
+            it_ref=(req.it_load.meter_id, req.it_load.measurement_timestamp),
+            cooling_ref=(
+                req.cooling_load.meter_id,
+                req.cooling_load.measurement_timestamp,
+            ),
+            evaluation_time=evaluation_dt,
         )
-        resolved_any = True
-        if quality_meter is None:
-            quality_meter = m.meter_id
-            quality_ts_str = m.measurement_timestamp
+    except TrustError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
-    if not resolved_any:
-        msg = (
-            "Trusted mode requires at least one measurement reference "
-            "(meter_id + measurement_timestamp)"
+    if req.pue is not None and req.pue.source == MeasurementSource.MEASURED:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "PUE labelled MEASURED cannot be trusted: there is no trusted "
+                "PUE reference. Supply an explicitly CONFIGURED PUE, or omit "
+                "it to have the decision downgraded to REVIEW."
+            ),
         )
-        raise HTTPException(status_code=400, detail=msg)
 
-    if quality_meter is not None and quality_ts_str is not None:
-        try:
-            ts = parse_utc(quality_ts_str)
-        except (ValueError, TypeError):
-            ts = None
-        if ts is not None:
-            import datetime as dt  # noqa: PLC0415
-            quality = assess_quality(
-                conn, quality_meter, ts - dt.timedelta(hours=1), ts
+    def _measurement(name: str, reading: TrustedReading) -> RichMeasurement:
+        uncertainty = (
+            UncertaintyMetadata(
+                relative_tolerance=reading.relative_tolerance,
+                notes="server-side meter accuracy",
             )
-            if not quality.is_analysis_eligible:
-                flags.update(quality.flags)
+            if reading.relative_tolerance is not None
+            else None
+        )
+        return RichMeasurement(
+            name=name,
+            value=reading.value_kw,
+            unit=TRUSTED_LOAD_UNIT,
+            source=MeasurementSource.MEASURED,
+            uncertainty=uncertainty,
+            measurement_timestamp=reading.timestamp_utc,
+            reference_id=reading.reading_id,
+            meter_id=reading.meter_id,
+            raw_value=reading.raw_value,
+            raw_unit=reading.raw_unit,
+            interval_minutes=reading.interval_minutes,
+        )
 
+    flags = sorted({*it.quality_flags, *cooling.quality_flags})
+    caveats = sorted({*it.caveats, *cooling.caveats})
     return req.model_copy(
         update={
-            **updates,
-            "quality_eligible": not flags,
-            "quality_flags": sorted(flags),
+            "it_load": _measurement("it_load", it),
+            "cooling_load": _measurement("cooling_load", cooling),
+            "quality_eligible": it.quality_eligible and cooling.quality_eligible,
+            "quality_flags": flags,
+            "quality_stale": False,
+            "uncertainty_flags": [],
+            "max_measurement_age_seconds": server_max_age_seconds(),
+            "evaluation_time": to_z(evaluation_dt),
+            "inputs_resolved_by_server": True,
+            "trust_caveats": caveats,
         }
     )
 

@@ -246,11 +246,14 @@ class ScenarioCreateRequest(pydantic.BaseModel):
     name: str = pydantic.Field(min_length=1, max_length=200)
     config: ConstraintConfig
     config_version: str = pydantic.Field(default="", max_length=100)
-    it_load_kw: float = pydantic.Field(ge=0)
-    cooling_load_kw: float = pydantic.Field(ge=0)
-    pue: float = pydantic.Field(gt=0)
-    proposed_it_delta_kw: float = 0.0
-    proposed_cooling_delta_kw: float = 0.0
+    it_load_kw: float = pydantic.Field(ge=0, allow_inf_nan=False)
+    cooling_load_kw: float = pydantic.Field(ge=0, allow_inf_nan=False)
+    # Standard PUE definition: facility power / IT power, so never below 1.
+    pue: float = pydantic.Field(ge=1.0, le=10.0, allow_inf_nan=False)
+    proposed_it_delta_kw: float = pydantic.Field(default=0.0, allow_inf_nan=False)
+    proposed_cooling_delta_kw: float = pydantic.Field(
+        default=0.0, allow_inf_nan=False
+    )
     it_source: MeasurementSource = MeasurementSource.ASSUMED
     cooling_source: MeasurementSource = MeasurementSource.ASSUMED
     pue_source: MeasurementSource = MeasurementSource.ASSUMED

@@ -363,7 +363,12 @@ def test_trusted_mode_missing_reading_400(client):
     assert resp.status_code == 400
 
 
-def test_trusted_mode_resolves_valid_reading(client, test_db):
+def test_trusted_mode_rejects_partial_trust(client, test_db):
+    """A trusted IT reading must not be mixed with caller-supplied cooling.
+
+    Regression: this request (IT referenced, cooling supplied by the caller)
+    used to be accepted with HTTP 200.
+    """
     test_db.execute(
         "INSERT OR IGNORE INTO import_batches "
         "(id, source_id, status, imported_at) "
@@ -379,14 +384,13 @@ def test_trusted_mode_resolves_valid_reading(client, test_db):
     resp = _evaluate(
         client,
         mode="trusted",
-        it_value=999.0,  # will be overridden
+        it_value=999.0,
         it_meter_id="m1",
         it_timestamp="2026-01-01T00:00:00Z",
         cool_value=100.0,
     )
-    assert resp.status_code == 200
-    inputs = resp.json()["result"]["evidence"]["calculation_inputs"]
-    assert inputs["current_it_load_kw"] == 450.0
+    assert resp.status_code == 400
+    assert "cooling_load" in resp.json()["detail"]
 
 
 def test_trusted_mode_rejects_invalid_reading(client, test_db):

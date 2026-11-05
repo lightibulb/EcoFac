@@ -348,12 +348,14 @@ def test_journey_d_invalid_inputs(client, test_db):
         f"{SCENARIOS}/evaluate", json=empty_name
     ).status_code == 422
 
-    # --- 400 for server-side finite check ---
+    # --- 422: inf rejected by Pydantic allow_inf_nan=False ---
     inf_payload = _scenario_payload()
     inf_payload["it_load_kw"] = float("inf")
     resp = _post_raw(client, f"{SCENARIOS}/evaluate", inf_payload)
-    assert resp.status_code == 400
-    assert "finite" in resp.json()["detail"].lower()
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert isinstance(detail, list)
+    assert "finite" in str(detail).lower()
 
     # NaN fails Pydantic's gt=0 check -> 422. The response body must be
     # parseable JSON (before the server-side fix it crashed during
@@ -465,9 +467,11 @@ def test_inf_returns_clean_400_not_server_crash(client):
     payload = _scenario_payload()
     payload["it_load_kw"] = float("inf")
     resp = _post_raw(client, f"{SCENARIOS}/evaluate", payload)
-    assert resp.status_code == 400
+    assert resp.status_code == 422
     body = resp.json()
-    assert "finite" in body["detail"].lower()
+    # 422 detail is a list of Pydantic error dicts, not a string.
+    assert isinstance(body["detail"], list)
+    assert "finite" in str(body["detail"]).lower()
 
 
 # ---------------------------------------------------------------------------

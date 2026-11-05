@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS meters (
     fuel_type TEXT NOT NULL,
     unit TEXT NOT NULL,
     interval_minutes INTEGER NOT NULL DEFAULT 60,
+    role TEXT,
+    relative_tolerance REAL,
     created_at TEXT NOT NULL,
     FOREIGN KEY (building_id) REFERENCES buildings(id)
 );

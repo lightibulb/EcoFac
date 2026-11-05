@@ -19,7 +19,29 @@ from enum import StrEnum
 
 import pydantic
 
+from ecofac.decision.numeric import MAX_PUE, MIN_PUE
+
 DEFAULT_HEAT_CONVERSION_FACTOR = 1.0
+
+# Single source of truth for the formulas the engine evaluates. Evidence
+# generation (``decision.transparent``) reads these strings, and the functions
+# below implement them, so the recorded formula cannot drift from the code.
+FORMULAS: dict[str, str] = {
+    "facility_power_kw": "it_load_kw * pue_value",
+    "predicted_it_load_kw": "current_it_load_kw + proposed_it_delta",
+    "predicted_facility_power_kw": "predicted_it_load_kw * pue_value",
+    "predicted_cooling_kw": "current_cooling_kw + proposed_cooling_delta",
+    "permitted_kw": "capacity * (1 - reserve_pct)",
+    "headroom_to_permitted": "permitted_kw - observed",
+    "headroom_to_physical": "capacity - observed",
+}
+
+# Cooling in the decision path is a DIRECTLY MEASURED (or caller-stated) load
+# plus an explicit proposed delta. It is NOT derived from IT load. The modelled
+# alternative (``calculate_cooling``: heat load = IT load * heat_conversion_factor)
+# is a demand estimate used by ``build_report`` only; never mix the two.
+COOLING_BASIS_MEASURED = "measured_cooling_load"
+COOLING_BASIS_MODELLED = "modelled_cooling_demand"
 
 MODELING_NOTES = {
     "it_heat_approximation": (
@@ -50,7 +72,7 @@ class PUESource(StrEnum):
 class PUEResult(pydantic.BaseModel):
     """A PUE value plus its provenance."""
 
-    value: float = pydantic.Field(gt=0)
+    value: float = pydantic.Field(ge=MIN_PUE, le=MAX_PUE, allow_inf_nan=False)
     source: PUESource
     notes: str | None = None
 
@@ -130,6 +152,20 @@ def _round_pue(value: float) -> float:
     return round(value, 4)
 
 
+def facility_power_kw(it_load_kw: float, pue_value: float) -> float:
+    """Canonical facility power: ``it_load_kw * pue_value`` (see ``FORMULAS``)."""
+    return it_load_kw * pue_value
+
+
+def predicted_load_kw(current_kw: float, delta_kw: float) -> float:
+    """Canonical predicted load: ``current + delta``. May be negative.
+
+    Callers decide how to treat a negative result (the decision engine rejects
+    it as an invalid proposal rather than clamping).
+    """
+    return current_kw + delta_kw
+
+
 def calculate_electrical(
     it_load_kw: float,
     pue: PUEResult,
@@ -146,16 +182,16 @@ def calculate_electrical(
     Negative headroom means the load exceeds capacity; it is reported as-is
     rather than clamped, so callers can act on the overload.
     """
-    facility_power_kw = it_load_kw * pue.value
-    physical_headroom_kw = capacity.capacity_kw - facility_power_kw
+    facility_power_kw_value = facility_power_kw(it_load_kw, pue.value)
+    physical_headroom_kw = capacity.capacity_kw - facility_power_kw_value
     usable_capacity_kw = capacity.capacity_kw * (1.0 - capacity.safety_margin_pct)
-    safety_adjusted_headroom_kw = usable_capacity_kw - facility_power_kw
+    safety_adjusted_headroom_kw = usable_capacity_kw - facility_power_kw_value
     return ElectricalState(
         it_load_kw=_round_kw(it_load_kw),
         pue=PUEResult(
             value=_round_pue(pue.value), source=pue.source, notes=pue.notes
         ),
-        facility_power_kw=_round_kw(facility_power_kw),
+        facility_power_kw=_round_kw(facility_power_kw_value),
         capacity_kw=_round_kw(capacity.capacity_kw),
         safety_margin_pct=capacity.safety_margin_pct,
         physical_headroom_kw=_round_kw(physical_headroom_kw),

@@ -109,16 +109,20 @@ def test_reject_inf_it_load(client):
     payload = _body()
     payload["it_load_kw"] = float("inf")
     resp = _post_raw(client, payload)
-    assert resp.status_code == 400
-    assert "finite" in resp.json()["detail"].lower()
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert isinstance(detail, list)
+    assert "finite" in str(detail).lower()
 
 
 def test_reject_inf_pue(client):
     payload = _body()
     payload["pue"] = float("inf")
     resp = _post_raw(client, payload)
-    assert resp.status_code == 400
-    assert "finite" in resp.json()["detail"].lower()
+    assert resp.status_code == 422
+    detail = resp.json()["detail"]
+    assert isinstance(detail, list)
+    assert "finite" in str(detail).lower()
 
 
 def test_reject_zero_pue(client):

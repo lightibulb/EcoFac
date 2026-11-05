@@ -25,6 +25,11 @@ class InputReference(pydantic.BaseModel):
     source: str
     reference_id: str | None
     timestamp: str | None
+    # Original stored reading when ``value`` was converted (kWh over an
+    # interval -> average kW). ``None`` when no conversion took place.
+    raw_value: float | None = None
+    raw_unit: str | None = None
+    interval_minutes: int | None = None
 
 
 class ConstraintRecord(pydantic.BaseModel):

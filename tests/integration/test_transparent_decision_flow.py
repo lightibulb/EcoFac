@@ -71,10 +71,12 @@ def test_full_flow_reject_and_reproduce():
     req = _req(1100.0, 300.0)
     result = decide_transparently(req)
     assert result.status == "REJECT"
+    from ecofac.decision.transparent import pinned_request  # noqa: PLC0415
+    pinned = pinned_request(req, result)
     verified = verify_reproduction(
         result.fingerprint,
-        input_payload=build_input_payload(req),
-        config_payload=build_config_payload(req),
+        input_payload=build_input_payload(pinned),
+        config_payload=build_config_payload(pinned),
     )
     assert verified is True
 

@@ -11,6 +11,7 @@ from ecofac.decision.limits import (
 from ecofac.decision.measurements import (
     MeasurementSource,
     RichMeasurement,
+    UncertaintyMetadata,
 )
 from ecofac.decision.transparent import (
     DecisionMode,
@@ -79,8 +80,45 @@ def test_trusted_mode_requires_meter_id():
     assert result.status in ("APPROVE", "REVIEW", "REJECT")
 
 
-def test_trusted_mode_is_pure_in_decide_transparently():
-    """mode is metadata only; resolution happens at the API boundary."""
+def _operational_request(**overrides) -> TransparentDecisionRequest:
+    """A fully specified, server-resolved operational request."""
+    ts = "2026-03-01T11:30:00Z"
+    base = {
+        "config": _config(),
+        "config_version": "cfg-1",
+        "it_load": RichMeasurement(
+            name="it_load", value=400.0, unit="kW",
+            source=MeasurementSource.MEASURED,
+            uncertainty=UncertaintyMetadata(relative_tolerance=0.02),
+            measurement_timestamp=ts, reference_id="r-it", meter_id="it",
+        ),
+        "cooling_load": RichMeasurement(
+            name="cooling_load", value=300.0, unit="kW",
+            source=MeasurementSource.MEASURED,
+            uncertainty=UncertaintyMetadata(relative_tolerance=0.03),
+            measurement_timestamp=ts, reference_id="r-c", meter_id="cool",
+        ),
+        "pue": RichMeasurement(
+            name="pue", value=1.4, unit="dimensionless",
+            source=MeasurementSource.CONFIGURED,
+        ),
+        "quality_eligible": True,
+        "mode": DecisionMode.TRUSTED,
+        "max_measurement_age_seconds": 7200,
+        "evaluation_time": "2026-03-01T12:00:00Z",
+        "inputs_resolved_by_server": True,
+    }
+    base.update(overrides)
+    return TransparentDecisionRequest(**base)
+
+
+def test_trusted_mode_without_trusted_inputs_cannot_approve():
+    """Regression: TRUSTED + no tolerance + no PUE used to APPROVE silently.
+
+    Mode is no longer mere metadata: an operational decision whose inputs were
+    not server-resolved, have unknown uncertainty and an assumed PUE must be
+    REVIEW, with the reasons recorded in the evidence.
+    """
     req = TransparentDecisionRequest(
         config=_config(),
         config_version="cfg-1",
@@ -96,4 +134,22 @@ def test_trusted_mode_is_pure_in_decide_transparently():
         mode=DecisionMode.TRUSTED,
     )
     result = decide_transparently(req)
+    assert result.status == "REVIEW"
+    reasons = result.evidence.calculation_outputs["decision_reasons"]
+    joined = "; ".join(reasons)
+    for expected in (
+        "inputs_not_server_resolved",
+        "unknown_model_uncertainty",
+        "pue_assumed",
+    ):
+        assert expected in joined
+    assert result.evidence.calculation_inputs["pue_trust_basis"] == "assumed_default"
+
+
+def test_trusted_mode_with_trusted_inputs_approves():
+    result = decide_transparently(_operational_request())
     assert result.status == "APPROVE"
+    inputs = result.evidence.calculation_inputs
+    assert inputs["pue_trust_basis"] == "configured"
+    assert inputs["applied_uncertainty_flags"] == []
+    assert inputs["evaluation_time"] == "2026-03-01T12:00:00Z"

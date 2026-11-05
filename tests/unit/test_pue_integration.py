@@ -133,12 +133,42 @@ def test_pue_in_input_fingerprint():
     )
 
 
-def test_pue_with_uncertainty_metadata_surfaces_in_sensitivity():
+def test_pue_uncertainty_changes_the_verdict_across_its_band():
+    """PUE 1.3 +/- 0.4: the band spans APPROVE (floor 1.0) to REJECT (1.7).
+
+    400 kW IT at PUE 1.0 -> 400 kW facility (inside permitted 540); at PUE
+    1.7 -> 680 kW, above the 600 kW physical capacity. The lower bound is
+    clamped to the physical PUE floor of 1.0 (1.3 - 0.4 = 0.9 is impossible).
+    """
+    pue = RichMeasurement(
+        name="pue", value=1.3, unit="dimensionless",
+        source=MeasurementSource.MEASURED,
+        uncertainty=UncertaintyMetadata(absolute_tolerance=0.4),
+    )
+    result = decide_transparently(_req(it=400.0, pue=pue, cap=600.0))
+    pue_sens = next(s for s in result.sensitivity if s.measurement_name == "pue")
+    assert pue_sens.could_change_verdict is True
+    assert pue_sens.lower_bound == 1.0
+    assert pue_sens.upper_bound == 1.7
+    assert pue_sens.status_at_lower == "APPROVE"
+    assert pue_sens.status_at_upper == "REJECT"
+    assert "clamped" in pue_sens.reason
+    assert "pue" in result.uncertainty.tolerance_used
+    assert result.evidence.calculation_inputs["pue"] == 1.3
+
+
+def test_pue_uncertainty_with_headroom_preserves_the_verdict():
     pue = RichMeasurement(
         name="pue", value=1.4, unit="dimensionless",
         source=MeasurementSource.MEASURED,
-        uncertainty=UncertaintyMetadata(absolute_tolerance=0.1),
+        uncertainty=UncertaintyMetadata(absolute_tolerance=0.05),
     )
-    result = decide_transparently(_req(it=400.0, pue=pue, cap=1000.0))
-    inputs = result.evidence.calculation_inputs
-    assert inputs["pue"] == 1.4
+    result = decide_transparently(_req(it=100.0, pue=pue, cap=1000.0))
+    pue_sens = next(s for s in result.sensitivity if s.measurement_name == "pue")
+    assert pue_sens.could_change_verdict is False
+    assert pue_sens.status_at_lower == pue_sens.status_at_upper == result.status
+
+
+def test_pue_without_tolerance_has_no_sensitivity_entry():
+    result = decide_transparently(_req(it=400.0, pue=_pue(1.3), cap=600.0))
+    assert all(s.measurement_name != "pue" for s in result.sensitivity)

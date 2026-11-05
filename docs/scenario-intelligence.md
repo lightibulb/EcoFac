@@ -68,9 +68,11 @@ proposed_cooling_delta_kw NaN/inf (400)
 config.*.capacity ≤ 0 (422), NaN/inf (400)
 config.*.reserve_pct outside [0, 1) (422), NaN/inf (400)
 
-NaN/infinity are checked explicitly because Pydantic Field(ge=0) does
-not reliably reject them. Negative predicted loads flow through the
-canonical engine and are classified as REJECT / invalid_proposal.
+NaN/infinity are rejected by Pydantic (`allow_inf_nan=False`) at the
+schema boundary, producing a 422 response. The server-side
+`validate_scenario_numerics` finite check remains as a defensive
+backstop. Negative predicted loads flow through the canonical engine
+and are classified as REJECT / invalid_proposal.
 
 Canonical engine
 

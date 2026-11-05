@@ -7,7 +7,7 @@ import statistics
 import uuid
 
 from ecofac.domain.models import Anomaly
-from ecofac.quality.assessment import assess_quality
+from ecofac.quality.assessment import assess_quality, meter_interval_minutes
 from ecofac.timeutil import now_z, parse_utc, to_z
 
 # Default detector configuration
@@ -252,9 +252,10 @@ def _build_anomaly(
     abs_dev = observed - expected
     pct_dev = (abs_dev / expected * 100) if expected > 0 else None
     target_dt = parse_utc(target_ts)
-    start_dt = target_dt - dt.timedelta(hours=1)
+    interval = meter_interval_minutes(conn, meter_id)
+    start_dt = target_dt - dt.timedelta(minutes=interval)
     quality = assess_quality(
-        conn, meter_id, start_dt, target_dt, expected_frequency_minutes=60
+        conn, meter_id, start_dt, target_dt, expected_frequency_minutes=interval
     )
 
     # Enrich params with data-quality metadata and detector version

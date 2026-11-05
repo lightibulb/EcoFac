@@ -172,9 +172,18 @@ html { scroll-behavior:smooth; }
 .topnav a { color:var(--muted); text-decoration:none; font-weight:500; padding:.4rem .85rem; border-radius:6px; transition:background .2s, color .2s; }
 .topnav a:hover { color:var(--ink); background:color-mix(in oklab, var(--accent) 8%, transparent); }
 .topnav a.active { color:var(--ink); background:var(--accent-soft); }
+/* ---- Icons (Building / Data Center) ---- */
+.ico { width:1.15em; height:1.15em; flex-shrink:0; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; vertical-align:-.2em; }
+.ico-lg { width:1.6rem; height:1.6rem; }
+.lbl .ico { margin-right:.3rem; color:var(--accent); }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="i-building" viewBox="0 0 24 24"><path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21"/><path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V21"/><path d="M2.5 21h19"/><path d="M7.5 8h2M7.5 12h2M7.5 16h2M17 14.5h.01M17 18h.01"/></symbol>
+  <symbol id="i-datacenter" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="5.2" rx="1.3"/><rect x="3" y="9.4" width="18" height="5.2" rx="1.3"/><rect x="3" y="15.8" width="18" height="5.2" rx="1.3"/><path d="M7 5.6h.01M7 12h.01M7 18.4h.01"/><path d="M11 5.6h6M11 12h6M11 18.4h6"/></symbol>
+</svg>
+
 <div class="wrap">
   <nav class="topnav" aria-label="Primary">
     <a href="/" class="active" aria-current="page">Dashboard</a>
@@ -192,7 +201,7 @@ html { scroll-behavior:smooth; }
 
   <main>
     <section class="strip" aria-label="Overview">
-      <div class="stat"><span class="num" id="stat-buildings">&ndash;</span><span class="lbl">Buildings</span></div>
+      <div class="stat"><span class="num" id="stat-buildings">&ndash;</span><span class="lbl"><svg class="ico" aria-hidden="true"><use href="#i-building"/></svg>Buildings</span></div>
       <div class="stat"><span class="num" id="stat-meters">&ndash;</span><span class="lbl">Meters</span></div>
       <div class="stat"><span class="num" id="stat-open">&ndash;</span><span class="lbl">Open incidents</span></div>
       <div class="stat"><span class="num" id="stat-total">&ndash;</span><span class="lbl">All incidents</span></div>

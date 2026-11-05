@@ -28,6 +28,7 @@ from ecofac.decision.measurements import (
     MeasurementSource,
     RichMeasurement,
 )
+from ecofac.decision.numeric import validate_pue_value
 from ecofac.decision.reproducibility import compute_fingerprint
 from ecofac.decision.state_machine import (
     ENGINE_VERSION as CURRENT_ENGINE_VERSION,
@@ -86,11 +87,14 @@ def validate_scenario_numerics(
             (f"config.{section}.{key}", config_dump[section][key])
         )
     for path, value in checks:
-        if not isinstance(value, int | float):
-            continue
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            msg = f"Scenario {path} must be a number (got {value!r})"
+            # Deliberately ValueError: the API layer converts it to HTTP 400.
+            raise ValueError(msg)  # noqa: TRY004
         if not math.isfinite(value):
             msg = f"Scenario {path} must be finite (got {value})"
             raise ValueError(msg)
+    validate_pue_value(pue, "Scenario pue")
 
 
 def build_transparent_request(

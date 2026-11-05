@@ -8,12 +8,14 @@ then hands the few candidates to the authoritative detectors. The detectors
 remain the single source of truth for what counts as an anomaly.
 """
 import dataclasses
+import datetime as dt
 import logging
 import math
 import sqlite3
 
 from ecofac.detection.anomaly import (
     DEFAULT_MIN_SAMPLES,
+    DEFAULT_WINDOW_HOURS,
     MAD_Z_THRESHOLD,
     ROLLING_Z_THRESHOLD,
     ZERO_MAD_EPSILON,
@@ -21,11 +23,15 @@ from ecofac.detection.anomaly import (
     detect_rolling_baseline,
 )
 from ecofac.incidents.lifecycle import create_incident
+from ecofac.timeutil import parse_utc
 
 logger = logging.getLogger(__name__)
 
-# Slice size for the in-memory screen (previous N readings).
-SCREEN_WINDOW = 24
+# The screen uses the SAME time window as the authoritative detectors
+# (``DEFAULT_WINDOW_HOURS``), measured in time, never in a fixed row count.
+# A row-count window (the old SCREEN_WINDOW = 24) is only equivalent for
+# hourly meters; for a 15-minute meter it covered 6 h instead of 24 h and
+# could screen out anomalies the detectors would have flagged.
 SCREEN_MARGIN = 0.98
 MAD_SCALE = 1.4826
 
@@ -68,10 +74,11 @@ def analyze_meter_series(
 ) -> tuple[AnalysisSummary, set[str]]:
     """Analyze every valid reading of one meter. Returns (summary, incident ids).
 
-    The loop starts at DEFAULT_MIN_SAMPLES (not SCREEN_WINDOW) so that bulk
-    analysis covers the same candidate space as a per-reading pass. For
-    irregular or gappy data, the slice is capped at index 0 so ``history``
-    never wraps negatively.
+    For each reading the screen builds exactly the history the detectors will
+    use: valid readings in ``[ts - DEFAULT_WINDOW_HOURS, ts)``. Readings with
+    fewer than ``DEFAULT_MIN_SAMPLES`` such neighbours are skipped, matching
+    the detectors' abstention rule. This is cadence-independent (hourly,
+    30-minute, 15-minute, irregular, gappy) because it counts time, not rows.
     """
     summary = AnalysisSummary()
     incident_ids: set[str] = set()
@@ -81,10 +88,15 @@ def analyze_meter_series(
         (meter_id,),
     ).fetchall()
     values = [row["value"] for row in rows]
+    stamps = [parse_utc(row["timestamp_utc"]) for row in rows]
+    window = dt.timedelta(hours=DEFAULT_WINDOW_HOURS)
 
-    for i in range(DEFAULT_MIN_SAMPLES, len(rows)):
-        history = values[max(0, i - SCREEN_WINDOW):i]
-        if len(history) < 2:
+    lo = 0
+    for i in range(len(rows)):
+        while stamps[lo] < stamps[i] - window:
+            lo += 1
+        history = values[lo:i]
+        if len(history) < DEFAULT_MIN_SAMPLES:
             continue
         if not is_candidate(history, values[i]):
             continue

@@ -3,10 +3,10 @@
 
 Evaluates observed values against physical capacity and reserved safety
 margins, with per-parameter warning thresholds and an explicit minimum
-headroom floor. Independent from ``decision.constraints`` (which evaluates
-``PredictedConditions`` for the existing decision flow); this module is a
-richer, more configurable system intended to coexist with and eventually
-replace the simpler evaluators.
+headroom floor. This module is the CANONICAL constraint evaluator: the live decision path
+(``decision.state_machine`` via ``decision.transparent``) uses it exclusively.
+``decision.constraints`` / ``decision.engine`` are legacy evaluators kept only
+for their existing tests and are not used by any runtime code path.
 
 Every observed value is checked against three distinct boundaries:
 
@@ -61,10 +61,14 @@ class ReserveConfig(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(frozen=True)
 
-    capacity: float = pydantic.Field(gt=0)
-    reserve_pct: float = pydantic.Field(ge=0.0, lt=1.0)
-    warning_threshold_pct: float = pydantic.Field(ge=0.0, lt=1.0, default=0.10)
-    min_headroom: float = pydantic.Field(ge=0.0, default=0.0)
+    capacity: float = pydantic.Field(gt=0, allow_inf_nan=False)
+    reserve_pct: float = pydantic.Field(ge=0.0, lt=1.0, allow_inf_nan=False)
+    warning_threshold_pct: float = pydantic.Field(
+        ge=0.0, lt=1.0, default=0.10, allow_inf_nan=False
+    )
+    min_headroom: float = pydantic.Field(
+        ge=0.0, default=0.0, allow_inf_nan=False
+    )
 
 
 class ElectricalLimits(ReserveConfig):

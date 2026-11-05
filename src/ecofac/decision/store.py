@@ -21,6 +21,8 @@ from ecofac.decision.transparent import (
     build_config_payload,
     build_input_payload,
     decide_transparently,
+    is_time_dependent,
+    pinned_request,
 )
 from ecofac.persistence.tx import persist_atomically
 from ecofac.timeutil import now_z
@@ -90,6 +92,9 @@ def persist_decision(
         raise ValueError(msg)
 
     decision_id = str(uuid.uuid4())
+    # Store the request with its evaluation time pinned (when the verdict is
+    # time-dependent) so verify_decision replays at the ORIGINAL instant.
+    request = pinned_request(request, result)
     request_json = json.dumps(request.model_dump(mode="json"), sort_keys=True)
     result_json = json.dumps(result.model_dump(mode="json"), sort_keys=True)
     config_fp = result.fingerprint.config_fingerprint
@@ -269,8 +274,19 @@ def verify_decision(
     input_verified = computed_input == row["input_fingerprint"]
     config_verified = computed_config == row["config_fingerprint"]
 
-    recomputed = decide_transparently(request)
     stored_result = json.loads(row["result_json"])
+    # Replay at the ORIGINAL evaluation instant. Requests stored with a pinned
+    # ``evaluation_time`` already carry it; for older time-dependent decisions
+    # the stored result's own timestamp is the best available record. Either
+    # way the wall clock never decides whether a historical decision verifies.
+    replay_request = request
+    if request.evaluation_time is None and is_time_dependent(request):
+        pinned = stored_result.get("evaluation_time") or stored_result.get(
+            "decision_timestamp"
+        )
+        if pinned:
+            replay_request = request.model_copy(update={"evaluation_time": pinned})
+    recomputed = decide_transparently(replay_request)
     output_verified = (
         stored_result.get("status") == recomputed.status
         and stored_result.get("precedence") == recomputed.precedence
@@ -293,6 +309,7 @@ def verify_decision(
         "engine_version_match": engine_version_match,
         "stored_engine_version": stored_engine,
         "current_engine_version": CURRENT_ENGINE_VERSION,
+        "evaluation_time": replay_request.evaluation_time,
         "full_bundle_reproduced": False,
         "verification_scope": VERIFICATION_SCOPE,
     }

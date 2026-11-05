@@ -32,6 +32,7 @@ from ecofac.api.routes import (
     scenarios,
     world,
 )
+from ecofac.persistence.database import check_schema, ensure_initialized
 
 BASE_DIR = pathlib.Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -117,35 +118,45 @@ async def _sanitize_validation_error(
     detail = _sanitize_json(jsonable_encoder(exc.errors()))
     return JSONResponse(status_code=422, content={"detail": detail})
 
-def _check_db_ready() -> bool:
-    """Return True when the configured DB responds to a trivial query."""
+def _check_db_ready() -> list[str]:
+    """Return readiness problems; an empty list means the DB is usable.
+
+    Readiness means "the first real request would succeed": the database is
+    initialised through the same locked path request handling uses, then the
+    schema is verified for the tables and columns the application needs. An
+    unreachable file or a schema that cannot be brought to the required shape
+    is reported instead of failing later on a real request.
+    """
     db_path = os.environ.get("ECOFAC_DB_PATH", "ecofac_api.db")
     try:
+        ensure_initialized(db_path)
         conn = sqlite3.connect(db_path, timeout=2)
         try:
             conn.execute("SELECT 1").fetchone()
+            return check_schema(conn)
         finally:
             conn.close()
-    except sqlite3.Error:
-        return False
-    else:
-        return True
+    except (sqlite3.Error, RuntimeError, OSError) as exc:
+        return [f"database not usable: {exc}"]
 
 
 @app.get("/ready", tags=["Health"])
 def readiness_check() -> dict:
-    """Return 200 when the service can serve traffic (DB reachable).
+    """Return 200 when the service can serve traffic (DB reachable, schema valid).
 
     Distinct from /health, which is a liveness probe that does not touch
     the database. Load balancers should use /ready for readiness
     decisions and /health for liveness.
     """
-    if not _check_db_ready():
-        raise HTTPException(status_code=503, detail="Database unreachable")
+    problems = _check_db_ready()
+    if problems:
+        raise HTTPException(
+            status_code=503,
+            detail="Database not ready: " + "; ".join(problems),
+        )
     return {"status": "ready"}
 
 @app.get("/world", response_class=HTMLResponse, tags=["Virtual Facility"])
 def serve_world(request: Request) -> HTMLResponse:
     """Serve the Virtual Facility visualization."""
     return templates.TemplateResponse(request=request, name="world.html")
-

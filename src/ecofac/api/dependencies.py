@@ -1,40 +1,42 @@
 # Copyright 2026 Lightibulb
 """FastAPI dependencies."""
 import os
-import pathlib
 import sqlite3
 from collections.abc import Generator
 from typing import Annotated
 
 from fastapi import Header, HTTPException
 
-from ecofac.persistence.database import BUSY_TIMEOUT_SECONDS, enable_wal, init_db
+from ecofac.persistence import database
+from ecofac.persistence.database import BUSY_TIMEOUT_SECONDS, ensure_initialized
 
 # On Render, set ECOFAC_DB_PATH to a file on the mounted persistent disk
 # (e.g. /opt/render/data/ecofac_api.db) so data survives redeploys.
 DB_PATH = os.environ.get("ECOFAC_DB_PATH", "ecofac_api.db")
 
-_initialized: set[str] = set()
+# Kept for backwards compatibility with tests that reset it; the authoritative
+# cache lives in ``persistence.database`` behind a lock.
+_initialized: set[str] = database._INITIALIZED  # noqa: SLF001
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:
-    """Yield a database connection for the request."""
-    first_use = DB_PATH not in _initialized
-    if first_use:
-        pathlib.Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+    """Yield a database connection for the request.
+
+    First-time initialisation is serialised by ``ensure_initialized`` so
+    concurrent cold-start requests cannot race through ``init_db``. A failed
+    initialisation closes its own connection and surfaces as an error; the
+    request connection below is only opened after initialisation succeeded.
+    """
+    ensure_initialized(DB_PATH)
     conn = sqlite3.connect(
         DB_PATH,
         isolation_level=None,
         check_same_thread=False,
         timeout=BUSY_TIMEOUT_SECONDS,
     )
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON;")
-    if first_use:
-        enable_wal(conn)
-        init_db(conn)
-        _initialized.add(DB_PATH)
     try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON;")
         yield conn
     finally:
         conn.close()

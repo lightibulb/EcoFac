@@ -6,6 +6,8 @@ import sqlite3
 
 from ecofac.timeutil import parse_utc, to_z
 
+DEFAULT_INTERVAL_MINUTES = 60
+
 
 @dataclasses.dataclass
 class QualityReport:
@@ -23,6 +25,26 @@ class QualityReport:
     is_stale: bool
     is_analysis_eligible: bool
     flags: list[str]
+    interval_minutes: int = DEFAULT_INTERVAL_MINUTES
+
+
+def meter_interval_minutes(conn: sqlite3.Connection, meter_id: str) -> int:
+    """Return the configured reporting interval of a meter in minutes.
+
+    Unknown meters fall back to ``DEFAULT_INTERVAL_MINUTES`` so quality
+    assessment of an unregistered meter still runs; trusted-decision
+    resolution performs its own strict meter validation.
+    """
+    row = conn.execute(
+        "SELECT interval_minutes FROM meters WHERE id = ?", (meter_id,)
+    ).fetchone()
+    if row is None or row[0] is None:
+        return DEFAULT_INTERVAL_MINUTES
+    interval = int(row[0])
+    if interval <= 0:
+        msg = f"Meter {meter_id} has non-positive interval_minutes ({interval})"
+        raise ValueError(msg)
+    return interval
 
 
 def assess_quality(
@@ -30,13 +52,22 @@ def assess_quality(
     meter_id: str,
     period_start: dt.datetime,
     period_end: dt.datetime,
-    expected_frequency_minutes: int = 60,
+    expected_frequency_minutes: int | None = None,
 ) -> QualityReport:
     """Evaluate data quality for a meter over a specific time period.
+
+    ``expected_frequency_minutes`` defaults to the meter's own configured
+    ``interval_minutes`` (not an assumed hourly cadence). Pass an explicit
+    value only to override it, e.g. in tests.
 
     Bounds must be timezone-aware; naive datetimes are rejected loudly
     instead of being silently misinterpreted.
     """
+    if expected_frequency_minutes is None:
+        expected_frequency_minutes = meter_interval_minutes(conn, meter_id)
+    if expected_frequency_minutes <= 0:
+        msg = f"expected_frequency_minutes must be > 0 (got {expected_frequency_minutes})"
+        raise ValueError(msg)
     start_str = to_z(period_start)
     end_str = to_z(period_end)
 
@@ -102,4 +133,5 @@ def assess_quality(
         is_stale=is_stale,
         is_analysis_eligible=is_eligible,
         flags=flags,
+        interval_minutes=expected_frequency_minutes,
     )
