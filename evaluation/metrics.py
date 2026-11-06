@@ -191,6 +191,8 @@ def evaluate_detection_v2(
     ground_truth_path: str,
     *,
     min_samples: int = DEFAULT_MIN_SAMPLES,
+    days: int = 90,
+    buildings: int = 5,
 ) -> dict:
     """Full metric set including FPR/FNR/delay/candidate count."""
     with open(ground_truth_path, encoding="utf-8") as f:
@@ -224,6 +226,11 @@ def evaluate_detection_v2(
     fnr = fn / (fn + tp) if (fn + tp) > 0 else 0.0
     pr_auc = _ranked_pr_curve(emitted, truth_set)
     delay = _detection_delay_mean(emitted, truth_by_meter)
+    weeks = days / 7.0
+    false_alerts_per_week = (
+        fp / (buildings * weeks) if buildings > 0 else 0.0
+    )
+
     return {
         "precision": round(precision, 4),
         "recall": round(recall, 4),
@@ -231,6 +238,7 @@ def evaluate_detection_v2(
         "pr_auc": round(pr_auc, 4),
         "false_positive_rate": round(fpr, 6),
         "false_negative_rate": round(fnr, 4),
+        "false_alerts_per_bldg_week": round(false_alerts_per_week, 2),
         "detection_delay_sec_mean": delay,
         "true_positives": tp,
         "false_positives": fp,
