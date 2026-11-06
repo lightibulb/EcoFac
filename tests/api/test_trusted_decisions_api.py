@@ -98,8 +98,14 @@ def decision(ts, *, it_ref=True, cool_ref=True, pue="configured", **overrides):
     return {"decision": body}
 
 
-def post(client, payload):
+def post_json(client, payload):
     return client.post(f"{BASE}/evaluate", json=payload)
+
+
+# backward-compat alias: existing callers use `module.post(...)`.
+# The AST graph sees only `def post_json`, so the false edge
+# from `@router.post` decorators to this test helper disappears.
+post = post_json
 
 
 def applied_flags(resp):
@@ -112,7 +118,7 @@ def applied_flags(resp):
 
 def test_trusted_path_converts_energy_to_power_and_preserves_the_raw_reading(client, test_db):
     ts = seed(test_db)
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.status_code == 200, resp.text
     result = resp.json()["result"]
     assert result["status"] == "APPROVE"
@@ -130,7 +136,7 @@ def test_trusted_path_converts_energy_to_power_and_preserves_the_raw_reading(cli
 
 def test_fifteen_minute_meters_are_not_read_as_hourly(client, test_db):
     ts = seed(test_db, interval=15)
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.status_code == 200, resp.text
     # 200 kWh in 15 minutes is 800 kW average, not 200 or 400.
     inputs = resp.json()["result"]["evidence"]["calculation_inputs"]
@@ -142,14 +148,14 @@ def test_fifteen_minute_meters_are_not_read_as_hourly(client, test_db):
 
 def test_partial_trust_is_rejected(client, test_db):
     ts = seed(test_db)
-    resp = post(client, decision(ts, cool_ref=False))
+    resp = post_json(client, decision(ts, cool_ref=False))
     assert resp.status_code == 400
     assert "cooling_load" in resp.json()["detail"]
 
 
 def test_no_references_is_rejected(client, test_db):
     ts = seed(test_db)
-    assert post(client, decision(ts, it_ref=False, cool_ref=False)).status_code == 400
+    assert post_json(client, decision(ts, it_ref=False, cool_ref=False)).status_code == 400
 
 
 def test_mismatched_timestamps_are_rejected(client, test_db):
@@ -158,14 +164,14 @@ def test_mismatched_timestamps_are_rejected(client, test_db):
     payload["decision"]["cooling_load"]["measurement_timestamp"] = z(
         ts - dt.timedelta(minutes=INTERVAL)
     )
-    resp = post(client, payload)
+    resp = post_json(client, payload)
     assert resp.status_code == 400
     assert "not aligned" in resp.json()["detail"]
 
 
 def test_future_timestamp_is_rejected(client, test_db):
     ts = seed(test_db, ts=slot(offset_minutes=180))
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.status_code == 400
     assert "future" in resp.json()["detail"]
 
@@ -175,7 +181,7 @@ def test_future_timestamp_is_rejected(client, test_db):
 
 def test_wrong_meter_role_is_rejected(client, test_db):
     ts = seed(test_db, it_role="COOLING")
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.status_code == 400
     assert "role" in resp.json()["detail"]
 
@@ -184,7 +190,7 @@ def test_one_meter_cannot_serve_both_roles(client, test_db):
     ts = seed(test_db)
     payload = decision(ts)
     payload["decision"]["cooling_load"]["meter_id"] = "it-m"
-    resp = post(client, payload)
+    resp = post_json(client, payload)
     assert resp.status_code == 400
     assert "same meter" in resp.json()["detail"]
 
@@ -192,7 +198,7 @@ def test_one_meter_cannot_serve_both_roles(client, test_db):
 def test_power_unit_meter_is_incompatible(client, test_db):
     ts = seed(test_db)
     test_db.execute("UPDATE meters SET unit = 'kW' WHERE id = 'it-m'")
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.status_code == 400
     assert "energy" in resp.json()["detail"]
 
@@ -200,7 +206,7 @@ def test_power_unit_meter_is_incompatible(client, test_db):
 def test_meter_without_a_valid_interval_is_rejected(client, test_db):
     ts = seed(test_db)
     test_db.execute("UPDATE meters SET interval_minutes = 0 WHERE id = 'it-m'")
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.status_code == 400
     assert "interval" in resp.json()["detail"]
 
@@ -211,7 +217,7 @@ def test_invalid_reading_is_rejected(client, test_db):
         "UPDATE energy_readings SET is_valid = 0 WHERE meter_id='cool-m' AND timestamp_utc=?",
         (z(ts),),
     )
-    assert post(client, decision(ts)).status_code == 400
+    assert post_json(client, decision(ts)).status_code == 400
 
 
 # ---- caller-supplied metadata cannot override server derivation -------------
@@ -224,7 +230,7 @@ def test_caller_quality_claims_cannot_override_real_quality(client, test_db):
         (z(ts - dt.timedelta(minutes=INTERVAL)),),
     )
     # The caller asserts perfect quality; the server assesses the COOLING meter too.
-    resp = post(client, decision(ts, quality_eligible=True, quality_flags=[]))
+    resp = post_json(client, decision(ts, quality_eligible=True, quality_flags=[]))
     assert resp.status_code == 200
     assert resp.json()["result"]["status"] == "REVIEW"
     assert "missing_data" in resp.json()["result"]["uncertainty"]["quality_flags"]
@@ -232,7 +238,7 @@ def test_caller_quality_claims_cannot_override_real_quality(client, test_db):
 
 def test_caller_freshness_policy_and_clock_are_ignored(client, test_db):
     ts = seed(test_db, ts=slot(offset_minutes=-3 * 24 * 60))
-    resp = post(
+    resp = post_json(
         client,
         decision(
             ts,
@@ -252,7 +258,7 @@ def test_caller_freshness_policy_and_clock_are_ignored(client, test_db):
 
 def test_caller_tolerance_is_replaced_by_meter_metadata(client, test_db):
     ts = seed(test_db)
-    result = post(client, decision(ts)).json()["result"]
+    result = post_json(client, decision(ts)).json()["result"]
     it_sens = next(s for s in result["sensitivity"] if s["measurement_name"] == "it_load")
     # meter accuracy 2 % of 400 kW, not the caller's 0.0001 kW
     assert it_sens["lower_bound"] == pytest.approx(392.0)
@@ -261,7 +267,7 @@ def test_caller_tolerance_is_replaced_by_meter_metadata(client, test_db):
 
 def test_caller_cannot_claim_server_resolution_or_uncertainty_flags(client, test_db):
     ts = seed(test_db, it_tol=None, cool_tol=None)
-    resp = post(
+    resp = post_json(
         client,
         decision(ts, inputs_resolved_by_server=True, trust_caveats=[], uncertainty_flags=[]),
     )
@@ -275,7 +281,7 @@ def test_caller_cannot_claim_server_resolution_or_uncertainty_flags(client, test
 
 def test_missing_pue_in_trusted_mode_is_review(client, test_db):
     ts = seed(test_db)
-    resp = post(client, decision(ts, pue=None))
+    resp = post_json(client, decision(ts, pue=None))
     assert resp.status_code == 200
     assert resp.json()["result"]["status"] == "REVIEW"
     assert "pue_assumed" in applied_flags(resp)
@@ -283,7 +289,7 @@ def test_missing_pue_in_trusted_mode_is_review(client, test_db):
 
 def test_caller_cannot_claim_a_measured_pue(client, test_db):
     ts = seed(test_db)
-    resp = post(client, decision(ts, pue="measured"))
+    resp = post_json(client, decision(ts, pue="measured"))
     assert resp.status_code == 400
     assert "PUE" in resp.json()["detail"]
 
@@ -292,20 +298,20 @@ def test_pue_below_one_is_rejected(client, test_db):
     ts = seed(test_db)
     payload = decision(ts)
     payload["decision"]["pue"]["value"] = 0.9
-    resp = post(client, payload)
+    resp = post_json(client, payload)
     assert resp.status_code in (400, 422)
 
 
 def test_meter_without_tolerance_cannot_approve(client, test_db):
     ts = seed(test_db, cool_tol=None)
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.json()["result"]["status"] == "REVIEW"
     assert "missing_tolerance: 'cooling_load'" in applied_flags(resp)
 
 
 def test_unclassified_meter_role_cannot_approve(client, test_db):
     ts = seed(test_db, it_role=None)
-    resp = post(client, decision(ts))
+    resp = post_json(client, decision(ts))
     assert resp.json()["result"]["status"] == "REVIEW"
     assert "meter_role_unclassified" in applied_flags(resp)
 
@@ -330,7 +336,7 @@ def test_non_finite_numbers_are_rejected_over_http(client, test_db, token):
 
 def test_trusted_decision_verifies_after_wall_clock_advances(client, test_db, monkeypatch):
     ts = seed(test_db)
-    decision_id = post(client, decision(ts)).json()["decision_id"]
+    decision_id = post_json(client, decision(ts)).json()["decision_id"]
     first = client.get(f"{BASE}/{decision_id}/verify").json()
     assert first["verified"] is True
 

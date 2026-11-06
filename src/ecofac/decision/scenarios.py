@@ -23,6 +23,7 @@ import math
 import sqlite3
 import uuid
 
+from ecofac.audit import log_audit
 from ecofac.decision.limits import ConstraintConfig
 from ecofac.decision.measurements import (
     MeasurementSource,
@@ -145,19 +146,7 @@ def _log_audit(
     details: str,
 ) -> None:
     """Append an audit event for a scenario operation."""
-    conn.execute(
-        "INSERT INTO audit_events "
-        "(id, entity_type, entity_id, action, details, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (
-            str(uuid.uuid4()),
-            "SCENARIO",
-            entity_id,
-            action,
-            details,
-            now_z(),
-        ),
-    )
+    log_audit(conn, "SCENARIO", entity_id, action, details)
 
 
 def persist_scenario(
@@ -303,7 +292,8 @@ def verify_scenario(conn: sqlite3.Connection, scenario_id: str) -> dict | None:
     """Recompute fingerprints and re-run the engine on stored inputs."""
     row = conn.execute(
         "SELECT input_json, config_json, result_json, "
-        "input_fingerprint, config_fingerprint, engine_version "
+        "input_fingerprint, config_fingerprint, engine_version, "
+        "config_version "
         "FROM scenarios WHERE id = ?",
         (scenario_id,),
     ).fetchone()
@@ -314,7 +304,7 @@ def verify_scenario(conn: sqlite3.Connection, scenario_id: str) -> dict | None:
         {
             **json.loads(row["input_json"]),
             "config": json.loads(row["config_json"]),
-            "config_version": "verify-tmp",
+            "config_version": row["config_version"],
         }
     )
     computed_input = compute_fingerprint(build_input_payload(request))

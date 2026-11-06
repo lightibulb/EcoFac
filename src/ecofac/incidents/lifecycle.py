@@ -5,6 +5,7 @@
 import sqlite3
 import uuid
 
+from ecofac.audit import log_audit
 from ecofac.domain.models import Anomaly
 from ecofac.evidence.builder import build_computation_log
 from ecofac.persistence.tx import persist_atomically
@@ -35,11 +36,7 @@ def _log_audit(
     details: str,
 ) -> None:
     """Append an immutable audit event."""
-    conn.execute(
-        "INSERT INTO audit_events (id, entity_type, entity_id, action, details, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (str(uuid.uuid4()), "INCIDENT", entity_id, action, details, now_z()),
-    )
+    log_audit(conn, "INCIDENT", entity_id, action, details)
 
 
 def find_event_incident(conn: sqlite3.Connection, meter_id: str, timestamp_utc: str) -> str | None:

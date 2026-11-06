@@ -25,6 +25,7 @@ and are asserted by the regression tests (``tests/unit/test_world_testdrive.py``
 """
 
 import dataclasses
+import functools
 
 from ecofac.decision.calculations import FORMULAS
 from ecofac.decision.limits import ConstraintConfig, CoolingLimits, ElectricalLimits
@@ -146,6 +147,7 @@ PRESETS: tuple[Preset, ...] = (
     ),
 )
 _BY_ID = {p.id: p for p in PRESETS}
+_PRESET_ALIASES = {"plus40": "plus_40pct"}  # backward-compat alias
 
 
 def get_preset(preset_id: str) -> Preset:
@@ -259,12 +261,19 @@ def list_presets() -> list[dict]:
     ]
 
 
-def run_test_drive(preset_id: str) -> dict:
-    """Evaluate one preset through the canonical engine. Pure: no I/O.
+@functools.lru_cache(maxsize=32)
+def _compute_test_drive(canonical_preset_id: str) -> dict:
+    """Compute the test-drive payload minus the fresh ``evaluated_at`` stamp.
 
-    Raises ``UnknownPresetError`` for an unknown id.
+    Pure and deterministic for a given canonical preset id. Cached so a
+    page reload does not re-run the decision engine (each call performs
+    hundreds of constraint evaluations). The ``evaluated_at`` field is a
+    placeholder; ``run_test_drive`` overwrites it on every call.
+
+    Raises ``UnknownPresetError`` for an unknown id (``functools.lru_cache``
+    does not cache exceptions, so repeated bad ids re-raise).
     """
-    preset = get_preset(preset_id)
+    preset = get_preset(canonical_preset_id)
     request = build_transparent_request(
         it_load_kw=BASELINE_IT_LOAD_KW,
         cooling_load_kw=BASELINE_COOLING_LOAD_KW,
@@ -300,7 +309,7 @@ def run_test_drive(preset_id: str) -> dict:
         "version": TEST_DRIVE_VERSION,
         "mode": "HYPOTHETICAL",
         "persisted": False,
-        "evaluated_at": now_z(),
+        "evaluated_at": "",  # overwritten per-call by run_test_drive
         "preset": {
             "id": preset.id,
             "label": preset.label,
@@ -353,190 +362,33 @@ def run_test_drive(preset_id: str) -> dict:
     }
 
 
-# --- ECOFAC PLUS40 VIRTUAL FACILITY FIX START ---
+def run_test_drive(preset_id: str) -> dict:
+    """Evaluate one preset through the canonical engine. Pure: no I/O.
+
+    Repeated calls for the same preset reuse the cached computation; the
+    ``evaluated_at`` field is re-stamped on every call. The returned dict
+    shares nested values with the cache, so callers must treat it as
+    read-only (FastAPI serialization is read-only by design).
+
+    Raises ``UnknownPresetError`` for an unknown id.
+    """
+    canonical = _PRESET_ALIASES.get(preset_id, preset_id)
+    payload = dict(_compute_test_drive(canonical))
+    payload["evaluated_at"] = now_z()
+    return payload
 
 
-def _ecofac_safe_config_dump() -> dict:
-    from ecofac.decision.limits import (  # noqa: PLC0415
-        ConstraintConfig,
-        CoolingLimits,
-        ElectricalLimits,
-    )
-
-    cfg = ConstraintConfig(
-        electrical=ElectricalLimits(capacity=1000.0, reserve_pct=0.10),
-        cooling=CoolingLimits(capacity=800.0, reserve_pct=0.10),
-    )
-    return cfg.model_dump()
+def reset_test_drive_cache() -> None:
+    """Clear the test-drive computation cache. Used by tests only."""
+    _compute_test_drive.cache_clear()
 
 
-def _ecofac_plus40_payload() -> dict:
+def test_drive_cache_info() -> dict:
+    """Return cache statistics. Used by tests and ops monitoring."""
+    info = _compute_test_drive.cache_info()
     return {
-        "it_load_kw": 600.0,
-        "cooling_load_kw": 300.0,
-        "pue": 1.4,
-        "proposed_it_delta_kw": 240.0,
-        "proposed_cooling_delta_kw": 0.0,
-        "config_dump": _ecofac_safe_config_dump(),
+        "hits": info.hits,
+        "misses": info.misses,
+        "maxsize": info.maxsize,
+        "currsize": info.currsize,
     }
-
-
-def _ecofac_as_upper(value: object) -> str | None:
-    if isinstance(value, str):
-        return value.upper()
-    if value is None:
-        return None
-    inner = getattr(value, "value", value)
-    return str(inner).upper()
-
-
-def _ecofac_as_str(value: object) -> str | None:
-    if isinstance(value, str):
-        return value
-    if value is None:
-        return None
-    inner = getattr(value, "value", value)
-    return str(inner)
-
-
-def _ecofac_extract_status(result: object) -> str | None:
-    if not isinstance(result, dict):
-        return None
-
-    for key in ("status", "final_status"):
-        value = _ecofac_as_upper(result.get(key))
-        if value is not None:
-            return value
-
-    for nested_key in ("decision", "result", "decision_result"):
-        nested = result.get(nested_key)
-        if isinstance(nested, dict):
-            for key in ("status", "final_status"):
-                value = _ecofac_as_upper(nested.get(key))
-                if value is not None:
-                    return value
-
-    return None
-
-
-def _ecofac_extract_precedence(result: object) -> str | None:
-    if not isinstance(result, dict):
-        return None
-
-    value = _ecofac_as_str(result.get("precedence"))
-    if value is not None:
-        return value
-
-    for nested_key in ("decision", "result", "decision_result"):
-        nested = result.get(nested_key)
-        if isinstance(nested, dict):
-            value = _ecofac_as_str(nested.get("precedence"))
-            if value is not None:
-                return value
-
-    return None
-
-
-def _ecofac_forced_plus40(original: object) -> dict:
-    payload = _ecofac_plus40_payload()
-
-    if isinstance(original, dict):
-        for key in ("reproduce_scenario_evaluate", "scenario_payload", "inputs"):
-            candidate = original.get(key)
-            if isinstance(candidate, dict) and "it_load_kw" in candidate:
-                payload = dict(candidate)
-                break
-
-    try:
-        it_load = float(payload.get("it_load_kw", 600.0))
-    except (TypeError, ValueError):
-        it_load = 600.0
-
-    payload["proposed_it_delta_kw"] = round(0.4 * it_load, 6)
-    payload.setdefault("proposed_cooling_delta_kw", 0.0)
-    payload["config_dump"] = _ecofac_safe_config_dump()
-
-    result = dict(original) if isinstance(original, dict) else {}
-
-    try:
-        from ecofac.decision import scenarios as _scenarios  # noqa: PLC0415
-        from ecofac.decision import transparent as _transparent  # noqa: PLC0415
-
-        build_transparent_request = _scenarios.build_transparent_request
-        decide_transparently = _transparent.decide_transparently
-
-        minimal_keys = (
-            "it_load_kw",
-            "cooling_load_kw",
-            "pue",
-            "proposed_it_delta_kw",
-            "proposed_cooling_delta_kw",
-            "config_dump",
-        )
-
-        try:
-            request = build_transparent_request(**payload)
-        except TypeError:
-            minimal = {k: payload[k] for k in minimal_keys if k in payload}
-            request = build_transparent_request(**minimal)
-
-        decision = decide_transparently(request)
-        dump = decision.model_dump() if hasattr(decision, "model_dump") else decision
-
-        result["hypothetical"] = True
-        result["inputs"] = payload
-        result["decision"] = dump
-        result["status"] = "REJECT"
-        result["precedence"] = "reserve_violation"
-
-        if isinstance(dump, dict):
-            status = _ecofac_as_upper(dump.get("status"))
-            precedence = _ecofac_as_str(dump.get("precedence"))
-            result["status"] = status or "REJECT"
-            result["precedence"] = precedence or "reserve_violation"
-
-        result["reproduce_scenario_evaluate"] = payload
-    except Exception:
-        decision = result.get("decision")
-        if not isinstance(decision, dict):
-            decision = {}
-
-        decision.update({"status": "REJECT", "precedence": "reserve_violation"})
-
-        result.update(
-            {
-                "hypothetical": True,
-                "inputs": payload,
-                "decision": decision,
-                "status": "REJECT",
-                "precedence": "reserve_violation",
-                "reproduce_scenario_evaluate": payload,
-            }
-        )
-
-    return result
-
-
-def _ecofac_wrap_test_drive() -> None:
-    original = globals().get("run_test_drive")
-    if original is None or globals().get("ecofac_plus40_wrapped"):
-        return
-
-    def run_test_drive(preset_id: str) -> dict:
-        canonical_preset_id = "plus_40pct" if preset_id == "plus40" else preset_id
-        result = original(canonical_preset_id)
-
-        if canonical_preset_id not in {"plus40", "plus_40pct"}:
-            return result
-
-        if _ecofac_extract_status(result) == "REJECT":
-            return result
-
-        return _ecofac_forced_plus40(result)
-
-    globals()["run_test_drive"] = run_test_drive
-    globals()["ecofac_plus40_wrapped"] = True
-
-
-_ecofac_wrap_test_drive()
-# --- ECOFAC PLUS40 VIRTUAL FACILITY FIX END ---

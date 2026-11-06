@@ -21,7 +21,7 @@ def test_canary_spikes_are_detected():
 
     base = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
 
-    def add(reading_id, hour, value):
+    def add_reading_row(reading_id, hour, value):
         ts = base + dt.timedelta(hours=hour)
         insert_reading(
             conn,
@@ -39,9 +39,9 @@ def test_canary_spikes_are_detected():
         )
 
     for hour in range(48):
-        add(f"c{hour}", hour, 10.0)
+        add_reading_row(f"c{hour}", hour, 10.0)
     for i, hour in enumerate([48, 49, 50]):
-        add(f"spike{i}", hour, 100.0)
+        add_reading_row(f"spike{i}", hour, 100.0)
 
     detected = analyze_all(conn)
 

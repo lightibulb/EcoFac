@@ -339,6 +339,28 @@ def _band_result(
     )
 
 
+def _sensitivity_status(
+    build_context: Any,
+    *,
+    predicted_electrical: float,
+    predicted_cooling: float,
+    current_electrical: float,
+    current_cooling: float,
+) -> str:
+    # Single point of delegation from sensitivity to the state machine.
+    # Both the primary verdict and every band-edge status recorded in
+    # the sensitivity artifact flow through evaluate_decision. Keeping
+    # one helper makes that invariant auditable and prevents a future
+    # change from re-implementing constraint thresholds inline.
+    ctx = build_context(
+        predicted_electrical=predicted_electrical,
+        predicted_cooling=predicted_cooling,
+        current_electrical=current_electrical,
+        current_cooling=current_cooling,
+    )
+    return evaluate_decision(ctx).status.value
+
+
 def _compute_sensitivity(
     *,
     build_context: Any,
@@ -361,13 +383,13 @@ def _compute_sensitivity(
         def _status_it(measured_value: float) -> str:
             delta = measured_value - current_it
             new_predicted_it = max(0.0, predicted_it + delta)
-            ctx = build_context(
+            return _sensitivity_status(
+                build_context,
                 predicted_electrical=facility_power_kw(new_predicted_it, pue_value),
                 predicted_cooling=predicted_cooling,
                 current_electrical=facility_power_kw(measured_value, pue_value),
                 current_cooling=current_cooling,
             )
-            return evaluate_decision(ctx).status.value
 
         results.append(
             _band_result(
@@ -385,13 +407,13 @@ def _compute_sensitivity(
         def _status_cooling(measured_value: float) -> str:
             delta = measured_value - current_cooling
             new_predicted_cooling = max(0.0, predicted_cooling + delta)
-            ctx = build_context(
+            return _sensitivity_status(
+                build_context,
                 predicted_electrical=facility_power_kw(max(0.0, predicted_it), pue_value),
                 predicted_cooling=new_predicted_cooling,
                 current_electrical=facility_power_kw(current_it, pue_value),
                 current_cooling=measured_value,
             )
-            return evaluate_decision(ctx).status.value
 
         results.append(
             _band_result(
@@ -407,13 +429,13 @@ def _compute_sensitivity(
     if pue is not None and pue_band is not None:
 
         def _status_pue(candidate_pue: float) -> str:
-            ctx = build_context(
+            return _sensitivity_status(
+                build_context,
                 predicted_electrical=facility_power_kw(max(0.0, predicted_it), candidate_pue),
                 predicted_cooling=predicted_cooling,
                 current_electrical=facility_power_kw(current_it, candidate_pue),
                 current_cooling=current_cooling,
             )
-            return evaluate_decision(ctx).status.value
 
         results.append(
             _band_result(

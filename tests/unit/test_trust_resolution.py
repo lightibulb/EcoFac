@@ -70,7 +70,7 @@ def setup_pair(conn, *, it_interval=60, cool_interval=60):
         add_reading(conn, m, TS, 10.0)
 
 
-def resolve(conn, **kw):
+def resolve_pair_request(conn, **kw):
     args = {
         "it_ref": ("it", TS),
         "cooling_ref": ("cool", TS),
@@ -110,7 +110,7 @@ def test_fifteen_minute_meter_is_not_read_as_kw(conn):
         "UPDATE energy_readings SET value = 2.5 WHERE meter_id='it' AND timestamp_utc=?",
         (TS,),
     )
-    it, _ = resolve(conn)
+    it, _ = resolve_pair_request(conn)
     assert it.raw_value == 2.5
     assert it.raw_unit == "kWh"
     assert it.interval_minutes == 15
@@ -121,21 +121,21 @@ def test_meter_with_missing_interval_is_rejected(conn):
     setup_pair(conn)
     conn.execute("UPDATE meters SET interval_minutes = 0 WHERE id = 'it'")
     with pytest.raises(TrustError, match="interval"):
-        resolve(conn)
+        resolve_pair_request(conn)
 
 
 def test_power_unit_meter_is_incompatible(conn):
     setup_pair(conn)
     conn.execute("UPDATE meters SET unit = 'kW' WHERE id = 'it'")
     with pytest.raises(TrustError, match="energy"):
-        resolve(conn)
+        resolve_pair_request(conn)
 
 
 def test_non_electric_meter_is_incompatible(conn):
     setup_pair(conn)
     conn.execute("UPDATE meters SET fuel_type = 'gas' WHERE id = 'cool'")
     with pytest.raises(TrustError, match="electric"):
-        resolve(conn)
+        resolve_pair_request(conn)
 
 
 # ---- roles ------------------------------------------------------------------
@@ -145,19 +145,19 @@ def test_wrong_role_is_rejected(conn):
     setup_pair(conn)
     conn.execute("UPDATE meters SET role = 'COOLING' WHERE id = 'it'")
     with pytest.raises(TrustError, match="role"):
-        resolve(conn)
+        resolve_pair_request(conn)
 
 
 def test_same_meter_cannot_serve_both_roles(conn):
     setup_pair(conn)
     with pytest.raises(TrustError, match="same meter"):
-        resolve(conn, cooling_ref=("it", TS))
+        resolve_pair_request(conn, cooling_ref=("it", TS))
 
 
 def test_unclassified_role_is_a_visible_caveat_not_silent(conn):
     setup_pair(conn)
     conn.execute("UPDATE meters SET role = NULL WHERE id = 'it'")
-    it, cooling = resolve(conn)
+    it, cooling = resolve_pair_request(conn)
     assert CAVEAT_ROLE_UNCLASSIFIED in it.caveats
     assert cooling.caveats == ()
 
@@ -177,7 +177,7 @@ def test_unclassified_role_is_a_visible_caveat_not_silent(conn):
 def test_partial_or_missing_references_are_rejected(conn, it_ref, cool_ref, missing):
     setup_pair(conn)
     with pytest.raises(TrustError, match=missing):
-        resolve(conn, it_ref=it_ref, cooling_ref=cool_ref)
+        resolve_pair_request(conn, it_ref=it_ref, cooling_ref=cool_ref)
 
 
 def test_mismatched_timestamps_are_rejected(conn):
@@ -189,24 +189,24 @@ def test_mismatched_timestamps_are_rejected(conn):
         (PREV_HOUR, PREV_HOUR),
     )
     with pytest.raises(TrustError, match="not aligned"):
-        resolve(conn, cooling_ref=("cool", PREV_HOUR))
+        resolve_pair_request(conn, cooling_ref=("cool", PREV_HOUR))
 
 
 def test_future_timestamp_is_rejected(conn):
     setup_pair(conn)
     with pytest.raises(TrustError, match="future"):
-        resolve(conn, evaluation_time=NOW - dt.timedelta(hours=3))
+        resolve_pair_request(conn, evaluation_time=NOW - dt.timedelta(hours=3))
 
 
 def test_naive_timestamp_is_rejected(conn):
     setup_pair(conn)
     with pytest.raises(TrustError, match="timezone"):
-        resolve(conn, it_ref=("it", "2026-03-01T11:00:00"))
+        resolve_pair_request(conn, it_ref=("it", "2026-03-01T11:00:00"))
 
 
 def test_offset_spelling_of_same_instant_resolves(conn):
     setup_pair(conn)
-    it, cooling = resolve(
+    it, cooling = resolve_pair_request(
         conn,
         it_ref=("it", "2026-03-01T11:00:00+00:00"),
         cooling_ref=("cool", "2026-03-01T13:00:00+02:00"),
@@ -217,18 +217,18 @@ def test_offset_spelling_of_same_instant_resolves(conn):
 def test_missing_and_invalid_readings_are_rejected(conn):
     setup_pair(conn)
     with pytest.raises(TrustError, match="not found"):
-        resolve(conn, it_ref=("it", "2026-03-01T09:00:00Z"))
+        resolve_pair_request(conn, it_ref=("it", "2026-03-01T09:00:00Z"))
     conn.execute(
         "UPDATE energy_readings SET is_valid = 0 WHERE meter_id='it' AND timestamp_utc=?", (TS,)
     )
     with pytest.raises(TrustError, match="invalid"):
-        resolve(conn)
+        resolve_pair_request(conn)
 
 
 def test_unknown_meter_is_rejected(conn):
     setup_pair(conn)
     with pytest.raises(TrustError, match="does not exist"):
-        resolve(conn, it_ref=("ghost", TS))
+        resolve_pair_request(conn, it_ref=("ghost", TS))
 
 
 # ---- quality + tolerance are per measurement and server-derived ------------
@@ -238,7 +238,7 @@ def test_quality_is_assessed_for_every_measurement(conn):
     setup_pair(conn)
     prev = "2026-03-01T10:00:00Z"
     conn.execute("DELETE FROM energy_readings WHERE meter_id='cool' AND timestamp_utc=?", (prev,))
-    it, cooling = resolve(conn)
+    it, cooling = resolve_pair_request(conn)
     assert it.quality_eligible is True
     assert cooling.quality_eligible is False
     assert "missing_data" in cooling.quality_flags
@@ -246,17 +246,17 @@ def test_quality_is_assessed_for_every_measurement(conn):
 
 def test_quality_window_uses_each_meters_own_interval(conn):
     setup_pair(conn, it_interval=15, cool_interval=60)
-    it, cooling = resolve(conn)
+    it, cooling = resolve_pair_request(conn)
     assert it.quality_eligible is True
     assert cooling.quality_eligible is True
 
 
 def test_tolerance_comes_from_meter_metadata(conn):
     setup_pair(conn)
-    it, cooling = resolve(conn)
+    it, cooling = resolve_pair_request(conn)
     assert (it.relative_tolerance, cooling.relative_tolerance) == (0.02, 0.03)
     conn.execute("UPDATE meters SET relative_tolerance = NULL WHERE id = 'it'")
-    it, _ = resolve(conn)
+    it, _ = resolve_pair_request(conn)
     assert it.relative_tolerance is None
 
 
@@ -265,7 +265,7 @@ def test_invalid_server_tolerance_is_rejected(conn, bad):
     setup_pair(conn)
     conn.execute("UPDATE meters SET relative_tolerance = ? WHERE id = 'it'", (bad,))
     with pytest.raises(TrustError, match="relative_tolerance"):
-        resolve(conn)
+        resolve_pair_request(conn)
 
 
 def test_single_reading_resolver_rejects_unknown_role(conn):

@@ -1,3 +1,6 @@
+# LEGACY MODULE - deprecated; scheduled for removal in v2.0.
+# See docs/LEGACY.md. Use ecofac.decision.state_machine / limits instead.
+
 # Copyright 2026 Lightibulb
 """DEPRECATED: superseded by decision.transparent.
 

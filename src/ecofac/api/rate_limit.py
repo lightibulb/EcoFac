@@ -137,9 +137,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 # --- ECOFAC RATE LIMIT TOKEN VALIDATION FIX START ---
+# Defense-in-depth: strip invalid tokens before rate-limit keying so a
+# bogus token cannot force a separate bucket (DoS via proliferation).
+# Called explicitly from main.py at app startup, not at import time.
 
 
-def _ecofac_secure_rate_limiter() -> None:
+def install_secure_token_handling() -> None:
     import hmac  # noqa: PLC0415
     import os  # noqa: PLC0415
 
@@ -189,5 +192,5 @@ def _ecofac_secure_rate_limiter() -> None:
     RateLimiter.ecofac_secure_wrapped = True
 
 
-_ecofac_secure_rate_limiter()
+# (Called from main.py at app startup; not at import time.)
 # --- ECOFAC RATE LIMIT TOKEN VALIDATION FIX END ---

@@ -7,7 +7,8 @@ import math
 import os
 import pathlib
 import sqlite3
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
@@ -22,7 +23,10 @@ from ecofac.api.middleware import (
     RequestIDMiddleware,
     SecurityHeadersMiddleware,
 )
-from ecofac.api.rate_limit import RateLimitMiddleware
+from ecofac.api.rate_limit import (
+    RateLimitMiddleware,
+    install_secure_token_handling,
+)
 from ecofac.api.routes import (
     audit,
     dashboard,
@@ -39,6 +43,11 @@ from ecofac.constants import MAX_UPLOAD_BYTES, MULTIPART_OVERHEAD_BYTES
 from ecofac.persistence.database import check_schema, ensure_initialized
 
 logger = logging.getLogger(__name__)
+
+# Apply rate-limiter token stripping once at app startup.
+# Previously this ran at import time in rate_limit.py; moved here so the
+# side effect is explicit at the app composition root.
+install_secure_token_handling()
 
 
 def ephemeral_storage_warning(
@@ -62,9 +71,13 @@ def ephemeral_storage_warning(
     )
 
 
-_ephemeral_warning = ephemeral_storage_warning()
-if _ephemeral_warning:
-    logger.warning(_ephemeral_warning)
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    # Log the ephemeral-storage warning on startup, not on import.
+    warning = ephemeral_storage_warning()
+    if warning:
+        logger.warning(warning)
+    yield
 
 
 BASE_DIR = pathlib.Path(__file__).parent
@@ -77,6 +90,7 @@ app = FastAPI(
     description=(
         "Local demonstration API. Not production-secure. Requires auth for public deployment."
     ),
+    lifespan=_lifespan,
 )
 
 # Middleware stack, outermost first on the request path:

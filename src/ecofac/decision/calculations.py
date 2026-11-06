@@ -179,6 +179,13 @@ def calculate_electrical(
 
     Negative headroom means the load exceeds capacity; it is reported as-is
     rather than clamped, so callers can act on the overload.
+
+    ROUNDING POLICY: fields of the returned ``ElectricalState`` are
+    rounded to 4 decimal places for stable JSON output. Do NOT route
+    any field of that state into ``decision.limits.evaluate_all``.
+    The canonical constraint evaluator consumes the *unrounded*
+    floats produced by ``facility_power_kw`` and ``predicted_load_kw``,
+    so sub-1e-4 kW overloads cannot slip through as APPROVE.
     """
     facility_power_kw_value = facility_power_kw(it_load_kw, pue.value)
     physical_headroom_kw = capacity.capacity_kw - facility_power_kw_value
@@ -210,6 +217,13 @@ def calculate_cooling(
     The default heat_conversion_factor is 1.0, encoding the approximation
     that IT electrical load equals IT heat output. A future thermal model
     can override it per call without changing this module.
+
+    ROUNDING POLICY: fields of the returned ``ElectricalState`` are
+    rounded to 4 decimal places for stable JSON output. Do NOT route
+    any field of that state into ``decision.limits.evaluate_all``.
+    The canonical constraint evaluator consumes the *unrounded*
+    floats produced by ``facility_power_kw`` and ``predicted_load_kw``,
+    so sub-1e-4 kW overloads cannot slip through as APPROVE.
     """
     heat_load_kw = it_load_kw * capacity.heat_conversion_factor
     physical_headroom_kw = capacity.capacity_kw - heat_load_kw

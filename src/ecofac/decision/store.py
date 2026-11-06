@@ -13,6 +13,7 @@ import json
 import sqlite3
 import uuid
 
+from ecofac.audit import log_audit
 from ecofac.decision.reproducibility import compute_fingerprint
 from ecofac.decision.state_machine import ENGINE_VERSION as CURRENT_ENGINE_VERSION
 from ecofac.decision.transparent import (
@@ -28,22 +29,6 @@ from ecofac.persistence.tx import persist_atomically
 from ecofac.timeutil import now_z
 
 VERIFICATION_SCOPE = "input_config_output_status"
-
-
-def _log_audit(
-    conn: sqlite3.Connection,
-    entity_type: str,
-    entity_id: str,
-    action: str,
-    details: str,
-) -> None:
-    """Append one immutable audit event."""
-    conn.execute(
-        "INSERT INTO audit_events "
-        "(id, entity_type, entity_id, action, details, created_at) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (str(uuid.uuid4()), entity_type, entity_id, action, details, now_z()),
-    )
 
 
 def _register_config(
@@ -65,7 +50,7 @@ def _register_config(
         "VALUES (?, ?, ?, ?)",
         (config_fingerprint, request.config_version, config_json, now_z()),
     )
-    _log_audit(
+    log_audit(
         conn,
         "DECISION_CONFIG",
         config_fingerprint,
@@ -136,7 +121,7 @@ def persist_decision(
                 supersession_reason,
             ),
         )
-        _log_audit(
+        log_audit(
             conn,
             "DECISION",
             decision_id,
@@ -146,7 +131,7 @@ def persist_decision(
             f"supersedes={supersedes or 'none'}",
         )
         if supersedes is not None:
-            _log_audit(
+            log_audit(
                 conn,
                 "DECISION",
                 supersedes,

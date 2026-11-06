@@ -21,7 +21,7 @@ from ecofac.decision.scenario_analysis import (
     ScenarioBottleneckReport,
     ScenarioComparisonResponse,
     SensitivityAnalysisResponse,
-    analyze_sensitivity,
+    analyze_sensitivity_cached,
     compare_scenarios,
     detect_bottlenecks,
 )
@@ -213,7 +213,7 @@ def scenario_sensitivity_endpoint(
     if record is None:
         raise HTTPException(status_code=404, detail="Scenario not found")
     try:
-        return analyze_sensitivity(record)
+        return analyze_sensitivity_cached(record)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 

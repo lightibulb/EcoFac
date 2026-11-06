@@ -12,6 +12,8 @@ confidence scores.
 """
 
 import copy
+import functools
+import json
 from typing import Any
 
 import pydantic
@@ -687,3 +689,41 @@ def analyze_sensitivity(record: dict) -> SensitivityAnalysisResponse:
         baseline_precedence=baseline_precedence,
         parameters=parameters,
     )
+
+
+@functools.lru_cache(maxsize=128)
+def _cached_sensitivity(record_json: str) -> SensitivityAnalysisResponse:
+    """Cache wrapper for ``analyze_sensitivity`` keyed on the record.
+
+    A scenario is append-only (enforced by triggers), so a given record
+    serialized canonically can never change. Re-running the analysis on
+    the same record yields an identical response — this cache skips the
+    35+ inner ``decide_transparently`` calls on repeat requests.
+    """
+    return analyze_sensitivity(json.loads(record_json))
+
+
+def analyze_sensitivity_cached(record: dict) -> SensitivityAnalysisResponse:
+    """Cached sensitivity analysis for one scenario record.
+
+    Same output as ``analyze_sensitivity``; safe to call repeatedly.
+    Cache key is the canonical JSON serialization of the record, so any
+    change to the record invalidates the entry automatically.
+    """
+    return _cached_sensitivity(json.dumps(record, sort_keys=True, default=str))
+
+
+def reset_sensitivity_cache() -> None:
+    """Clear the sensitivity cache. Used by tests only."""
+    _cached_sensitivity.cache_clear()
+
+
+def sensitivity_cache_info() -> dict:
+    """Return sensitivity cache statistics. Used by tests and ops monitoring."""
+    info = _cached_sensitivity.cache_info()
+    return {
+        "hits": info.hits,
+        "misses": info.misses,
+        "maxsize": info.maxsize,
+        "currsize": info.currsize,
+    }
