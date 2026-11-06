@@ -86,6 +86,9 @@ class ImportSummaryResponse(pydantic.BaseModel):
     invalid_units: int
     unknown_meter_ids: int
     negative_consumption: int
+    invalid_ids: int = 0
+    buildings_created: int = 0
+    meters_created: int = 0
     anomalies_detected: int = 0
     incidents_created: int = 0
 
@@ -305,3 +308,4 @@ class ScenarioVerifyResponse(pydantic.BaseModel):
 class ScenarioComparisonRequest(pydantic.BaseModel):
     """Request body for multi-scenario comparison."""
     scenario_ids: list[str] = pydantic.Field(min_length=2, max_length=10)
+

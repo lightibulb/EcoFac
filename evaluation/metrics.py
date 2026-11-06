@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Calculates anomaly detection and data quality metrics."""
+
 import datetime as dt
 import itertools
 import json
@@ -8,11 +9,7 @@ import sqlite3
 
 
 def calculate_pr_auc(precisions: list[float], recalls: list[float]) -> float:
-    """Integrate a precision-recall curve with explicit (0,1) and (1,0) ends.
-
-    Inputs are operating points, not arbitrary samples. Duplicate recall points
-    are retained because they can represent vertical PR-curve segments.
-    """
+    """Integrate a precision-recall curve with explicit (0,1) and (1,0) ends."""
     if not precisions or not recalls or len(precisions) != len(recalls):
         return 0.0
     points = sorted(
@@ -43,7 +40,6 @@ def _ranked_pr_curve(
             score = 0.0
         key = (prediction["meter_id"], prediction["timestamp_utc"])
         best[key] = max(best.get(key, 0.0), score)
-
     ranked = sorted(best.items(), key=lambda item: item[1], reverse=True)
     points_p: list[float] = []
     points_r: list[float] = []
@@ -52,7 +48,6 @@ def _ranked_pr_curve(
     index = 0
     while index < len(ranked):
         score = ranked[index][1]
-        # Apply all predictions at a tied score before recording the threshold.
         while index < len(ranked) and ranked[index][1] == score:
             if ranked[index][0] in truth_set:
                 tp += 1
@@ -62,6 +57,7 @@ def _ranked_pr_curve(
         points_p.append(tp / (tp + fp))
         points_r.append(tp / len(truth_set))
     return calculate_pr_auc(points_p, points_r)
+
 
 def evaluate_detection(
     conn: sqlite3.Connection,
@@ -73,13 +69,11 @@ def evaluate_detection(
     with open(ground_truth_path, encoding="utf-8") as f:
         truth = json.load(f)
     truth_set = {(t["meter_id"], t["timestamp"]) for t in truth}
-
     cursor = conn.execute(
         "SELECT meter_id, timestamp_utc, detection_parameters FROM anomalies"
     )
     predictions = cursor.fetchall()
     pred_set = {(p["meter_id"], p["timestamp_utc"]) for p in predictions}
-
     true_positives = len(truth_set.intersection(pred_set))
     false_positives = len(pred_set - truth_set)
     false_negatives = len(truth_set - pred_set)
@@ -99,12 +93,10 @@ def evaluate_detection(
         else 0.0
     )
     pr_auc = _ranked_pr_curve(predictions, truth_set)
-
     weeks = days / 7.0
     false_alerts_per_week = (
         false_positives / (buildings * weeks) if buildings > 0 else 0.0
     )
-
     return {
         "precision": round(precision, 3),
         "recall": round(recall, 3),
@@ -121,11 +113,7 @@ def evaluate_quality(
     conn: sqlite3.Connection,
     quality_truth_path: str = "quality_ground_truth.json",
 ) -> dict:
-    """Calculate data quality defect counts and capture rates.
-
-    If the simulator emitted quality_ground_truth.json, injected defect
-    counts are compared against what ingestion actually caught.
-    """
+    """Calculate data quality defect counts and capture rates."""
     cursor = conn.execute(
         "SELECT issue_type, count(*) AS c FROM data_quality_issues "
         "GROUP BY issue_type"
@@ -152,10 +140,10 @@ def evaluate_quality(
     )
     return result
 
+
 # -----------------------------------------------------------------------------
 # Metrics v2: FPR/FNR using the eligible-candidate denominator.
 # -----------------------------------------------------------------------------
-
 DEFAULT_MIN_SAMPLES = 20
 
 
@@ -180,11 +168,7 @@ def _eligible_candidates(
 def _detection_delay_mean(
     emitted: list[sqlite3.Row], truth_by_meter: dict[str, list[str]]
 ) -> float | None:
-    """Mean absolute delay (seconds) between emitted and matched truth ts.
-
-    Our pipeline emits at the exact reading timestamp, so delay is 0 for every
-    true positive; the check exists to catch future lagged detection.
-    """
+    """Mean absolute delay (seconds) between emitted and matched truth ts."""
     delays: list[float] = []
     for row in emitted:
         meter = row["meter_id"]
@@ -215,16 +199,13 @@ def evaluate_detection_v2(
     truth_by_meter: dict[str, list[str]] = {}
     for t in truth:
         truth_by_meter.setdefault(t["meter_id"], []).append(t["timestamp"])
-
     emitted = conn.execute(
         "SELECT meter_id, timestamp_utc, detection_parameters FROM anomalies"
     ).fetchall()
     emitted_keys = {(e["meter_id"], e["timestamp_utc"]) for e in emitted}
-
     tp = len(emitted_keys & truth_set)
     fp = len(emitted_keys - truth_set)
     fn = len(truth_set - emitted_keys)
-
     tn = 0
     for key in _eligible_candidates(conn, min_samples):
         if key in emitted_keys:
@@ -232,7 +213,6 @@ def evaluate_detection_v2(
         if key in truth_set:
             continue
         tn += 1
-
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
     f1 = (
@@ -242,12 +222,8 @@ def evaluate_detection_v2(
     )
     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
     fnr = fn / (fn + tp) if (fn + tp) > 0 else 0.0
-
-    # PR-AUC reuses the ranked-curve function already defined.
     pr_auc = _ranked_pr_curve(emitted, truth_set)
-
     delay = _detection_delay_mean(emitted, truth_by_meter)
-
     return {
         "precision": round(precision, 4),
         "recall": round(recall, 4),
@@ -274,7 +250,6 @@ def compare_configs(
     with open(ground_truth_path, encoding="utf-8") as f:
         truth = json.load(f)
     truth_set = {(t["meter_id"], t["timestamp"]) for t in truth}
-
     scored: list[tuple[str, str, float]] = []
     for row in conn.execute(
         "SELECT meter_id, timestamp_utc, detection_parameters FROM anomalies"
@@ -287,7 +262,6 @@ def compare_configs(
         except (TypeError, ValueError, json.JSONDecodeError):
             z = 0.0
         scored.append((row["meter_id"], row["timestamp_utc"], z))
-
     results: list[dict] = []
     for cfg in configs:
         thr = float(cfg.get("z_threshold", 0.0))

@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ecofac.api.middleware import (
+    BodySizeLimitMiddleware,
     RequestIDMiddleware,
     SecurityHeadersMiddleware,
 )
@@ -32,6 +33,7 @@ from ecofac.api.routes import (
     scenarios,
     world,
 )
+from ecofac.constants import MAX_UPLOAD_BYTES, MULTIPART_OVERHEAD_BYTES
 from ecofac.persistence.database import check_schema, ensure_initialized
 
 BASE_DIR = pathlib.Path(__file__).parent
@@ -48,12 +50,16 @@ app = FastAPI(
 )
 
 # Middleware stack, outermost first on the request path:
-#   SecurityHeaders (outermost) -> RequestID -> RateLimit (innermost)
+#   SecurityHeaders (outermost) -> RequestID -> RateLimit -> BodySizeLimit (innermost)
 # Starlette adds middleware at the FRONT of the stack, so the LAST
 # add_middleware call is the OUTERMOST. RateLimit's 429 short-circuit
 # still flows back through RequestID and SecurityHeaders on the
 # response path, so every 429 carries X-Request-ID and the standard
 # security headers.
+app.add_middleware(
+    BodySizeLimitMiddleware,
+    limits={("POST", "/api/v1/imports"): MAX_UPLOAD_BYTES + MULTIPART_OVERHEAD_BYTES},
+)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -160,3 +166,4 @@ def readiness_check() -> dict:
 def serve_world(request: Request) -> HTMLResponse:
     """Serve the Virtual Facility visualization."""
     return templates.TemplateResponse(request=request, name="world.html")
+

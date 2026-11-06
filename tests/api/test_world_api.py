@@ -186,3 +186,11 @@ def test_world_state_no_auth_required(client):
 def test_world_state_no_pollution_from_invalid_method(client):
     resp = client.post(BASE)
     assert resp.status_code == 405
+
+def test_world_state_max_severity_logic(client, test_db):
+    _insert_incident(test_db, "inc1", "an1", "DETECTED", "2026-01-01T00:00:00Z")
+    test_db.execute("UPDATE anomalies SET severity = 'low' WHERE id = 'an1'")
+
+    body = client.get("/api/v1/world/state").json()
+    meter = body["buildings"][0]["meters"][0]
+    assert meter["max_severity"] == 1

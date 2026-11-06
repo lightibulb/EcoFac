@@ -49,3 +49,8 @@ timestamp bounds and exact day counts.
   the full analysis path finds them.
 - Incidents are only created for anomalies whose data-quality window is
   eligible; ineligible findings are reported as gated.
+
+## Time-Aware Evaluation
+- Candidate eligibility is now based on a 24-hour elapsed time window rather than a simple row count.
+- Detection delay matching uses exact one-to-one timestamp matching to prevent ground-truth reuse.
+

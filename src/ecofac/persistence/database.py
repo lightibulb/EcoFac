@@ -2,7 +2,9 @@
 
 """SQLite connection and initialization utilities."""
 
+import datetime as dt
 import pathlib
+import re
 import sqlite3
 import threading
 
@@ -79,6 +81,34 @@ def init_db(conn: sqlite3.Connection) -> None:
     schema_sql = schema_path.read_text(encoding="utf-8")
     conn.executescript(schema_sql)
     _apply_additive_columns(conn)
+    _apply_migrations(conn)
+
+def _apply_migrations(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS _schema_version (
+            version INTEGER PRIMARY KEY,
+            applied_at TEXT NOT NULL
+        )
+    """)
+    row = conn.execute("SELECT MAX(version) FROM _schema_version").fetchone()
+    current_version = row[0] if row[0] is not None else 0
+
+    migrations_dir = pathlib.Path(__file__).parent.parent.parent / "migrations"
+    if not migrations_dir.exists():
+        return
+
+    sql_files = sorted(migrations_dir.glob("*.sql"))
+    for f in sql_files:
+        match = re.match(r"(\d+)_", f.name)
+        if match:
+            ver = int(match.group(1))
+            if ver > current_version:
+                sql = f.read_text(encoding="utf-8")
+                conn.executescript(sql)
+                conn.execute(
+                    "INSERT INTO _schema_version (version, applied_at) VALUES (?, ?)",
+                    (ver, dt.datetime.now(dt.UTC).isoformat())
+                )
 
 
 def check_schema(conn: sqlite3.Connection) -> list[str]:

@@ -38,7 +38,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]"
       - name: Run tests
-        run: pytest tests/ -v
+        run: pytest tests/ -v --cov=src/ecofac --cov-report=term-missing
       - name: Run Evaluation Framework
         run: python -m evaluation.runner
       - name: Generate API Schema

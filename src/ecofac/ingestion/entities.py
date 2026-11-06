@@ -1,56 +1,68 @@
 # Copyright 2026 Lightibulb
 
-"""Entity auto-creation from CSV inputs."""
+"""Identifier validation and entity auto-creation for CSV imports.
 
-import csv
-import io
+Entities (organization, building, meter) are created *lazily*, one meter at a
+time, and only when a row that refers to it has passed every other row-level
+check. A CSV whose rows are all rejected therefore creates nothing, and the
+import route runs the whole import in one transaction so a failure rolls the
+entities back too.
+"""
+
+import re
 import sqlite3
-
-from ecofac.ingestion.pipeline import normalize_headers
 
 MAX_AUTO_ENTITIES = 500
 MAX_ID_LENGTH = 100
-ID_PATTERN = r"^[A-Za-z0-9._:-]+$"
+
+# One definition of "a valid identifier", used by the HTTP form fields
+# (``ID_PATTERN``, a pydantic/Rust regex) and by CSV rows (``_ID_RE``,
+# applied with ``fullmatch`` so a trailing newline can never slip through).
+ID_CHARS = r"[A-Za-z0-9._:-]"
+ID_PATTERN = rf"^{ID_CHARS}+$"
+_ID_RE = re.compile(rf"{ID_CHARS}+")
+
+AUTO_ORG_ID = "o-auto"
+DEFAULT_INTERVAL_MINUTES = 60  # matches meters.interval_minutes DEFAULT
 
 
-def extract_entity_pairs(text: str) -> set[tuple[str, str]]:
-    """Collect well-formed (building_id, meter_id) pairs from CSV text."""
-    pairs: set[tuple[str, str]] = set()
-    try:
-        reader = csv.DictReader(io.StringIO(text))
-        normalize_headers(reader)
-        for row in reader:
-            building = (row.get("building_id") or "").strip()
-            meter = (row.get("meter_id") or "").strip()
-            if building and meter and max(len(building), len(meter)) <= MAX_ID_LENGTH:
-                pairs.add((building, meter))
-            if len(pairs) > MAX_AUTO_ENTITIES:
-                msg = f"CSV references more than {MAX_AUTO_ENTITIES} meters"
-                raise ValueError(
-                    msg
-                )
-    except csv.Error:
-        return set()
-    return pairs
+def invalid_identifier_reason(building_id: str, meter_id: str) -> str | None:
+    """Return why a (building, meter) pair is unusable, or ``None`` if it is fine."""
+    for label, value in (("building_id", building_id), ("meter_id", meter_id)):
+        if not value:
+            return f"{label} is empty"
+        if len(value) > MAX_ID_LENGTH:
+            return f"{label} is longer than {MAX_ID_LENGTH} characters"
+        if _ID_RE.fullmatch(value) is None:
+            return f"{label} contains characters outside A-Z a-z 0-9 . _ : -"
+    return None
 
 
-def create_entities(
-    conn: sqlite3.Connection, pairs: set[tuple[str, str]], now: str
-) -> None:
-    """Auto-create the organization, buildings and meters a CSV refers to."""
-    conn.execute(
-        "INSERT OR IGNORE INTO organizations (id, name, created_at) "
-        "VALUES ('o-auto', 'Auto Org', ?)",
-        (now,),
+def ensure_building_and_meter(
+    conn: sqlite3.Connection, building_id: str, meter_id: str, now: str
+) -> tuple[bool, bool]:
+    """Create the building (and auto organization) and meter if missing.
+
+    Returns ``(building_created, meter_created)``. Must run inside the import
+    transaction; it never commits on its own.
+    """
+    building_exists = (
+        conn.execute("SELECT 1 FROM buildings WHERE id = ?", (building_id,)).fetchone()
+        is not None
     )
-    for building_id, meter_id in sorted(pairs):
+    if not building_exists:
         conn.execute(
-            "INSERT OR IGNORE INTO buildings (id, org_id, name, created_at) "
-            "VALUES (?, 'o-auto', ?, ?)",
-            (building_id, building_id, now),
+            "INSERT OR IGNORE INTO organizations (id, name, created_at) "
+            "VALUES (?, 'Auto Org', ?)",
+            (AUTO_ORG_ID, now),
         )
         conn.execute(
-            "INSERT OR IGNORE INTO meters (id, building_id, fuel_type, unit, created_at) "
-            "VALUES (?, ?, 'elec', 'kWh', ?)",
-            (meter_id, building_id, now),
+            "INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, ?, ?, ?)",
+            (building_id, AUTO_ORG_ID, building_id, now),
         )
+    cursor = conn.execute(
+        "INSERT OR IGNORE INTO meters (id, building_id, fuel_type, unit, created_at) "
+        "VALUES (?, ?, 'elec', 'kWh', ?)",
+        (meter_id, building_id, now),
+    )
+    return (not building_exists, cursor.rowcount == 1)

@@ -29,3 +29,10 @@ SCREEN_MARGIN = 0.98
 # Numerical sanity bound: a single reading above this value (in kWh)
 # is physically impossible; it is stored but marked is_valid=0.
 MAX_VALID_READING_KWH = 1_000_000_000.0
+
+
+# CSV upload limits. The byte limit applies to the *file*; the multipart
+# envelope (boundaries, the two form fields, part headers) is allowed on top
+# of it when the request body is bounded by ``BodySizeLimitMiddleware``.
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+MULTIPART_OVERHEAD_BYTES = 64 * 1024

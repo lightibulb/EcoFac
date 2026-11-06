@@ -1,5 +1,4 @@
 # Copyright 2026 Lightibulb
-
 """Metrics v2 correctness tests (FPR, FNR, candidate counting)."""
 
 import datetime as dt
@@ -87,15 +86,13 @@ def _truth_file(tmp_path, timestamps):
 
 
 def test_perfect_case_yields_all_ones(db_conn, tmp_path):
-    """30 readings, 2 anomalies matching truth → precision=recall=1, FPR=0."""
+    """30 readings, 2 anomalies matching truth -> precision=recall=1, FPR=0."""
     for i in range(30):
         _insert_reading(db_conn, f"r{i}", to_z(BASE + dt.timedelta(hours=i)), 10.0)
-
     gt_ts = [to_z(BASE + dt.timedelta(hours=h)) for h in (20, 25)]
     _insert_anomaly(db_conn, "a20", gt_ts[0], 5.0)
     _insert_anomaly(db_conn, "a25", gt_ts[1], 5.0)
-
-    metrics = evaluate_detection_v2(db_conn, _truth_file(tmp_path, gt_ts))
+    metrics = evaluate_detection_v2(db_conn, _truth_file(tmp_path, gt_ts), min_samples=20)
     assert metrics["precision"] == 1.0
     assert metrics["recall"] == 1.0
     assert metrics["f1"] == 1.0
@@ -107,14 +104,12 @@ def test_perfect_case_yields_all_ones(db_conn, tmp_path):
 
 
 def test_missed_anomaly_shows_in_recall(db_conn, tmp_path):
-    """Two GT labels, one anomaly emitted → recall 0.5, FNR 0.5."""
+    """Two GT labels, one anomaly emitted -> recall 0.5, FNR 0.5."""
     for i in range(30):
         _insert_reading(db_conn, f"r{i}", to_z(BASE + dt.timedelta(hours=i)), 10.0)
-
     gt_ts = [to_z(BASE + dt.timedelta(hours=h)) for h in (20, 25)]
     _insert_anomaly(db_conn, "a20", gt_ts[0], 5.0)
-
-    metrics = evaluate_detection_v2(db_conn, _truth_file(tmp_path, gt_ts))
+    metrics = evaluate_detection_v2(db_conn, _truth_file(tmp_path, gt_ts), min_samples=20)
     assert metrics["recall"] == 0.5
     assert metrics["false_negative_rate"] == 0.5
     assert metrics["true_positives"] == 1
@@ -122,23 +117,31 @@ def test_missed_anomaly_shows_in_recall(db_conn, tmp_path):
 
 
 def test_empty_db_no_crash(db_conn, tmp_path):
-    """No readings, no anomalies → all metrics zero, delay is None."""
-    metrics = evaluate_detection_v2(db_conn, _truth_file(tmp_path, []))
+    """No readings, no anomalies -> all metrics zero, delay is None."""
+    metrics = evaluate_detection_v2(db_conn, _truth_file(tmp_path, []), min_samples=20)
     assert metrics["precision"] == 0.0
     assert metrics["recall"] == 0.0
     assert metrics["candidates_evaluated"] == 0
     assert metrics["detection_delay_sec_mean"] is None
 
 
+def test_warmup_eligibility(db_conn, tmp_path):
+    """Readings before the min_samples warm-up are not eligible candidates."""
+    for i in range(25):
+        _insert_reading(db_conn, f"r{i}", to_z(BASE + dt.timedelta(hours=i)), 10.0)
+    metrics = evaluate_detection_v2(db_conn, _truth_file(tmp_path, []), min_samples=20)
+    # 25 readings, first 20 are warm-up -> 5 eligible candidates, all TN.
+    assert metrics["candidates_evaluated"] == 5
+    assert metrics["true_negatives"] == 5
+
+
 def test_threshold_ordering_monotonic(db_conn, tmp_path):
-    """Stricter z-threshold → fewer emitted, non-increasing recall."""
+    """Stricter z-threshold -> fewer emitted, non-increasing recall."""
     for i in range(30):
         _insert_reading(db_conn, f"r{i}", to_z(BASE + dt.timedelta(hours=i)), 10.0)
-
     gt_ts = [to_z(BASE + dt.timedelta(hours=h)) for h in range(20, 25)]
     for i, z in enumerate([5.0, 4.0, 3.5, 3.0, 2.0]):
         _insert_anomaly(db_conn, f"a{i}", gt_ts[i], z)
-
     results = compare_configs(
         db_conn,
         _truth_file(tmp_path, gt_ts),

@@ -270,3 +270,10 @@ def test_sensitivity_each_sweep_has_expected_step_count():
     for param in result.parameters:
         assert len(param.steps) <= 5
         assert len(param.steps) >= 1
+
+def test_comparison_rejects_duplicate_ids():
+    a = _make_record(record_id="same-id")
+    b = _make_record(record_id="same-id")
+    b["id"] = "same-id"  # Force duplicate
+    with pytest.raises(ValueError, match="Duplicate scenario identifiers"):
+        compare_scenarios([a, b])

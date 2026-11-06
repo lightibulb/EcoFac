@@ -2,6 +2,7 @@
 
 """Endpoints for the web dashboard."""
 
+import json
 import pathlib
 import sqlite3
 import tempfile
@@ -119,6 +120,7 @@ def _seed_demo_metadata(conn: sqlite3.Connection, now: str) -> None:
 @router.post("/dashboard/generate-demo")
 def generate_demo_data(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    seed: Annotated[int | None, Query()] = None,
 ) -> dict:
     """Load the synthetic demo data once, then run anomaly analysis on it.
 
@@ -137,14 +139,14 @@ def generate_demo_data(
         if not already_loaded:
             with tempfile.TemporaryDirectory() as tmpdir:
                 filepath = pathlib.Path(tmpdir) / "synthetic_data.csv"
-                generate_data(filename=str(filepath))
+                manifest = generate_data(filename=str(filepath), seed=seed)
                 csv_content = filepath.read_text(encoding="utf-8")
             _seed_demo_metadata(conn, now_z())
             summary = ingest_csv(conn, csv_content, DEMO_SOURCE_ID, DEMO_BATCH_ID)
             accepted = summary.accepted_rows
             conn.execute(
-                "UPDATE import_batches SET status = 'completed' WHERE id = ?",
-                (DEMO_BATCH_ID,),
+                "UPDATE import_batches SET status = 'completed', summary_json = ? WHERE id = ?",
+                (json.dumps({"manifest": manifest}), DEMO_BATCH_ID),
             )
 
         analysis = analyze_all(conn)

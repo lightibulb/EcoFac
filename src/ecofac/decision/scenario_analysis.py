@@ -282,6 +282,7 @@ class ScenarioSnapshot(pydantic.BaseModel):
     status: str
     precedence: str
     config_version: str
+    engine_version: str | None
     pue: float | None
     pue_provenance: str | None
     current_it_load_kw: float | None
@@ -313,6 +314,8 @@ class ScenarioComparisonResponse(pydantic.BaseModel):
     input_differences: list[InputDiffEntry]
     mixed_config_versions: bool
     config_versions: list[str]
+    mixed_engine_versions: bool = False
+    engine_versions: list[str] = pydantic.Field(default_factory=list)
     outcome_explanation: str
 
 
@@ -376,6 +379,7 @@ def _build_snapshot(record: dict) -> ScenarioSnapshot:
             status=record["status"],
             precedence=record["precedence"],
             config_version=record["config_version"],
+            engine_version=record.get("engine_version"),
             pue=None,
             pue_provenance=None,
             current_it_load_kw=None,
@@ -403,6 +407,7 @@ def _build_snapshot(record: dict) -> ScenarioSnapshot:
         status=record["status"],
         precedence=record["precedence"],
         config_version=record["config_version"],
+        engine_version=record.get("engine_version"),
         pue=eng.get("pue"),
         pue_provenance=eng.get("pue_provenance"),
         current_it_load_kw=eng.get("current_it_load_kw"),
@@ -471,20 +476,25 @@ def compare_scenarios(records: list[dict]) -> ScenarioComparisonResponse:
     if len(records) < 2:
         msg = "At least 2 scenarios are required for comparison"
         raise ValueError(msg)
+    ids = [r.get("id") for r in records]
+    if len(ids) != len(set(ids)):
+        msg = "Duplicate scenario identifiers"
+        raise ValueError(msg)
 
     snapshots = [_build_snapshot(r) for r in records]
 
     input_differences: list[InputDiffEntry] = []
     for name, units, path in _INPUT_FIELDS:
         values = [_extract_value(r, path) for r in records]
-        numeric_values = [
-            v for v in values if isinstance(v, int | float)
-        ]
-        if len(numeric_values) <= 1:
-            differs = False
-        else:
-            rounded = [round(v, 4) for v in numeric_values]
-            differs = len(set(rounded)) > 1
+        normalized = []
+        for v in values:
+            if isinstance(v, float):
+                normalized.append(round(v, 4))
+            elif v is None:
+                normalized.append("NULL")
+            else:
+                normalized.append(v)
+        differs = len({str(v) for v in normalized}) > 1
         input_differences.append(InputDiffEntry(
             field_name=name,
             units=units,

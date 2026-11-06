@@ -13,7 +13,7 @@ from ecofac.detection.batch import analyze_all as bulk_analyze
 from ecofac.ingestion.pipeline import ingest_csv
 from ecofac.persistence.database import get_connection, init_db
 from ecofac.timeutil import now_z
-from evaluation.metrics import evaluate_detection, evaluate_quality
+from evaluation.metrics import evaluate_detection_v2, evaluate_quality
 from evaluation.verification import verify_intervention
 from simulator.generate import generate_data
 
@@ -92,7 +92,7 @@ def run_evaluation() -> None:
     )
 
     # 5. Evaluate
-    detection_metrics = evaluate_detection(conn, "ground_truth.json")
+    detection_metrics = evaluate_detection_v2(conn, "ground_truth.json")
     quality_metrics = evaluate_quality(conn)
 
     # Exit guard: a blind evaluation must fail loudly, never publish zeros.

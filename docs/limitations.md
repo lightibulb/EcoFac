@@ -169,3 +169,7 @@ limitations:
 8. **No trusted PUE source.** Trusted mode accepts only an explicitly configured PUE.
 9. **Meter metadata is set via SQL.** `interval_minutes`, `role` and `relative_tolerance` have no API yet.
 
+
+## Database Migrations
+- A versioned migration runner is now integrated. Migrations in the `migrations/` folder are applied automatically and tracked in the `_schema_version` table.
+

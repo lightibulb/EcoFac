@@ -269,7 +269,9 @@ async function api(url, opts) {
   try { body = JSON.parse(text); } catch (err) { body = { detail: text || res.statusText }; }
   if (!res.ok) {
     let d = body && body.detail;
-    if (d && typeof d !== "string") d = JSON.stringify(d);
+    if (d && typeof d === "object" && !Array.isArray(d) && d.message) {
+      d = d.code ? `${d.message} [${d.code}]` : d.message;   // structured API error
+    } else if (d && typeof d !== "string") d = JSON.stringify(d);
     throw new Error(`Server error ${res.status}: ${d || "request failed"}`);
   }
   return body;
@@ -585,3 +587,4 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) refr
 </script>
 </body>
 </html>
+
