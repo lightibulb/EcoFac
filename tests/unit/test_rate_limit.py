@@ -52,7 +52,8 @@ def test_client_key_by_forwarded_for(monkeypatch):
     req_b = _FakeRequest("GET", headers={"X-Forwarded-For": "10.0.0.3"})
     assert limiter.check(req_a)[0]
     assert not limiter.check(req_a)[0]
-    assert not limiter.check(req_b)[0]
+    # req_b is a different client IP (10.0.0.3), so it gets its own fresh bucket
+    assert limiter.check(req_b)[0]
 
 
 def test_forwarded_for_ignored_when_untrusted(monkeypatch):
