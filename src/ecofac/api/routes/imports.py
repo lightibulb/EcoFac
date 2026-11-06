@@ -177,6 +177,7 @@ def upload_csv(
         ) from e
 
     analysis = AnalysisSummary()
+    analysis_failed = False
     if analyze and summary.accepted_rows:
         meters = [
             row["meter_id"]
@@ -190,11 +191,14 @@ def upload_csv(
             analysis = analyze_all(conn, meter_ids=meters)
         except sqlite3.Error:
             logger.exception("Post-import analysis failed; the import itself succeeded")
+            analysis_failed = True
 
     return ImportSummaryResponse(
         **dataclasses.asdict(summary),
         anomalies_detected=analysis.anomalies_detected,
         incidents_created=analysis.incidents_created,
+        analysis_failed=analysis_failed,
+        import_committed=True,
     )
 
 

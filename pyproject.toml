@@ -23,7 +23,7 @@ dev = [
     "pytest>=7",
     "pytest-cov",
     "httpx",
-
+    "ruff>=0.8",
 ]
 
 # Use setuptools' automatic package discovery

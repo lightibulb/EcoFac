@@ -1,6 +1,8 @@
 # Copyright 2026 Lightibulb
 """API tests for the decision engine endpoints."""
 
+import json
+
 BASE = "/api/v1/decisions"
 
 
@@ -571,3 +573,68 @@ def test_engineering_422_for_old_schema(client, test_db):
     resp = client.get(f"{BASE}/old-1/engineering")
     assert resp.status_code == 422
     assert "predates" in resp.json()["detail"]
+
+
+# ---- Corrective action mode (DEF-19) ----
+def test_corrective_action_mode_allows_repair(client):
+    """Repairing an overload is accepted when corrective mode is on."""
+    payload = _req(it_value=1100.0)  # current overload (> cap 1000)
+    payload["decision"]["proposed_it_delta"] = -300.0  # predicted = 800
+    payload["decision"]["corrective_action_mode"] = True
+    resp = client.post(f"{BASE}/evaluate", json=payload)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["result"]["status"] == "APPROVE"
+    assert body["result"]["precedence"] == "clean"
+
+
+def test_corrective_action_mode_default_is_conservative(client):
+    """Without the flag, the current overload still blocks the repair."""
+    payload = _req(it_value=1100.0)
+    payload["decision"]["proposed_it_delta"] = -300.0
+    resp = client.post(f"{BASE}/evaluate", json=payload)
+    assert resp.json()["result"]["status"] == "REJECT"
+    assert resp.json()["result"]["precedence"] == "hard_limit_violation"
+
+
+def test_corrective_action_mode_still_rejects_predicted_violation(client):
+    """Corrective mode does not excuse a still-overloaded prediction."""
+    payload = _req(it_value=1100.0)
+    payload["decision"]["proposed_it_delta"] = -50.0  # predicted 1050 > cap
+    payload["decision"]["corrective_action_mode"] = True
+    resp = client.post(f"{BASE}/evaluate", json=payload)
+    assert resp.json()["result"]["status"] == "REJECT"
+
+
+# ---- Evidence-bundle verification (DEF-21) ----
+def test_verify_evidence_bundle_matches(client):
+    """A fresh decision's evidence bundle must reproduce exactly."""
+    did = _evaluate(client).json()["decision_id"]
+    body = client.get(f"{BASE}/{did}/verify").json()
+    assert body["evidence_bundle_verified"] is True
+    assert body["evidence_bundle_diff"] is None
+
+
+def test_verify_evidence_bundle_detects_tamper(client, test_db):
+    """Tampering with stored evidence is detected even if fingerprints match."""
+    did = _evaluate(client).json()["decision_id"]
+
+    test_db.execute("DROP TRIGGER trg_decisions_no_update")
+    row = test_db.execute(
+        "SELECT result_json FROM decisions WHERE id = ?", (did,)
+    ).fetchone()
+    result = json.loads(row[0])
+    result["evidence"]["final_status"] = "TAMPERED"
+    test_db.execute(
+        "UPDATE decisions SET result_json = ? WHERE id = ?",
+        (json.dumps(result), did),
+    )
+    test_db.execute(
+        "CREATE TRIGGER trg_decisions_no_update BEFORE UPDATE ON decisions "
+        "BEGIN SELECT RAISE(ABORT, 'decisions is append-only'); END"
+    )
+
+    body = client.get(f"{BASE}/{did}/verify").json()
+    assert body["evidence_bundle_verified"] is False
+    assert body["evidence_bundle_diff"] is not None
+    assert "final_status" in body["evidence_bundle_diff"]

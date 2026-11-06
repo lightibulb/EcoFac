@@ -26,8 +26,12 @@ COMPARABLE_REL_FLOOR = 0.05
 # Batch screening margin
 SCREEN_MARGIN = 0.98
 
-# Numerical sanity bound: a single reading above this value (in kWh)
-# is physically impossible; it is stored but marked is_valid=0.
+# Data-entry sentinel: a reading above this value (in kWh) is almost certainly
+# a malformed CSV cell (e.g. a value typed with the wrong exponent). It is
+# stored with is_valid=0 so it can never inflate a statistic. The threshold is
+# deliberately astronomical (1e9 kWh/h ~ 1 TW) so legitimate large-facility
+# readings cannot be flagged. Per-facility plausibility checks belong in
+# ``quality.assessment``, not here.
 MAX_VALID_READING_KWH = 1_000_000_000.0
 
 

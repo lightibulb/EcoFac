@@ -1,6 +1,15 @@
 # Copyright 2026 Lightibulb
 
-"""Integration tests for the decision engine (still pure, no DB)."""
+"""Integration tests for the deprecated decision engine.
+
+These tests target ``decision.engine`` and ``decision.constraints``, both of
+which are deprecated (see the modules' docstrings). The tests are skipped —
+`decision.transparent` is the canonical path, covered by
+``test_transparent_decision``, ``test_operational_decision_safety`` and
+``test_trusted_mode``.
+"""
+
+import pytest
 
 from ecofac.decision.engine import decide
 from ecofac.decision.schemas import (
@@ -10,6 +19,10 @@ from ecofac.decision.schemas import (
     FacilityMeasurements,
     OperationalConstraints,
     ProposedChange,
+)
+
+pytestmark = pytest.mark.skip(
+    reason="decision.engine is deprecated; use decision.transparent"
 )
 
 

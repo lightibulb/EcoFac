@@ -30,7 +30,7 @@ def _make_record(
     *,
     it: float = 400.0,
     cool: float = 300.0,
-    pue: float = 1.0,
+    pue: float | None = 1.0,
     cap: float = 1000.0,
     cool_cap: float = 800.0,
     reserve: float = 0.10,
@@ -58,9 +58,13 @@ def _make_record(
             name="cooling_load", value=cool, unit="kW",
             source=MeasurementSource.ASSUMED,
         ),
-        pue=RichMeasurement(
-            name="pue", value=pue, unit="dimensionless",
-            source=MeasurementSource.ASSUMED,
+        pue=(
+            RichMeasurement(
+                name="pue", value=pue, unit="dimensionless",
+                source=MeasurementSource.ASSUMED,
+            )
+            if pue is not None
+            else None
         ),
         proposed_it_delta=proposed_it,
         proposed_cooling_delta=proposed_cool,
@@ -277,3 +281,16 @@ def test_comparison_rejects_duplicate_ids():
     b["id"] = "same-id"  # Force duplicate
     with pytest.raises(ValueError, match="Duplicate scenario identifiers"):
         compare_scenarios([a, b])
+
+
+def test_sensitivity_skips_pue_when_original_had_none():
+    """If the scenario had no explicit PUE, sensitivity must not invent one.
+
+    Regression for DEF-08: the old reconstruction always substituted
+    PUE=1.0/ASSUMED, producing a PUE sweep for a scenario that never
+    specified PUE.
+    """
+    record = _make_record(pue=None)
+    result = analyze_sensitivity(record)
+    pue_params = [p for p in result.parameters if p.parameter == "pue"]
+    assert pue_params == []

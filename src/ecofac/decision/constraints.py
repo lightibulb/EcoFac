@@ -6,6 +6,7 @@ evaluators in ``decision.limits`` and the orchestrator in
 ``decision.transparent``.
 """
 
+import warnings
 
 from ecofac.decision.schemas import (
     ConstraintEvaluation,
@@ -14,6 +15,12 @@ from ecofac.decision.schemas import (
     OperationalConstraints,
     PredictedConditions,
     ProposedChange,
+)
+
+warnings.warn(
+    "decision.constraints is deprecated; use decision.transparent",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 

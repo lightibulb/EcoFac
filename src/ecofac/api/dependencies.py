@@ -7,16 +7,11 @@ from typing import Annotated
 
 from fastapi import Header, HTTPException
 
-from ecofac.persistence import database
 from ecofac.persistence.database import BUSY_TIMEOUT_SECONDS, ensure_initialized
 
 # On Render, set ECOFAC_DB_PATH to a file on the mounted persistent disk
 # (e.g. /opt/render/data/ecofac_api.db) so data survives redeploys.
 DB_PATH = os.environ.get("ECOFAC_DB_PATH", "ecofac_api.db")
-
-# Kept for backwards compatibility with tests that reset it; the authoritative
-# cache lives in ``persistence.database`` behind a lock.
-_initialized: set[str] = database._INITIALIZED  # noqa: SLF001
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:

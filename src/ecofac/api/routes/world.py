@@ -113,7 +113,6 @@ def world_state(
     latest_by_meter = _latest_reading_per_meter(conn)
     open_inc = _count_per_meter(conn, "open_incidents")
     total_inc = _count_per_meter(conn, "total_incidents")
-    _max_severity_per_meter(conn)
     decision_counts = _decision_counts(conn)
     scenario_count = _scenario_count(conn)
     recent_events = _recent_events(conn)
@@ -179,19 +178,28 @@ def _latest_reading_per_meter(
 
 
 def _max_severity_per_meter(conn: sqlite3.Connection) -> dict[str, int]:
+    """Highest anomaly severity across every detector for open incidents.
+
+    ``incidents.anomaly_id`` stores only the *first* anomaly that opened the
+    incident; subsequent detectors attach evidence to the same event without a
+    row in ``incidents``. To reflect what the detectors actually found, we
+    join back to *all* anomalies at each open incident's (meter, timestamp).
+    """
     rows = conn.execute(
-        "SELECT a.meter_id, MAX("
-        "  CASE a.severity"
+        "SELECT a2.meter_id, MAX("
+        "  CASE a2.severity"
         "    WHEN 'high' THEN 3"
         "    WHEN 'medium' THEN 2"
         "    WHEN 'low' THEN 1"
         "    ELSE 0"
         "  END"
-        ") as max_sev"
+        ") AS max_sev"
         " FROM incidents i"
-        " JOIN anomalies a ON a.id = i.anomaly_id"
+        " JOIN anomalies a1 ON a1.id = i.anomaly_id"
+        " JOIN anomalies a2 ON a2.meter_id = a1.meter_id"
+        "  AND a2.timestamp_utc = a1.timestamp_utc"
         " WHERE i.status IN ('DETECTED', 'UNDER_REVIEW', 'ACKNOWLEDGED')"
-        " GROUP BY a.meter_id"
+        " GROUP BY a2.meter_id"
     ).fetchall()
     return {row["meter_id"]: row["max_sev"] for row in rows}
 

@@ -143,6 +143,10 @@ def resolve_trusted_reading(
         msg = f"{field}: meter_id is required for a trusted measurement"
         raise TrustError(msg)
     at = parse_aware_utc(timestamp, f"{field}.measurement_timestamp")
+    # Stored readings are whole seconds (pipeline truncates microseconds).
+    # Truncate the caller-supplied timestamp so a sub-second value still
+    # matches the stored reading and produces aligned quality bounds.
+    at = at.replace(microsecond=0)
     if (at - evaluation_time).total_seconds() > FUTURE_TOLERANCE_SECONDS:
         msg = (
             f"{field}: timestamp {to_z(at)} is in the future relative to the "

@@ -6,6 +6,7 @@ should use ``decision.transparent.decide_transparently``, which wraps the
 state machine and produces evidence-backed decisions.
 """
 
+import warnings
 
 from ecofac.decision.constraints import (
     compute_predicted,
@@ -22,6 +23,12 @@ from ecofac.decision.schemas import (
     FacilityMeasurements,
     OperationalConstraints,
     ProposedChange,
+)
+
+warnings.warn(
+    "decision.engine is deprecated; use decision.transparent",
+    DeprecationWarning,
+    stacklevel=2,
 )
 
 # Warn when a passing constraint has less than this fraction of its limit

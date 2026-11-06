@@ -30,6 +30,48 @@ from ecofac.timeutil import now_z
 VERIFICATION_SCOPE = "input_config_output_status"
 
 
+# Volatile fields that differ between stored and recomputed evidence for
+# reasons other than tampering:
+#   - decision_timestamp: ``now_z()`` at evaluation time.
+#   - calculation_inputs.evaluation_time: the pinned instant, already compared
+#     against the top-level result and included in the fingerprint.
+_VOLATILE_EVIDENCE_TOP = frozenset({"decision_timestamp"})
+_VOLATILE_EVIDENCE_INPUTS = frozenset({"evaluation_time"})
+
+
+def _canonical_evidence(evidence: dict) -> tuple[str, dict]:
+    """Return (canonical JSON, cleaned dict). Strips volatile fields only.
+
+    Builds new dicts rather than mutating a deep copy, so this needs neither
+    ``copy`` nor in-function imports. ``json`` is imported at module top.
+    """
+    source = evidence or {}
+    cleaned = {
+        k: v for k, v in source.items()
+        if k not in _VOLATILE_EVIDENCE_TOP
+    }
+    ci = cleaned.get("calculation_inputs")
+    if isinstance(ci, dict):
+        cleaned["calculation_inputs"] = {
+            k: v for k, v in ci.items()
+            if k not in _VOLATILE_EVIDENCE_INPUTS
+        }
+    return json.dumps(cleaned, sort_keys=True, default=str), cleaned
+
+
+def _compare_evidence(stored: dict, recomputed: dict) -> tuple[bool, list[str]]:
+    """Return (match, differing_top_level_keys)."""
+    s_json, s_clean = _canonical_evidence(stored)
+    r_json, r_clean = _canonical_evidence(recomputed)
+    if s_json == r_json:
+        return True, []
+    diffs = sorted(
+        k for k in (set(s_clean) | set(r_clean))
+        if s_clean.get(k) != r_clean.get(k)
+    )
+    return False, diffs
+
+
 def _log_audit(
     conn: sqlite3.Connection,
     entity_type: str,
@@ -295,6 +337,12 @@ def verify_decision(
     stored_engine = row["engine_version"]
     engine_version_match = stored_engine == CURRENT_ENGINE_VERSION
 
+    stored_evidence = stored_result.get("evidence") or {}
+    recomputed_evidence = recomputed.evidence.model_dump(mode="json")
+    evidence_ok, evidence_diff = _compare_evidence(
+        stored_evidence, recomputed_evidence
+    )
+
     return {
         "verified": input_verified and config_verified and output_verified,
         "stored_input_fingerprint": row["input_fingerprint"],
@@ -312,6 +360,8 @@ def verify_decision(
         "evaluation_time": replay_request.evaluation_time,
         "full_bundle_reproduced": False,
         "verification_scope": VERIFICATION_SCOPE,
+        "evidence_bundle_verified": evidence_ok,
+        "evidence_bundle_diff": evidence_diff or None,
     }
 
 

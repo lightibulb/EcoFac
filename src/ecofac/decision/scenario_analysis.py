@@ -625,17 +625,16 @@ def _set_path(
 
 
 def _request_payload_from_record(record: dict) -> dict:
-    """Reconstruct a TransparentDecisionRequest-shaped dict from a record."""
+    """Reconstruct a TransparentDecisionRequest-shaped dict from a record.
+
+    The PUE field is preserved as-is: if the original scenario had no PUE
+    (i.e. the engine assumed its default), the reconstructed request also
+    has no PUE. This keeps the sensitivity baseline honest — the analysis
+    will not fabricate a PUE "baseline" that the scenario never had.
+    """
     payload = copy.deepcopy(record["inputs"])
     payload["config"] = copy.deepcopy(record["config"])
     payload["config_version"] = record["config_version"]
-    if payload.get("pue") is None:
-        payload["pue"] = {
-            "name": "pue",
-            "value": 1.0,
-            "unit": "dimensionless",
-            "source": "ASSUMED",
-        }
     return payload
 
 

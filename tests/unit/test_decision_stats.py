@@ -113,10 +113,18 @@ def test_recent_limit(db_conn):
     assert len(stats["recent_rows"]) == 10
 
 
-def test_recent_ordering_newest_first(db_conn):
+def test_recent_ordering_newest_first(db_conn, monkeypatch):
+    """Newest is last. Uses a fake clock so three persists in the same
+    microsecond cannot tie on ``created_at`` and flake under UUID ordering."""
+    counter = [0]
+
+    def fake_now_z() -> str:
+        counter[0] += 1
+        return f"2026-01-01T00:00:00.{counter[0]:06d}Z"
+
+    monkeypatch.setattr("ecofac.decision.store.now_z", fake_now_z)
     ids = [_persist(db_conn) for _ in range(3)]
     stats = aggregate_decisions(db_conn)
-    # Most recent is the last persisted (created_at has µs resolution)
     assert stats["recent_rows"][0]["id"] == ids[-1]
 
 

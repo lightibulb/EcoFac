@@ -54,9 +54,12 @@ not do well.
     one process, but multi-process deployments should migrate to Postgres.
 11. **Ephemeral storage on Render free tier.** The SQLite file is lost on
     redeploy or spin-down. Persistent disk requires a paid plan.
-12. **Migrations require manual application.** `schema.sql` is idempotent and
-    auto-applied; numbered files in `migrations/` are not. A deployed
-    database must be upgraded by running the migration SQL manually.
+12. **Migrations are auto-applied; each must be idempotent.** `schema.sql`
+    is idempotent and auto-applied on first use. Numbered files in
+    `migrations/` are also auto-applied (tracked in `_schema_version`); the
+    fallback runner replays statements when a migration's ALTER TABLEs are
+    already satisfied. New migrations must therefore be idempotent or
+    tolerate the "duplicate column name" case.
 
 ## Security
 
@@ -127,6 +130,9 @@ Implemented in this milestone (single-process, no extra infrastructure):
   response. No CSP is set — the HTML pages use inline scripts/styles.
 - **`/ready`** endpoint distinct from `/health`. `/health` is a liveness
   probe; `/ready` queries the DB and returns 503 when unreachable.
+- **Render uses `/ready` for its health check.** A Render instance is
+  only routed traffic when `/ready` returns 200, so ephemeral SQLite
+  failures are caught before users see them.
 - **In-process rate limiting** — opt-in via
   `ECOFAC_RATE_LIMIT_ENABLED=true`. Defaults: 600 reads/min, 60
   writes/min per client identity (`X-EcoFac-Token` if present, else
@@ -163,6 +169,22 @@ limitations:
   scenario-evaluation button will return 401 unless the deployment is
   configured to allow writes. This is consistent with the rest of the
   app.
+
+## Corrective action mode (DEF-19)
+
+`corrective_action_mode` is exposed via `TransparentDecisionRequest` (default
+`False`). When `True`, only the predicted state is judged, so a proposal that
+repairs an existing overload is accepted. The Decision Center inspector does
+not yet distinguish current vs predicted phases when this flag is on; it
+labels both constraint evaluations as "current". This is a display-only
+limitation and does not affect the decision verdict.
+
+## Rate limiting is on by default (DEF-20)
+
+Rate limiting defaults to enabled (600 reads/min, 60 writes/min). Explicitly
+disable with `ECOFAC_RATE_LIMIT_ENABLED=false` if a public demo needs it off.
+Rate-limit state is per-process; a multi-process deployment requires shared
+state (a known production gap, listed in `docs/roadmap.md`).
 
 ## Added by the Part 1 remediation
 7. **Operational decisions are conservative by design.** In `trusted` mode an unknown tolerance, assumed PUE, unclassified meter role or a tolerance band that could change the verdict yields REVIEW, not APPROVE. See `docs/part1-handoff.md`.

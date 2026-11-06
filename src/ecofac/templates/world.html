@@ -218,10 +218,10 @@ code { font-family:var(--mono); font-size:.85em; }
 
       <section class="panel" aria-labelledby="testdrive-heading">
         <h2 id="testdrive-heading">Test drive</h2>
-        <p class="sub">Run real logic against the current facility state.</p>
+        <p class="sub">Calibrated hypothetical presets, evaluated through the canonical decision engine. Not derived from current meter readings.</p>
         <div class="testdrive">
-          <button class="btn ghost" type="button" id="btn-eval-plus10">Evaluate +10% load</button>
-          <button class="btn ghost" type="button" id="btn-eval-plus40">Evaluate +40% load</button>
+          <button class="btn ghost" type="button" id="btn-eval-plus10">Test drive: +10% baseline</button>
+          <button class="btn ghost" type="button" id="btn-eval-plus40">Test drive: +40% baseline</button>
           <button class="btn ghost" type="button" id="btn-verify-latest">Verify latest decision</button>
           <button class="btn ghost" type="button" id="btn-inspect-incident">Inspect latest incident</button>
         </div>
@@ -498,55 +498,32 @@ function setActionMsg(text, kind) {
   box.innerHTML = text;
 }
 
-function averageLatestItLoad() {
-  const world = state.world;
-  if (!world) return 400;
-  const values = [];
-  for (const b of world.buildings) {
-    for (const m of b.meters) {
-      if (m.latest_reading && m.latest_reading.is_valid) values.push(m.latest_reading.value);
-    }
-  }
-  if (!values.length) return 400;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
-
-async function testScenario(multiplier, label) {
-  const btn = $(`#${label}`);
+async function runTestDrive(presetId, buttonId) {
+  // Canonical test-drive endpoint. It uses calibrated hypothetical inputs
+  // (source=ASSUMED) and deliberately does NOT average meter readings:
+  // meters report kWh per interval, not kW, and unrelated meters cannot be
+  // summed into a facility total.
+  const btn = $(`#${buttonId}`);
   btn.disabled = true; btn.setAttribute("aria-busy", "true");
-  setActionMsg(`Evaluating ${label}...`, "empty");
+  setActionMsg(`Running test drive "${presetId}"...`, "empty");
   try {
-    const base = averageLatestItLoad();
-    const payload = {
-      name: `World demo: load x${multiplier}`,
-      config: {
-        electrical: { capacity: 1000.0, reserve_pct: 0.10 },
-        cooling: { capacity: 800.0, reserve_pct: 0.10 },
-      },
-      config_version: "world-demo",
-      it_load_kw: base,
-      cooling_load_kw: base * 0.75,
-      pue: 1.4,
-      proposed_it_delta_kw: base * (multiplier - 1),
-      proposed_cooling_delta_kw: base * 0.75 * (multiplier - 1),
-      persist_as_decision: true,
-    };
-    const res = await fetch("/api/v1/scenarios/evaluate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(`/api/v1/world/test-drive/${encodeURIComponent(presetId)}`);
     const body = await res.json();
-    if (!res.ok) throw new Error(body.detail || `status ${res.status}`);
+    if (!res.ok) {
+      throw new Error(body.detail?.message || `test drive ${res.status}`);
+    }
     const result = body.result;
+    const matchNote = body.matches_expected
+      ? "(as expected)"
+      : "<strong>unexpected!</strong>";
     setActionMsg(
-      `Scenario ${body.scenario_id.slice(0, 8)}... -> ${statusPill(result.status)} `
-      + `<code style="font-size:.78rem">${esc(result.precedence)}</code>`,
+      `Test drive ${esc(presetId)}: ${statusPill(result.status)} `
+      + `<code style="font-size:.78rem">${esc(result.precedence)}</code> ${matchNote} `
+      + "\u00b7 hypothetical; not persisted",
       result.status === "APPROVE" ? "ok" : result.status === "REVIEW" ? "warn" : "bad"
     );
-    await refresh();
   } catch (err) {
-    setActionMsg(`Evaluation failed: ${esc(err.message)}`, "bad");
+    setActionMsg(`Test drive failed: ${esc(err.message)}`, "bad");
   } finally {
     btn.disabled = false; btn.removeAttribute("aria-busy");
   }
@@ -591,8 +568,8 @@ async function inspectLatestIncident() {
 // ---- wiring ----
 $$(".tabs button").forEach((b) => b.addEventListener("click", () => switchView(b.dataset.view)));
 $("#drawer-close").addEventListener("click", closeDrawer);
-$("#btn-eval-plus10").addEventListener("click", () => testScenario(1.1, "btn-eval-plus10"));
-$("#btn-eval-plus40").addEventListener("click", () => testScenario(1.4, "btn-eval-plus40"));
+$("#btn-eval-plus10").addEventListener("click", () => runTestDrive("plus_10pct", "btn-eval-plus10"));
+$("#btn-eval-plus40").addEventListener("click", () => runTestDrive("plus_40pct", "btn-eval-plus40"));
 $("#btn-verify-latest").addEventListener("click", verifyLatest);
 $("#btn-inspect-incident").addEventListener("click", inspectLatestIncident);
 

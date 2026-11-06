@@ -3,7 +3,11 @@
 
 import pytest
 
-from ecofac.api.rate_limit import get_rate_limiter, reset_rate_limiter
+from ecofac.api.rate_limit import (
+    get_rate_limiter,
+    is_rate_limit_enabled,
+    reset_rate_limiter,
+)
 
 
 @pytest.fixture
@@ -23,7 +27,19 @@ def enabled_limiter(monkeypatch):
         reset_rate_limiter()
 
 
-def test_rate_limit_disabled_by_default(client):
+def test_rate_limit_enabled_by_default(monkeypatch):
+    """DEF-20: rate limiting is on unless explicitly disabled."""
+    monkeypatch.delenv("ECOFAC_RATE_LIMIT_ENABLED", raising=False)
+    assert is_rate_limit_enabled() is True
+
+
+def test_rate_limit_can_be_disabled(monkeypatch):
+    monkeypatch.setenv("ECOFAC_RATE_LIMIT_ENABLED", "false")
+    assert is_rate_limit_enabled() is False
+
+
+def test_small_burst_passes_under_default_limits(client):
+    """Default 600 reads/min: a small burst must not be limited."""
     for _ in range(5):
         assert client.get("/health").status_code == 200
 

@@ -2,10 +2,12 @@
 
 """FastAPI application entry point."""
 
+import logging
 import math
 import os
 import pathlib
 import sqlite3
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
@@ -35,6 +37,33 @@ from ecofac.api.routes import (
 )
 from ecofac.constants import MAX_UPLOAD_BYTES, MULTIPART_OVERHEAD_BYTES
 from ecofac.persistence.database import check_schema, ensure_initialized
+
+logger = logging.getLogger(__name__)
+
+def ephemeral_storage_warning(
+    getenv: Callable[[str, str], str] = os.environ.get,
+) -> str | None:
+    """Return a warning string if storage looks ephemeral, else ``None``.
+
+    On Render with the default SQLite path, the DB file lives on the
+    container filesystem and is lost on redeploy or spin-down. This helper
+    is pure so it can be unit-tested without touching the environment.
+    """
+    if not getenv("RENDER", ""):
+        return None
+    db_path = getenv("ECOFAC_DB_PATH", "") or "ecofac_api.db"
+    if db_path != "ecofac_api.db":
+        return None
+    return (
+        f"Running on Render with the default SQLite path ({db_path}). "
+        "Data will be lost on redeploy or spin-down. Set ECOFAC_DB_PATH to "
+        "a path on a mounted persistent disk to keep data across restarts."
+    )
+
+
+_ephemeral_warning = ephemeral_storage_warning()
+if _ephemeral_warning:
+    logger.warning(_ephemeral_warning)
 
 BASE_DIR = pathlib.Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"

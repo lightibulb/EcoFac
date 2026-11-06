@@ -151,3 +151,24 @@ def test_threshold_ordering_monotonic(db_conn, tmp_path):
     recalls = [r["recall"] for r in results]
     assert emitted == sorted(emitted, reverse=True)
     assert recalls == sorted(recalls, reverse=True)
+
+
+def test_detection_delay_one_to_one_matching(db_conn, tmp_path):
+    """A single ground-truth label must not contribute multiple delays.
+
+    Regression for DEF-04: three predictions near one GT label used to each
+    contribute their own delay, inflating the mean. One-to-one matching keeps
+    only the closest pair.
+    """
+    for i in range(30):
+        _insert_reading(db_conn, f"r{i}", to_z(BASE + dt.timedelta(hours=i)), 10.0)
+    gt_ts = to_z(BASE + dt.timedelta(hours=25))
+    _insert_anomaly(db_conn, "a24_50", to_z(BASE + dt.timedelta(hours=24, minutes=50)), 5.0)
+    _insert_anomaly(db_conn, "a25_00", gt_ts, 5.0)
+    _insert_anomaly(db_conn, "a25_10", to_z(BASE + dt.timedelta(hours=25, minutes=10)), 5.0)
+    metrics = evaluate_detection_v2(
+        db_conn, _truth_file(tmp_path, [gt_ts]), min_samples=20
+    )
+    # Only the closest pair (delta = 0) contributes.
+    # Pre-fix behaviour (all three contribute) would report mean = 400 s.
+    assert metrics["detection_delay_sec_mean"] == 0.0

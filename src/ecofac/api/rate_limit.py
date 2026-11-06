@@ -101,12 +101,16 @@ def reset_rate_limiter() -> None:
 
 
 def is_rate_limit_enabled() -> bool:
-    return os.environ.get("ECOFAC_RATE_LIMIT_ENABLED", "").strip().lower() in (
-        "1",
-        "true",
-        "yes",
-        "on",
-    )
+    """Rate limiting is ON by default. Explicitly disable to turn it off.
+
+    Default limits (600 reads/min, 60 writes/min) are generous enough for
+    any human demo. An explicit ``ECOFAC_RATE_LIMIT_ENABLED`` of one of
+    ``0/false/no/off`` disables the middleware; any other value (including
+    unset) keeps it on. If a caller relied on the previous off-by-default
+    behaviour for a public demo, set the env var to ``false``.
+    """
+    raw = os.environ.get("ECOFAC_RATE_LIMIT_ENABLED", "").strip().lower()
+    return raw not in ("0", "false", "no", "off")
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

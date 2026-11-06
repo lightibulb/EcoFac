@@ -91,6 +91,8 @@ class ImportSummaryResponse(pydantic.BaseModel):
     meters_created: int = 0
     anomalies_detected: int = 0
     incidents_created: int = 0
+    analysis_failed: bool = False
+    import_committed: bool = True
 
 
 class ImportBatchResponse(pydantic.BaseModel):
@@ -186,6 +188,8 @@ class DecisionVerifyResponse(pydantic.BaseModel):
     current_engine_version: str | None = None
     full_bundle_reproduced: bool = False
     verification_scope: str = "input_config_output_status"
+    evidence_bundle_verified: bool = False
+    evidence_bundle_diff: list[str] | None = None
 
 
 class SupersessionChainResponse(pydantic.BaseModel):
@@ -261,6 +265,7 @@ class ScenarioCreateRequest(pydantic.BaseModel):
     cooling_source: MeasurementSource = MeasurementSource.ASSUMED
     pue_source: MeasurementSource = MeasurementSource.ASSUMED
     persist_as_decision: bool = False
+    corrective_action_mode: bool = False
 
 
 class ScenarioHistoryItem(pydantic.BaseModel):
@@ -304,6 +309,8 @@ class ScenarioVerifyResponse(pydantic.BaseModel):
     current_engine_version: str | None = None
     verification_scope: str
     full_bundle_reproduced: bool
+    evidence_bundle_verified: bool = False
+    evidence_bundle_diff: list[str] | None = None
 
 class ScenarioComparisonRequest(pydantic.BaseModel):
     """Request body for multi-scenario comparison."""

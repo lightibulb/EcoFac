@@ -194,3 +194,22 @@ def test_world_state_max_severity_logic(client, test_db):
     body = client.get("/api/v1/world/state").json()
     meter = body["buildings"][0]["meters"][0]
     assert meter["max_severity"] == 1
+
+
+def test_world_state_max_severity_reflects_all_detectors(client, test_db):
+    """If two detectors flag the same event with different severities, the
+    world snapshot must report the highest (DEF-05)."""
+    _insert_incident(test_db, "inc1", "an1", "DETECTED", "2026-01-01T00:00:00Z")
+    test_db.execute("UPDATE anomalies SET severity = 'low' WHERE id = 'an1'")
+    test_db.execute(
+        "INSERT INTO anomalies (id, building_id, meter_id, timestamp_utc, "
+        "observed_consumption, expected_consumption, absolute_deviation, "
+        "percentage_deviation, detector_name, severity, "
+        "is_data_quality_eligible, detection_timestamp) VALUES "
+        "('an1b', 'b1', 'm1', '2026-01-01T00:00:00Z', 100, 10, 90, 900, "
+        "'robust_mad', 'high', 1, '2026-01-01T00:00:00Z')"
+    )
+    body = client.get("/api/v1/world/state").json()
+    meter = body["buildings"][0]["meters"][0]
+    # 'low' (1) from the first detector + 'high' (3) from the second -> 3
+    assert meter["max_severity"] == 3

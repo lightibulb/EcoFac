@@ -168,21 +168,34 @@ def _eligible_candidates(
 def _detection_delay_mean(
     emitted: list[sqlite3.Row], truth_by_meter: dict[str, list[str]]
 ) -> float | None:
-    """Mean absolute delay (seconds) between emitted and matched truth ts."""
-    delays: list[float] = []
+    """Mean absolute delay using one-to-one matching (no truth reuse).
+
+    Each emitted anomaly is paired with at most one ground-truth label and
+    vice versa: a single label cannot contribute multiple delay values even
+    if several predictions sit near it. Greedy by smallest |delta|; ties are
+    broken deterministically by timestamp. Matches outside 1 h are ignored.
+    """
+    pairs: list[tuple[float, str, str, str]] = []
     for row in emitted:
         meter = row["meter_id"]
         if meter not in truth_by_meter:
             continue
         emitted_dt = dt.datetime.fromisoformat(row["timestamp_utc"])
-        best: float | None = None
         for gt_ts in truth_by_meter[meter]:
             gt_dt = dt.datetime.fromisoformat(gt_ts)
             delta = abs((emitted_dt - gt_dt).total_seconds())
-            if best is None or delta < best:
-                best = delta
-        if best is not None and best <= 3600:
-            delays.append(best)
+            if delta <= 3600:
+                pairs.append((delta, meter, row["timestamp_utc"], gt_ts))
+    pairs.sort(key=lambda p: (p[0], p[1], p[2], p[3]))
+    used_emitted: set[tuple[str, str]] = set()
+    used_gt: set[tuple[str, str]] = set()
+    delays: list[float] = []
+    for delta, meter, emitted_ts, gt_ts in pairs:
+        if (meter, emitted_ts) in used_emitted or (meter, gt_ts) in used_gt:
+            continue
+        delays.append(delta)
+        used_emitted.add((meter, emitted_ts))
+        used_gt.add((meter, gt_ts))
     return (sum(delays) / len(delays)) if delays else None
 
 
