@@ -23,6 +23,7 @@ from starlette.responses import JSONResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from ecofac.api.errors import api_error
+from ecofac.logging_config import request_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,14 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         request.state.request_id = request_id
-        response = await call_next(request)
+        # P2-8: expose the ID to logging via ContextVar. Set/reset
+        # per request in try/finally so a leaked exception cannot
+        # contaminate the next request in the same worker.
+        token = request_id_var.set(request_id)
+        try:
+            response = await call_next(request)
+        finally:
+            request_id_var.reset(token)
         response.headers["X-Request-ID"] = request_id
         return response
 

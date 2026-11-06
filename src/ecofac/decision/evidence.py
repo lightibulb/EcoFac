@@ -10,6 +10,8 @@ Every decision is accompanied by a structured bundle containing:
   - The final status, exact reason, and engine/config versions
 """
 
+import dataclasses
+
 import pydantic
 
 from ecofac.decision.limits import ConstraintSeverity, LimitEvaluation
@@ -75,28 +77,35 @@ def _to_constraint_record(ev: LimitEvaluation) -> ConstraintRecord:
     )
 
 
-def build_evidence_bundle(
-    *,
-    input_references: list[InputReference],
-    constraints_snapshot: dict,
-    calculation_inputs: dict,
-    calculation_outputs: dict,
-    formulas: dict[str, str],
-    assumptions: list[str],
-    evaluated_constraints: list[LimitEvaluation],
-    uncertainty_report: UncertaintyReport,
-    sensitivity: list[SensitivityResult],
-    final_status: str,
-    final_reason: str,
-    engine_version: str,
-    config_version: str,
-    decision_timestamp: str,
-) -> DecisionEvidenceBundle:
-    """Assemble a complete evidence bundle from already-computed parts."""
+@dataclasses.dataclass(frozen=True)
+class EvidenceInputs:
+    # Named, typed arguments for build_evidence_bundle.
+    # Groups the fourteen arguments so same-typed fields
+    # (final_status/final_reason, engine_version/config_version) cannot
+    # be accidentally swapped at a call site.
+
+    input_references: list[InputReference]
+    constraints_snapshot: dict
+    calculation_inputs: dict
+    calculation_outputs: dict
+    formulas: dict[str, str]
+    assumptions: list[str]
+    evaluated_constraints: list[LimitEvaluation]
+    uncertainty_report: UncertaintyReport
+    sensitivity: list[SensitivityResult]
+    final_status: str
+    final_reason: str
+    engine_version: str
+    config_version: str
+    decision_timestamp: str
+
+
+def build_evidence_bundle(inputs: EvidenceInputs) -> DecisionEvidenceBundle:
+    # Assemble a complete evidence bundle from already-computed parts.
     passed: list[ConstraintRecord] = []
     warnings: list[ConstraintRecord] = []
     failed: list[ConstraintRecord] = []
-    for ev in evaluated_constraints:
+    for ev in inputs.evaluated_constraints:
         record = _to_constraint_record(ev)
         if ev.severity == ConstraintSeverity.OK:
             passed.append(record)
@@ -106,20 +115,20 @@ def build_evidence_bundle(
             failed.append(record)
 
     return DecisionEvidenceBundle(
-        input_references=input_references,
-        constraints_snapshot=constraints_snapshot,
-        calculation_inputs=calculation_inputs,
-        calculation_outputs=calculation_outputs,
-        formulas=formulas,
-        assumptions=assumptions,
+        input_references=inputs.input_references,
+        constraints_snapshot=inputs.constraints_snapshot,
+        calculation_inputs=inputs.calculation_inputs,
+        calculation_outputs=inputs.calculation_outputs,
+        formulas=inputs.formulas,
+        assumptions=inputs.assumptions,
         passed_constraints=passed,
         warning_constraints=warnings,
         failed_constraints=failed,
-        uncertainty_report=uncertainty_report,
-        sensitivity=sensitivity,
-        final_status=final_status,
-        final_reason=final_reason,
-        engine_version=engine_version,
-        config_version=config_version,
-        decision_timestamp=decision_timestamp,
+        uncertainty_report=inputs.uncertainty_report,
+        sensitivity=inputs.sensitivity,
+        final_status=inputs.final_status,
+        final_reason=inputs.final_reason,
+        engine_version=inputs.engine_version,
+        config_version=inputs.config_version,
+        decision_timestamp=inputs.decision_timestamp,
     )

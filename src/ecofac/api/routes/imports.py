@@ -108,6 +108,28 @@ def _import_in_transaction(
     return summary
 
 
+def _run_post_import_analysis(
+    conn: sqlite3.Connection,
+    batch_id: str,
+    meters: list[str],
+) -> tuple[AnalysisSummary, bool]:
+    # Run analysis in its own transaction. On failure, mark the batch
+    # analysis_failed so operators can retry via POST /analyze; the
+    # import itself was already committed and is preserved. On success
+    # the batch stays 'completed' (backward-compatible default).
+    if not meters:
+        _set_batch_status(conn, batch_id, "completed")
+        return AnalysisSummary(), True
+    try:
+        analysis = analyze_all(conn, meter_ids=meters)
+    except sqlite3.Error:
+        logger.exception("Post-import analysis failed")
+        _set_batch_status(conn, batch_id, "analysis_failed")
+        return AnalysisSummary(), False
+    _set_batch_status(conn, batch_id, "completed")
+    return analysis, True
+
+
 @router.post("/imports", tags=["Imports"])
 def upload_csv(
     file: Annotated[UploadFile, File()],
@@ -187,16 +209,46 @@ def upload_csv(
                 (batch_id,),
             )
         ]
-        try:
-            analysis = analyze_all(conn, meter_ids=meters)
-        except sqlite3.Error:
-            logger.exception("Post-import analysis failed; the import itself succeeded")
+        analysis, _ = _run_post_import_analysis(conn, batch_id, meters)
 
     return ImportSummaryResponse(
         **dataclasses.asdict(summary),
         anomalies_detected=analysis.anomalies_detected,
         incidents_created=analysis.incidents_created,
     )
+
+
+@router.post("/imports/{batch_id}/analyze", tags=["Imports"])
+def analyze_import(
+    batch_id: str,
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
+) -> dict:
+    # Re-run analysis for one batch. Idempotent: analyze_all skips
+    # anomalies already recorded. Safe to call after a failed analysis.
+    row = conn.execute("SELECT status FROM import_batches WHERE id = ?", (batch_id,)).fetchone()
+    if row is None:
+        raise api_error(404, "batch_not_found", f"Import batch {batch_id} not found")
+    if row["status"] == "started":
+        raise api_error(
+            409,
+            "batch_in_progress",
+            "Batch upload is still in progress; retry once it completes",
+        )
+    meters = [
+        r["meter_id"]
+        for r in conn.execute(
+            "SELECT DISTINCT meter_id FROM energy_readings WHERE batch_id = ? ORDER BY meter_id",
+            (batch_id,),
+        )
+    ]
+    analysis, ok = _run_post_import_analysis(conn, batch_id, meters)
+    return {
+        "batch_id": batch_id,
+        "status": "completed" if ok else "analysis_failed",
+        "anomalies_detected": analysis.anomalies_detected,
+        "incidents_created": analysis.incidents_created,
+    }
 
 
 @router.get("/imports/{batch_id}", tags=["Imports"])

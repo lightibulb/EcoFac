@@ -1,0 +1,1329 @@
+{
+  "clean_approve": {
+    "config_fingerprint": "b7dc7ec11f8eb068849dbf3f334e09649f466babb6b4fb1ea3d5d068f09a3292",
+    "config_version": "baseline-clean",
+    "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+    "engine_version": "1.0",
+    "full_bundle": {
+      "assumptions": [
+        "all constraints within permitted limits; no unresolved issues",
+        "PUE is labelled MEASURED but has no trusted reference",
+        "advisory (not applied): inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+        "advisory (not applied): missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): freshness_policy_missing: no max measurement age is configured",
+        "advisory (not applied): pue_unverified: PUE is labelled MEASURED but carries no trusted reference",
+        "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+        "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+        "Comparable-period checks use UTC only; local work calendars are not modelled.",
+        "No weather or occupancy normalisation is applied.",
+        "Statistical confidence is categorical only; no calibrated probability is claimed.",
+        "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+      ],
+      "calculation_inputs": {
+        "applied_uncertainty_flags": [],
+        "cooling_demand_modelled": false,
+        "cooling_load_basis": "measured_cooling_load",
+        "current_cooling_load_kw": 90.0,
+        "current_facility_power_kw": 112.0,
+        "current_it_load_kw": 80.0,
+        "derived_uncertainty_flags": [
+          "inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+          "missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "freshness_policy_missing: no max measurement age is configured",
+          "pue_unverified: PUE is labelled MEASURED but carries no trusted reference"
+        ],
+        "evaluation_time": "2026-01-01T00:00:00Z",
+        "future_timestamp_measurements": [],
+        "invalid_proposal_reasons": [],
+        "max_measurement_age_seconds": null,
+        "mode": "hypothetical",
+        "predicted_cooling_load_kw": 90.0,
+        "predicted_facility_power_kw": 112.0,
+        "predicted_it_load_kw": 80.0,
+        "proposed_cooling_delta_kw": 0.0,
+        "proposed_it_delta_kw": 0.0,
+        "pue": 1.4,
+        "pue_assumed": false,
+        "pue_provenance": "MEASURED",
+        "pue_trust_basis": "unverified_measured",
+        "stale_measurements": []
+      },
+      "calculation_outputs": {
+        "decision_reasons": [
+          "all constraints within permitted limits; no unresolved issues"
+        ],
+        "physical_status_before_uncertainty": "APPROVE",
+        "precedence": "clean",
+        "status": "APPROVE"
+      },
+      "config_version": "baseline-clean",
+      "constraints_snapshot": {
+        "cooling": {
+          "capacity": 250.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        },
+        "electrical": {
+          "capacity": 200.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        }
+      },
+      "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+      "engine_version": "1.0",
+      "failed_constraints": [],
+      "final_reason": "all constraints within permitted limits; no unresolved issues",
+      "final_status": "APPROVE",
+      "formulas": {
+        "facility_power_kw": "it_load_kw * pue_value",
+        "headroom_to_permitted": "permitted_kw - observed",
+        "headroom_to_physical": "capacity - observed",
+        "permitted_kw": "capacity * (1 - reserve_pct)",
+        "predicted_cooling_kw": "current_cooling_kw + proposed_cooling_delta",
+        "predicted_facility_power_kw": "predicted_it_load_kw * pue_value",
+        "predicted_it_load_kw": "current_it_load_kw + proposed_it_delta"
+      },
+      "input_references": [
+        {
+          "interval_minutes": null,
+          "name": "it_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 80.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "cooling_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 90.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "pue",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "dimensionless",
+          "value": 1.4
+        }
+      ],
+      "passed_constraints": [
+        {
+          "limit": 180.0,
+          "margin": 68.0,
+          "name": "electrical",
+          "observed": 112.0,
+          "reason": "electrical: observed 112.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 180.0,
+          "margin": 68.0,
+          "name": "electrical",
+          "observed": 112.0,
+          "reason": "electrical: observed 112.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        }
+      ],
+      "sensitivity": [
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 78.0,
+          "measurement_name": "it_load",
+          "reason": "'it_load' tolerance band [78.0000, 82.0000] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 82.0
+        },
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 88.0,
+          "measurement_name": "cooling_load",
+          "reason": "'cooling_load' tolerance band [88.0000, 92.0000] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 92.0
+        },
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 1.35,
+          "measurement_name": "pue",
+          "reason": "'pue' tolerance band [1.3500, 1.4500] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 1.45
+        }
+      ],
+      "uncertainty_report": {
+        "assumptions": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "data_quality_level": "OK",
+        "estimated_parameters": [],
+        "low_quality_measurements": [],
+        "missing_measurements": [],
+        "model_limitations": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "model_uncertainty_level": "MODERATE",
+        "quality_flags": [],
+        "rationale": [
+          "all required measurements present, no quality flags",
+          "3 measured, 0 estimated, 0 unknown provenance",
+          "explicit tolerances provided; measurements are not perfect"
+        ],
+        "stale_measurements": [],
+        "tolerance_used": [
+          "it_load",
+          "cooling_load",
+          "pue"
+        ]
+      },
+      "warning_constraints": []
+    },
+    "input_fingerprint": "d81bba33f11ab5a06c501b362873344d0c791e712745b38d9120c7c0ae5d67c7"
+  },
+  "invalid_proposal": {
+    "config_fingerprint": "b7dc7ec11f8eb068849dbf3f334e09649f466babb6b4fb1ea3d5d068f09a3292",
+    "config_version": "baseline-invalid",
+    "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+    "engine_version": "1.0",
+    "full_bundle": {
+      "assumptions": [
+        "Proposed IT delta -100.0 kW would drive predicted IT load to -20.0 kW (negative)",
+        "PUE is labelled MEASURED but has no trusted reference",
+        "advisory (not applied): inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+        "advisory (not applied): missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): freshness_policy_missing: no max measurement age is configured",
+        "advisory (not applied): pue_unverified: PUE is labelled MEASURED but carries no trusted reference",
+        "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+        "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+        "Comparable-period checks use UTC only; local work calendars are not modelled.",
+        "No weather or occupancy normalisation is applied.",
+        "Statistical confidence is categorical only; no calibrated probability is claimed.",
+        "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+      ],
+      "calculation_inputs": {
+        "applied_uncertainty_flags": [],
+        "cooling_demand_modelled": false,
+        "cooling_load_basis": "measured_cooling_load",
+        "current_cooling_load_kw": 90.0,
+        "current_facility_power_kw": 112.0,
+        "current_it_load_kw": 80.0,
+        "derived_uncertainty_flags": [
+          "inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+          "missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "freshness_policy_missing: no max measurement age is configured",
+          "pue_unverified: PUE is labelled MEASURED but carries no trusted reference"
+        ],
+        "evaluation_time": "2026-01-01T00:00:00Z",
+        "future_timestamp_measurements": [],
+        "invalid_proposal_reasons": [
+          "Proposed IT delta -100.0 kW would drive predicted IT load to -20.0 kW (negative)"
+        ],
+        "max_measurement_age_seconds": null,
+        "mode": "hypothetical",
+        "predicted_cooling_load_kw": 90.0,
+        "predicted_facility_power_kw": 0.0,
+        "predicted_it_load_kw": -20.0,
+        "proposed_cooling_delta_kw": 0.0,
+        "proposed_it_delta_kw": -100.0,
+        "pue": 1.4,
+        "pue_assumed": false,
+        "pue_provenance": "MEASURED",
+        "pue_trust_basis": "unverified_measured",
+        "stale_measurements": []
+      },
+      "calculation_outputs": {
+        "decision_reasons": [
+          "Proposed IT delta -100.0 kW would drive predicted IT load to -20.0 kW (negative)"
+        ],
+        "physical_status_before_uncertainty": "REJECT",
+        "precedence": "invalid_proposal",
+        "status": "REJECT"
+      },
+      "config_version": "baseline-invalid",
+      "constraints_snapshot": {
+        "cooling": {
+          "capacity": 250.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        },
+        "electrical": {
+          "capacity": 200.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        }
+      },
+      "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+      "engine_version": "1.0",
+      "failed_constraints": [],
+      "final_reason": "Proposed IT delta -100.0 kW would drive predicted IT load to -20.0 kW (negative)",
+      "final_status": "REJECT",
+      "formulas": {
+        "facility_power_kw": "it_load_kw * pue_value",
+        "headroom_to_permitted": "permitted_kw - observed",
+        "headroom_to_physical": "capacity - observed",
+        "permitted_kw": "capacity * (1 - reserve_pct)",
+        "predicted_cooling_kw": "current_cooling_kw + proposed_cooling_delta",
+        "predicted_facility_power_kw": "predicted_it_load_kw * pue_value",
+        "predicted_it_load_kw": "current_it_load_kw + proposed_it_delta"
+      },
+      "input_references": [
+        {
+          "interval_minutes": null,
+          "name": "it_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 80.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "cooling_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 90.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "pue",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "dimensionless",
+          "value": 1.4
+        }
+      ],
+      "passed_constraints": [],
+      "sensitivity": [
+        {
+          "baseline_status": "REJECT",
+          "could_change_verdict": false,
+          "lower_bound": 78.0,
+          "measurement_name": "it_load",
+          "reason": "'it_load' tolerance band [78.0000, 82.0000] preserves baseline status REJECT",
+          "status_at_lower": "REJECT",
+          "status_at_upper": "REJECT",
+          "upper_bound": 82.0
+        },
+        {
+          "baseline_status": "REJECT",
+          "could_change_verdict": false,
+          "lower_bound": 88.0,
+          "measurement_name": "cooling_load",
+          "reason": "'cooling_load' tolerance band [88.0000, 92.0000] preserves baseline status REJECT",
+          "status_at_lower": "REJECT",
+          "status_at_upper": "REJECT",
+          "upper_bound": 92.0
+        },
+        {
+          "baseline_status": "REJECT",
+          "could_change_verdict": false,
+          "lower_bound": 1.35,
+          "measurement_name": "pue",
+          "reason": "'pue' tolerance band [1.3500, 1.4500] preserves baseline status REJECT",
+          "status_at_lower": "REJECT",
+          "status_at_upper": "REJECT",
+          "upper_bound": 1.45
+        }
+      ],
+      "uncertainty_report": {
+        "assumptions": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "data_quality_level": "OK",
+        "estimated_parameters": [],
+        "low_quality_measurements": [],
+        "missing_measurements": [],
+        "model_limitations": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "model_uncertainty_level": "MODERATE",
+        "quality_flags": [],
+        "rationale": [
+          "all required measurements present, no quality flags",
+          "3 measured, 0 estimated, 0 unknown provenance",
+          "explicit tolerances provided; measurements are not perfect"
+        ],
+        "stale_measurements": [],
+        "tolerance_used": [
+          "it_load",
+          "cooling_load",
+          "pue"
+        ]
+      },
+      "warning_constraints": []
+    },
+    "input_fingerprint": "fb119d3c7ab76834b37db7fadc240c6654c282ffab6ceeffc06e516e471fa9f2"
+  },
+  "missing_pue": {
+    "config_fingerprint": "b7dc7ec11f8eb068849dbf3f334e09649f466babb6b4fb1ea3d5d068f09a3292",
+    "config_version": "baseline-no-pue",
+    "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+    "engine_version": "1.0",
+    "full_bundle": {
+      "assumptions": [
+        "all constraints within permitted limits; no unresolved issues",
+        "PUE was not supplied; the default 1.0 (the physical minimum, i.e. the most optimistic value) was assumed",
+        "advisory (not applied): inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+        "advisory (not applied): missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): freshness_policy_missing: no max measurement age is configured",
+        "advisory (not applied): pue_assumed: PUE is missing; default 1.0 applied; an assumed PUE cannot support an operational APPROVE",
+        "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+        "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+        "Comparable-period checks use UTC only; local work calendars are not modelled.",
+        "No weather or occupancy normalisation is applied.",
+        "Statistical confidence is categorical only; no calibrated probability is claimed.",
+        "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+      ],
+      "calculation_inputs": {
+        "applied_uncertainty_flags": [],
+        "cooling_demand_modelled": false,
+        "cooling_load_basis": "measured_cooling_load",
+        "current_cooling_load_kw": 90.0,
+        "current_facility_power_kw": 80.0,
+        "current_it_load_kw": 80.0,
+        "derived_uncertainty_flags": [
+          "inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+          "missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "freshness_policy_missing: no max measurement age is configured",
+          "pue_assumed: PUE is missing; default 1.0 applied; an assumed PUE cannot support an operational APPROVE"
+        ],
+        "evaluation_time": "2026-01-01T00:00:00Z",
+        "future_timestamp_measurements": [],
+        "invalid_proposal_reasons": [],
+        "max_measurement_age_seconds": null,
+        "mode": "hypothetical",
+        "predicted_cooling_load_kw": 90.0,
+        "predicted_facility_power_kw": 80.0,
+        "predicted_it_load_kw": 80.0,
+        "proposed_cooling_delta_kw": 0.0,
+        "proposed_it_delta_kw": 0.0,
+        "pue": 1.0,
+        "pue_assumed": true,
+        "pue_provenance": "ASSUMED",
+        "pue_trust_basis": "assumed_default",
+        "stale_measurements": []
+      },
+      "calculation_outputs": {
+        "decision_reasons": [
+          "all constraints within permitted limits; no unresolved issues"
+        ],
+        "physical_status_before_uncertainty": "APPROVE",
+        "precedence": "clean",
+        "status": "APPROVE"
+      },
+      "config_version": "baseline-no-pue",
+      "constraints_snapshot": {
+        "cooling": {
+          "capacity": 250.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        },
+        "electrical": {
+          "capacity": 200.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        }
+      },
+      "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+      "engine_version": "1.0",
+      "failed_constraints": [],
+      "final_reason": "all constraints within permitted limits; no unresolved issues",
+      "final_status": "APPROVE",
+      "formulas": {
+        "facility_power_kw": "it_load_kw * pue_value",
+        "headroom_to_permitted": "permitted_kw - observed",
+        "headroom_to_physical": "capacity - observed",
+        "permitted_kw": "capacity * (1 - reserve_pct)",
+        "predicted_cooling_kw": "current_cooling_kw + proposed_cooling_delta",
+        "predicted_facility_power_kw": "predicted_it_load_kw * pue_value",
+        "predicted_it_load_kw": "current_it_load_kw + proposed_it_delta"
+      },
+      "input_references": [
+        {
+          "interval_minutes": null,
+          "name": "it_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 80.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "cooling_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 90.0
+        }
+      ],
+      "passed_constraints": [
+        {
+          "limit": 180.0,
+          "margin": 100.0,
+          "name": "electrical",
+          "observed": 80.0,
+          "reason": "electrical: observed 80.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 180.0,
+          "margin": 100.0,
+          "name": "electrical",
+          "observed": 80.0,
+          "reason": "electrical: observed 80.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        }
+      ],
+      "sensitivity": [
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 78.0,
+          "measurement_name": "it_load",
+          "reason": "'it_load' tolerance band [78.0000, 82.0000] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 82.0
+        },
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 88.0,
+          "measurement_name": "cooling_load",
+          "reason": "'cooling_load' tolerance band [88.0000, 92.0000] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 92.0
+        }
+      ],
+      "uncertainty_report": {
+        "assumptions": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "data_quality_level": "OK",
+        "estimated_parameters": [
+          "pue"
+        ],
+        "low_quality_measurements": [],
+        "missing_measurements": [],
+        "model_limitations": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "model_uncertainty_level": "MODERATE",
+        "quality_flags": [],
+        "rationale": [
+          "all required measurements present, no quality flags",
+          "2 measured, 1 estimated, 0 unknown provenance",
+          "explicit tolerances provided; measurements are not perfect"
+        ],
+        "stale_measurements": [],
+        "tolerance_used": [
+          "it_load",
+          "cooling_load"
+        ]
+      },
+      "warning_constraints": []
+    },
+    "input_fingerprint": "08c3facb17fbcbfb1831be41660340001595bd7fec63980fc312711524aa947f"
+  },
+  "reject_physical": {
+    "config_fingerprint": "b7dc7ec11f8eb068849dbf3f334e09649f466babb6b4fb1ea3d5d068f09a3292",
+    "config_version": "baseline-reject",
+    "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+    "engine_version": "1.0",
+    "full_bundle": {
+      "assumptions": [
+        "electrical: observed 280.0000 exceeds physical capacity 200.0000",
+        "electrical: observed 280.0000 exceeds physical capacity 200.0000",
+        "PUE is labelled MEASURED but has no trusted reference",
+        "advisory (not applied): inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+        "advisory (not applied): missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): freshness_policy_missing: no max measurement age is configured",
+        "advisory (not applied): pue_unverified: PUE is labelled MEASURED but carries no trusted reference",
+        "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+        "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+        "Comparable-period checks use UTC only; local work calendars are not modelled.",
+        "No weather or occupancy normalisation is applied.",
+        "Statistical confidence is categorical only; no calibrated probability is claimed.",
+        "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+      ],
+      "calculation_inputs": {
+        "applied_uncertainty_flags": [],
+        "cooling_demand_modelled": false,
+        "cooling_load_basis": "measured_cooling_load",
+        "current_cooling_load_kw": 90.0,
+        "current_facility_power_kw": 280.0,
+        "current_it_load_kw": 200.0,
+        "derived_uncertainty_flags": [
+          "inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+          "missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "freshness_policy_missing: no max measurement age is configured",
+          "pue_unverified: PUE is labelled MEASURED but carries no trusted reference"
+        ],
+        "evaluation_time": "2026-01-01T00:00:00Z",
+        "future_timestamp_measurements": [],
+        "invalid_proposal_reasons": [],
+        "max_measurement_age_seconds": null,
+        "mode": "hypothetical",
+        "predicted_cooling_load_kw": 90.0,
+        "predicted_facility_power_kw": 280.0,
+        "predicted_it_load_kw": 200.0,
+        "proposed_cooling_delta_kw": 0.0,
+        "proposed_it_delta_kw": 0.0,
+        "pue": 1.4,
+        "pue_assumed": false,
+        "pue_provenance": "MEASURED",
+        "pue_trust_basis": "unverified_measured",
+        "stale_measurements": []
+      },
+      "calculation_outputs": {
+        "decision_reasons": [
+          "electrical: observed 280.0000 exceeds physical capacity 200.0000",
+          "electrical: observed 280.0000 exceeds physical capacity 200.0000"
+        ],
+        "physical_status_before_uncertainty": "REJECT",
+        "precedence": "hard_limit_violation",
+        "status": "REJECT"
+      },
+      "config_version": "baseline-reject",
+      "constraints_snapshot": {
+        "cooling": {
+          "capacity": 250.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        },
+        "electrical": {
+          "capacity": 200.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        }
+      },
+      "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+      "engine_version": "1.0",
+      "failed_constraints": [
+        {
+          "limit": 180.0,
+          "margin": -100.0,
+          "name": "electrical",
+          "observed": 280.0,
+          "reason": "electrical: observed 280.0000 exceeds physical capacity 200.0000",
+          "status": "PHYSICAL_VIOLATION"
+        },
+        {
+          "limit": 180.0,
+          "margin": -100.0,
+          "name": "electrical",
+          "observed": 280.0,
+          "reason": "electrical: observed 280.0000 exceeds physical capacity 200.0000",
+          "status": "PHYSICAL_VIOLATION"
+        }
+      ],
+      "final_reason": "electrical: observed 280.0000 exceeds physical capacity 200.0000; electrical: observed 280.0000 exceeds physical capacity 200.0000",
+      "final_status": "REJECT",
+      "formulas": {
+        "facility_power_kw": "it_load_kw * pue_value",
+        "headroom_to_permitted": "permitted_kw - observed",
+        "headroom_to_physical": "capacity - observed",
+        "permitted_kw": "capacity * (1 - reserve_pct)",
+        "predicted_cooling_kw": "current_cooling_kw + proposed_cooling_delta",
+        "predicted_facility_power_kw": "predicted_it_load_kw * pue_value",
+        "predicted_it_load_kw": "current_it_load_kw + proposed_it_delta"
+      },
+      "input_references": [
+        {
+          "interval_minutes": null,
+          "name": "it_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 200.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "cooling_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 90.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "pue",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "dimensionless",
+          "value": 1.4
+        }
+      ],
+      "passed_constraints": [
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        }
+      ],
+      "sensitivity": [
+        {
+          "baseline_status": "REJECT",
+          "could_change_verdict": false,
+          "lower_bound": 198.0,
+          "measurement_name": "it_load",
+          "reason": "'it_load' tolerance band [198.0000, 202.0000] preserves baseline status REJECT",
+          "status_at_lower": "REJECT",
+          "status_at_upper": "REJECT",
+          "upper_bound": 202.0
+        },
+        {
+          "baseline_status": "REJECT",
+          "could_change_verdict": false,
+          "lower_bound": 88.0,
+          "measurement_name": "cooling_load",
+          "reason": "'cooling_load' tolerance band [88.0000, 92.0000] preserves baseline status REJECT",
+          "status_at_lower": "REJECT",
+          "status_at_upper": "REJECT",
+          "upper_bound": 92.0
+        },
+        {
+          "baseline_status": "REJECT",
+          "could_change_verdict": false,
+          "lower_bound": 1.35,
+          "measurement_name": "pue",
+          "reason": "'pue' tolerance band [1.3500, 1.4500] preserves baseline status REJECT",
+          "status_at_lower": "REJECT",
+          "status_at_upper": "REJECT",
+          "upper_bound": 1.45
+        }
+      ],
+      "uncertainty_report": {
+        "assumptions": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "data_quality_level": "OK",
+        "estimated_parameters": [],
+        "low_quality_measurements": [],
+        "missing_measurements": [],
+        "model_limitations": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "model_uncertainty_level": "MODERATE",
+        "quality_flags": [],
+        "rationale": [
+          "all required measurements present, no quality flags",
+          "3 measured, 0 estimated, 0 unknown provenance",
+          "explicit tolerances provided; measurements are not perfect"
+        ],
+        "stale_measurements": [],
+        "tolerance_used": [
+          "it_load",
+          "cooling_load",
+          "pue"
+        ]
+      },
+      "warning_constraints": []
+    },
+    "input_fingerprint": "b8a752aee3bdec0c2c816f102449d05aebc3fb784f5d54c8beb6cb093512d12b"
+  },
+  "review_quality": {
+    "config_fingerprint": "b7dc7ec11f8eb068849dbf3f334e09649f466babb6b4fb1ea3d5d068f09a3292",
+    "config_version": "baseline-review",
+    "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+    "engine_version": "1.0",
+    "full_bundle": {
+      "assumptions": [
+        "data quality ineligible: test_flag",
+        "PUE is labelled MEASURED but has no trusted reference",
+        "advisory (not applied): inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+        "advisory (not applied): missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+        "advisory (not applied): freshness_policy_missing: no max measurement age is configured",
+        "advisory (not applied): pue_unverified: PUE is labelled MEASURED but carries no trusted reference",
+        "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+        "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+        "Comparable-period checks use UTC only; local work calendars are not modelled.",
+        "No weather or occupancy normalisation is applied.",
+        "Statistical confidence is categorical only; no calibrated probability is claimed.",
+        "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+      ],
+      "calculation_inputs": {
+        "applied_uncertainty_flags": [],
+        "cooling_demand_modelled": false,
+        "cooling_load_basis": "measured_cooling_load",
+        "current_cooling_load_kw": 90.0,
+        "current_facility_power_kw": 112.0,
+        "current_it_load_kw": 80.0,
+        "derived_uncertainty_flags": [
+          "inputs_not_server_resolved: operational inputs were not resolved from trusted references by the server",
+          "missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "freshness_policy_missing: no max measurement age is configured",
+          "pue_unverified: PUE is labelled MEASURED but carries no trusted reference"
+        ],
+        "evaluation_time": "2026-01-01T00:00:00Z",
+        "future_timestamp_measurements": [],
+        "invalid_proposal_reasons": [],
+        "max_measurement_age_seconds": null,
+        "mode": "hypothetical",
+        "predicted_cooling_load_kw": 90.0,
+        "predicted_facility_power_kw": 112.0,
+        "predicted_it_load_kw": 80.0,
+        "proposed_cooling_delta_kw": 0.0,
+        "proposed_it_delta_kw": 0.0,
+        "pue": 1.4,
+        "pue_assumed": false,
+        "pue_provenance": "MEASURED",
+        "pue_trust_basis": "unverified_measured",
+        "stale_measurements": []
+      },
+      "calculation_outputs": {
+        "decision_reasons": [
+          "data quality ineligible: test_flag"
+        ],
+        "physical_status_before_uncertainty": "REVIEW",
+        "precedence": "data_quality_ineligible",
+        "status": "REVIEW"
+      },
+      "config_version": "baseline-review",
+      "constraints_snapshot": {
+        "cooling": {
+          "capacity": 250.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        },
+        "electrical": {
+          "capacity": 200.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        }
+      },
+      "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+      "engine_version": "1.0",
+      "failed_constraints": [],
+      "final_reason": "data quality ineligible: test_flag",
+      "final_status": "REVIEW",
+      "formulas": {
+        "facility_power_kw": "it_load_kw * pue_value",
+        "headroom_to_permitted": "permitted_kw - observed",
+        "headroom_to_physical": "capacity - observed",
+        "permitted_kw": "capacity * (1 - reserve_pct)",
+        "predicted_cooling_kw": "current_cooling_kw + proposed_cooling_delta",
+        "predicted_facility_power_kw": "predicted_it_load_kw * pue_value",
+        "predicted_it_load_kw": "current_it_load_kw + proposed_it_delta"
+      },
+      "input_references": [
+        {
+          "interval_minutes": null,
+          "name": "it_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 80.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "cooling_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 90.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "pue",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "dimensionless",
+          "value": 1.4
+        }
+      ],
+      "passed_constraints": [
+        {
+          "limit": 180.0,
+          "margin": 68.0,
+          "name": "electrical",
+          "observed": 112.0,
+          "reason": "electrical: observed 112.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 180.0,
+          "margin": 68.0,
+          "name": "electrical",
+          "observed": 112.0,
+          "reason": "electrical: observed 112.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        }
+      ],
+      "sensitivity": [
+        {
+          "baseline_status": "REVIEW",
+          "could_change_verdict": false,
+          "lower_bound": 78.0,
+          "measurement_name": "it_load",
+          "reason": "'it_load' tolerance band [78.0000, 82.0000] preserves baseline status REVIEW",
+          "status_at_lower": "REVIEW",
+          "status_at_upper": "REVIEW",
+          "upper_bound": 82.0
+        },
+        {
+          "baseline_status": "REVIEW",
+          "could_change_verdict": false,
+          "lower_bound": 88.0,
+          "measurement_name": "cooling_load",
+          "reason": "'cooling_load' tolerance band [88.0000, 92.0000] preserves baseline status REVIEW",
+          "status_at_lower": "REVIEW",
+          "status_at_upper": "REVIEW",
+          "upper_bound": 92.0
+        },
+        {
+          "baseline_status": "REVIEW",
+          "could_change_verdict": false,
+          "lower_bound": 1.35,
+          "measurement_name": "pue",
+          "reason": "'pue' tolerance band [1.3500, 1.4500] preserves baseline status REVIEW",
+          "status_at_lower": "REVIEW",
+          "status_at_upper": "REVIEW",
+          "upper_bound": 1.45
+        }
+      ],
+      "uncertainty_report": {
+        "assumptions": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "data_quality_level": "DEGRADED",
+        "estimated_parameters": [],
+        "low_quality_measurements": [],
+        "missing_measurements": [],
+        "model_limitations": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "model_uncertainty_level": "MODERATE",
+        "quality_flags": [
+          "test_flag"
+        ],
+        "rationale": [
+          "quality flags present: test_flag",
+          "3 measured, 0 estimated, 0 unknown provenance",
+          "explicit tolerances provided; measurements are not perfect"
+        ],
+        "stale_measurements": [],
+        "tolerance_used": [
+          "it_load",
+          "cooling_load",
+          "pue"
+        ]
+      },
+      "warning_constraints": []
+    },
+    "input_fingerprint": "14f84141fe383f07f0d60fa2afe21cb9156e50c5d137b8ee26ba9cbeae1df603"
+  },
+  "trusted_approve": {
+    "config_fingerprint": "b7dc7ec11f8eb068849dbf3f334e09649f466babb6b4fb1ea3d5d068f09a3292",
+    "config_version": "baseline-trusted",
+    "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+    "engine_version": "1.0",
+    "full_bundle": {
+      "assumptions": [
+        "uncertainty: missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+        "uncertainty: missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+        "uncertainty: freshness_policy_missing: no max measurement age is configured",
+        "uncertainty: pue_unverified: PUE is labelled MEASURED but carries no trusted reference",
+        "PUE is labelled MEASURED but has no trusted reference",
+        "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+        "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+        "Comparable-period checks use UTC only; local work calendars are not modelled.",
+        "No weather or occupancy normalisation is applied.",
+        "Statistical confidence is categorical only; no calibrated probability is claimed.",
+        "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+      ],
+      "calculation_inputs": {
+        "applied_uncertainty_flags": [
+          "missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "freshness_policy_missing: no max measurement age is configured",
+          "pue_unverified: PUE is labelled MEASURED but carries no trusted reference"
+        ],
+        "cooling_demand_modelled": false,
+        "cooling_load_basis": "measured_cooling_load",
+        "current_cooling_load_kw": 90.0,
+        "current_facility_power_kw": 112.0,
+        "current_it_load_kw": 80.0,
+        "derived_uncertainty_flags": [
+          "missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "freshness_policy_missing: no max measurement age is configured",
+          "pue_unverified: PUE is labelled MEASURED but carries no trusted reference"
+        ],
+        "evaluation_time": "2026-01-01T00:00:00Z",
+        "future_timestamp_measurements": [],
+        "invalid_proposal_reasons": [],
+        "max_measurement_age_seconds": null,
+        "mode": "trusted",
+        "predicted_cooling_load_kw": 90.0,
+        "predicted_facility_power_kw": 112.0,
+        "predicted_it_load_kw": 80.0,
+        "proposed_cooling_delta_kw": 0.0,
+        "proposed_it_delta_kw": 0.0,
+        "pue": 1.4,
+        "pue_assumed": false,
+        "pue_provenance": "MEASURED",
+        "pue_trust_basis": "unverified_measured",
+        "stale_measurements": []
+      },
+      "calculation_outputs": {
+        "decision_reasons": [
+          "uncertainty: missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established",
+          "uncertainty: missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established",
+          "uncertainty: freshness_policy_missing: no max measurement age is configured",
+          "uncertainty: pue_unverified: PUE is labelled MEASURED but carries no trusted reference"
+        ],
+        "physical_status_before_uncertainty": "APPROVE",
+        "precedence": "uncertainty",
+        "status": "REVIEW"
+      },
+      "config_version": "baseline-trusted",
+      "constraints_snapshot": {
+        "cooling": {
+          "capacity": 250.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        },
+        "electrical": {
+          "capacity": 200.0,
+          "min_headroom": 0.0,
+          "reserve_pct": 0.1,
+          "warning_threshold_pct": 0.1
+        }
+      },
+      "decision_timestamp": "2026-01-01T00:00:00.000000Z",
+      "engine_version": "1.0",
+      "failed_constraints": [],
+      "final_reason": "uncertainty: missing_timestamp: 'it_load' has no measurement timestamp, so freshness cannot be established; uncertainty: missing_timestamp: 'cooling_load' has no measurement timestamp, so freshness cannot be established; uncertainty: freshness_policy_missing: no max measurement age is configured; uncertainty: pue_unverified: PUE is labelled MEASURED but carries no trusted reference",
+      "final_status": "REVIEW",
+      "formulas": {
+        "facility_power_kw": "it_load_kw * pue_value",
+        "headroom_to_permitted": "permitted_kw - observed",
+        "headroom_to_physical": "capacity - observed",
+        "permitted_kw": "capacity * (1 - reserve_pct)",
+        "predicted_cooling_kw": "current_cooling_kw + proposed_cooling_delta",
+        "predicted_facility_power_kw": "predicted_it_load_kw * pue_value",
+        "predicted_it_load_kw": "current_it_load_kw + proposed_it_delta"
+      },
+      "input_references": [
+        {
+          "interval_minutes": null,
+          "name": "it_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 80.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "cooling_load",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "kW",
+          "value": 90.0
+        },
+        {
+          "interval_minutes": null,
+          "name": "pue",
+          "raw_unit": null,
+          "raw_value": null,
+          "reference_id": null,
+          "source": "MEASURED",
+          "timestamp": null,
+          "unit": "dimensionless",
+          "value": 1.4
+        }
+      ],
+      "passed_constraints": [
+        {
+          "limit": 180.0,
+          "margin": 68.0,
+          "name": "electrical",
+          "observed": 112.0,
+          "reason": "electrical: observed 112.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 180.0,
+          "margin": 68.0,
+          "name": "electrical",
+          "observed": 112.0,
+          "reason": "electrical: observed 112.0000 within permitted 180.0000",
+          "status": "OK"
+        },
+        {
+          "limit": 225.0,
+          "margin": 135.0,
+          "name": "cooling",
+          "observed": 90.0,
+          "reason": "cooling: observed 90.0000 within permitted 225.0000",
+          "status": "OK"
+        }
+      ],
+      "sensitivity": [
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 78.0,
+          "measurement_name": "it_load",
+          "reason": "'it_load' tolerance band [78.0000, 82.0000] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 82.0
+        },
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 88.0,
+          "measurement_name": "cooling_load",
+          "reason": "'cooling_load' tolerance band [88.0000, 92.0000] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 92.0
+        },
+        {
+          "baseline_status": "APPROVE",
+          "could_change_verdict": false,
+          "lower_bound": 1.35,
+          "measurement_name": "pue",
+          "reason": "'pue' tolerance band [1.3500, 1.4500] preserves baseline status APPROVE",
+          "status_at_lower": "APPROVE",
+          "status_at_upper": "APPROVE",
+          "upper_bound": 1.45
+        }
+      ],
+      "uncertainty_report": {
+        "assumptions": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "data_quality_level": "OK",
+        "estimated_parameters": [],
+        "low_quality_measurements": [],
+        "missing_measurements": [],
+        "model_limitations": [
+          "IT electrical load is not treated as facility power directly; facility power = IT load * PUE.",
+          "PUE provenance may be MEASURED, CONFIGURED, or ASSUMED; results depend on it.",
+          "Comparable-period checks use UTC only; local work calendars are not modelled.",
+          "No weather or occupancy normalisation is applied.",
+          "Statistical confidence is categorical only; no calibrated probability is claimed.",
+          "If a measurement has no tolerance metadata, its uncertainty level is UNKNOWN."
+        ],
+        "model_uncertainty_level": "MODERATE",
+        "quality_flags": [],
+        "rationale": [
+          "all required measurements present, no quality flags",
+          "3 measured, 0 estimated, 0 unknown provenance",
+          "explicit tolerances provided; measurements are not perfect"
+        ],
+        "stale_measurements": [],
+        "tolerance_used": [
+          "it_load",
+          "cooling_load",
+          "pue"
+        ]
+      },
+      "warning_constraints": []
+    },
+    "input_fingerprint": "8c5800916d8d6753f2250e0c1f1c6992831cf2b0a8334432ae99ef5218d79245"
+  }
+}

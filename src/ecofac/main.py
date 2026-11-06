@@ -40,9 +40,15 @@ from ecofac.api.routes import (
     world,
 )
 from ecofac.constants import MAX_UPLOAD_BYTES, MULTIPART_OVERHEAD_BYTES
+from ecofac.logging_config import configure_logging
 from ecofac.persistence.database import check_schema, ensure_initialized
 
 logger = logging.getLogger(__name__)
+
+# P2-8: install request-ID logging. Idempotent; logs from ecofac.*
+# gain [request=ID] segments when a request is in flight, and keep
+# the current format otherwise (startup, background).
+configure_logging()
 
 # Apply rate-limiter token stripping once at app startup.
 # Previously this ran at import time in rate_limit.py; moved here so the

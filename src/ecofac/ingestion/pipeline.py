@@ -199,213 +199,289 @@ def ingest_csv(
     return persist_atomically(conn, _run)
 
 
-def _ingest_rows(
-    conn: sqlite3.Connection,
+@dataclasses.dataclass(kw_only=True)
+class _RowValidation:
+    # Result of validating one CSV row. Rejections carry a reason code and
+    # a human-readable detail; accepted rows carry the parsed fields.
+    ok: bool
+    meter_id: str = ""
+    building_id: str = ""
+    timestamp_utc: str = ""
+    value_kwh: float = 0.0
+    raw_value: str = ""
+    is_new_meter: bool = False
+    is_out_of_order: bool = False
+    rejection_reason: str = ""
+    rejection_detail: str = ""
+
+
+# Maps a rejection reason to the IngestionSummary counter it increments.
+# Reasons not listed here increment only rejected_rows.
+_REJECTION_COUNTER = {
+    "unknown_meter": "unknown_meter_ids",
+    "invalid_identifier": "invalid_ids",
+    "invalid_timestamp": "invalid_timestamps",
+    "invalid_unit": "invalid_units",
+    "duplicate": "duplicate_rows",
+}
+
+
+def _parse_rows(
     reader: csv.DictReader,
-    source_id: str,
-    batch_id: str,
-    *,
     max_rows: int,
-    auto_create_entities: bool,
-) -> IngestionSummary:
-    """Validate and insert every row. Runs inside a transaction (see ingest_csv)."""
-    summary = IngestionSummary()
-    created_at = now_z()
-
-    seen: set[tuple[str, str]] = set()
-    last_ts_per_meter: dict[str, str] = {}
-    pending: list[_Reading] = []
-    issues: list[tuple] = []
-
-    cursor = conn.execute("SELECT id, building_id, interval_minutes FROM meters")
-    meter_map = {
-        row["id"]: (row["building_id"], row["interval_minutes"]) for row in cursor.fetchall()
-    }
-
+    summary: IngestionSummary,
+) -> typing.Iterator[tuple[dict, int]]:
+    # Yield (row_dict, line_num). Raises IngestionError for row_limit_exceeded
+    # or malformed_csv. Counts total_rows on summary.
     try:
         for row in reader:
             summary.total_rows += 1
             if summary.total_rows > max_rows:
                 raise IngestionError(
-                    "row_limit_exceeded", "Row count exceeds limit", max_rows=max_rows
+                    "row_limit_exceeded",
+                    "Row count exceeds limit",
+                    max_rows=max_rows,
                 )
-
-            meter_id = (row.get("meter_id") or "").strip()
-            building_id = (row.get("building_id") or "").strip()
-
-            # 1. Identifiers. A meter is either known (its building must match)
-            # or, when auto-creation is on, new (its identifiers must be valid).
-            is_new_meter = False
-            if meter_id not in meter_map:
-                if not auto_create_entities:
-                    summary.rejected_rows += 1
-                    summary.unknown_meter_ids += 1
-                    issues.append(
-                        _issue_row(
-                            batch_id,
-                            "unknown_meter",
-                            f"Unknown meter: {meter_id}",
-                            created_at,
-                        )
-                    )
-                    continue
-                reason = entities.invalid_identifier_reason(building_id, meter_id)
-                if reason is not None:
-                    summary.rejected_rows += 1
-                    summary.invalid_ids += 1
-                    issues.append(
-                        _issue_row(
-                            batch_id,
-                            "invalid_identifier",
-                            f"Invalid identifier on line {reader.line_num}: {reason}",
-                            created_at,
-                        )
-                    )
-                    continue
-                is_new_meter = True
-            else:
-                expected_building, _ = meter_map[meter_id]
-                if expected_building != building_id:
-                    summary.rejected_rows += 1
-                    issues.append(
-                        _issue_row(
-                            batch_id,
-                            "building_mismatch",
-                            f"Meter {meter_id} does not belong to building {building_id}",
-                            created_at,
-                        )
-                    )
-                    continue
-
-            # 2. Timestamp
-            ts_raw = (row.get("timestamp") or "").strip()
-            try:
-                ts_utc = _parse_timestamp(ts_raw)
-            except ValueError:
-                summary.rejected_rows += 1
-                summary.invalid_timestamps += 1
-                issues.append(
-                    _issue_row(
-                        batch_id,
-                        "invalid_timestamp",
-                        f"Invalid timestamp: {ts_raw}",
-                        created_at,
-                    )
-                )
-                continue
-
-            # 3. Unit
-            unit_raw = (row.get("unit") or "").strip().lower()
-            if unit_raw not in UNITS:
-                summary.rejected_rows += 1
-                summary.invalid_units += 1
-                issues.append(
-                    _issue_row(
-                        batch_id,
-                        "invalid_unit",
-                        f"Unsupported unit: {unit_raw}",
-                        created_at,
-                    )
-                )
-                continue
-
-            # 4. Value
-            val_raw = (row.get("energy_value") or "").strip()
-            try:
-                val_kwh = float(val_raw) * UNITS[unit_raw]
-                if not math.isfinite(val_kwh):
-                    msg = "Non-finite value"
-                    raise ValueError(msg)
-            except ValueError:
-                summary.rejected_rows += 1
-                issues.append(
-                    _issue_row(
-                        batch_id,
-                        "malformed_value",
-                        f"Invalid value: {val_raw}",
-                        created_at,
-                    )
-                )
-                continue
-
-            # 5. Duplicate (within CSV)
-            key = (meter_id, ts_utc)
-            if key in seen:
-                summary.rejected_rows += 1
-                summary.duplicate_rows += 1
-                issues.append(
-                    _issue_row(
-                        batch_id,
-                        "duplicate",
-                        f"Duplicate in CSV: {meter_id} @ {ts_utc}",
-                        created_at,
-                        meter_id=meter_id,
-                        reading_timestamp_utc=ts_utc,
-                    )
-                )
-                continue
-            seen.add(key)
-
-            # 5a. The row is storable: only now create a missing meter/building.
-            if is_new_meter:
-                if summary.meters_created >= entities.MAX_AUTO_ENTITIES:
-                    raise IngestionError(
-                        "entity_limit_exceeded",
-                        f"CSV references more than {entities.MAX_AUTO_ENTITIES} new meters",
-                        max_new_meters=entities.MAX_AUTO_ENTITIES,
-                    )
-                building_created, meter_created = entities.ensure_building_and_meter(
-                    conn, building_id, meter_id, created_at
-                )
-                summary.buildings_created += int(building_created)
-                summary.meters_created += int(meter_created)
-                meter_map[meter_id] = (building_id, entities.DEFAULT_INTERVAL_MINUTES)
-
-            # 5b. Out-of-order (informational only)
-            prev_high = last_ts_per_meter.get(meter_id)
-            if prev_high is not None and ts_utc < prev_high:
-                issues.append(
-                    _issue_row(
-                        batch_id,
-                        "out_of_order",
-                        f"Out-of-order: {meter_id} @ {ts_utc} arrived after {prev_high}",
-                        created_at,
-                        meter_id=meter_id,
-                        reading_timestamp_utc=ts_utc,
-                    )
-                )
-            if prev_high is None or ts_utc > prev_high:
-                last_ts_per_meter[meter_id] = ts_utc
-
-            # 5c. Bounds
-            is_valid_int = 1 if 0 <= val_kwh <= MAX_VALID_READING_KWH else 0
-
-            pending.append(
-                _Reading(
-                    str(uuid.uuid4()),
-                    meter_id,
-                    ts_utc,
-                    val_kwh,
-                    "kWh",
-                    source_id,
-                    batch_id,
-                    is_valid_int,
-                    created_at,
-                    val_raw,
-                )
-            )
+            yield row, reader.line_num
     except csv.Error as exc:
-        # e.g. "field larger than field limit": the reader cannot continue.
         raise IngestionError(
             "malformed_csv",
             f"Malformed CSV near line {reader.line_num}: {exc}",
             line=reader.line_num,
         ) from exc
 
-    # 6. Bulk DB duplicate filter
-    existing = _existing_pairs(conn, [r.meter_id for r in pending])
+
+def _validate_row(
+    row: dict,
+    line_num: int,
+    meter_map: dict[str, tuple[str, int]],
+    seen_new_meters: dict[str, str],
+    seen_keys: set[tuple[str, str]],
+    last_ts_per_meter: dict[str, str],
+    *,
+    auto_create_entities: bool,
+) -> _RowValidation:
+    # Pure per-row validation. Mutates seen_keys and last_ts_per_meter (parse
+    # state); everything else is returned.
+    meter_id = (row.get("meter_id") or "").strip()
+    building_id = (row.get("building_id") or "").strip()
+
+    is_new_meter = False
+    if meter_id not in meter_map:
+        if not auto_create_entities:
+            return _RowValidation(
+                ok=False,
+                rejection_reason="unknown_meter",
+                rejection_detail=f"Unknown meter: {meter_id}",
+            )
+        reason = entities.invalid_identifier_reason(building_id, meter_id)
+        if reason is not None:
+            return _RowValidation(
+                ok=False,
+                rejection_reason="invalid_identifier",
+                rejection_detail=f"Invalid identifier on line {line_num}: {reason}",
+            )
+        prior = seen_new_meters.get(meter_id)
+        if prior is not None and prior != building_id:
+            return _RowValidation(
+                ok=False,
+                rejection_reason="building_mismatch",
+                rejection_detail=f"Meter {meter_id} does not belong to building {building_id}",
+            )
+        seen_new_meters[meter_id] = building_id
+        is_new_meter = True
+    else:
+        expected_building, _ = meter_map[meter_id]
+        if expected_building != building_id:
+            return _RowValidation(
+                ok=False,
+                rejection_reason="building_mismatch",
+                rejection_detail=f"Meter {meter_id} does not belong to building {building_id}",
+            )
+
+    ts_raw = (row.get("timestamp") or "").strip()
+    try:
+        ts_utc = _parse_timestamp(ts_raw)
+    except ValueError:
+        return _RowValidation(
+            ok=False,
+            rejection_reason="invalid_timestamp",
+            rejection_detail=f"Invalid timestamp: {ts_raw}",
+        )
+
+    unit_raw = (row.get("unit") or "").strip().lower()
+    if unit_raw not in UNITS:
+        return _RowValidation(
+            ok=False,
+            rejection_reason="invalid_unit",
+            rejection_detail=f"Unsupported unit: {unit_raw}",
+        )
+
+    val_raw = (row.get("energy_value") or "").strip()
+    try:
+        val_kwh = float(val_raw) * UNITS[unit_raw]
+        if not math.isfinite(val_kwh):
+            msg = "Non-finite value"
+            raise ValueError(msg)
+    except ValueError:
+        return _RowValidation(
+            ok=False,
+            rejection_reason="malformed_value",
+            rejection_detail=f"Invalid value: {val_raw}",
+        )
+
+    key = (meter_id, ts_utc)
+    if key in seen_keys:
+        return _RowValidation(
+            ok=False,
+            meter_id=meter_id,
+            timestamp_utc=ts_utc,
+            rejection_reason="duplicate",
+            rejection_detail=f"Duplicate in CSV: {meter_id} @ {ts_utc}",
+        )
+    seen_keys.add(key)
+
+    prev_high = last_ts_per_meter.get(meter_id)
+    is_out_of_order = prev_high is not None and ts_utc < prev_high
+    if prev_high is None or ts_utc > prev_high:
+        last_ts_per_meter[meter_id] = ts_utc
+
+    return _RowValidation(
+        ok=True,
+        meter_id=meter_id,
+        building_id=building_id,
+        timestamp_utc=ts_utc,
+        value_kwh=val_kwh,
+        raw_value=val_raw,
+        is_new_meter=is_new_meter,
+        is_out_of_order=is_out_of_order,
+    )
+
+
+def _validate_rows(
+    raw_rows: typing.Iterator[tuple[dict, int]],
+    meter_map: dict[str, tuple[str, int]],
+    batch_id: str,
+    summary: IngestionSummary,
+    created_at: str,
+    *,
+    auto_create_entities: bool,
+) -> tuple[list[_RowValidation], list[tuple], dict[str, str]]:
+    # Iterate raw rows, validate each, accumulate accepted rows and issues.
+    # Returns (valid_rows, issues, seen_new_meters).
+    seen_keys: set[tuple[str, str]] = set()
+    last_ts_per_meter: dict[str, str] = {}
+    seen_new_meters: dict[str, str] = {}
+    valid: list[_RowValidation] = []
+    issues: list[tuple] = []
+    for row, line_num in raw_rows:
+        v = _validate_row(
+            row,
+            line_num,
+            meter_map,
+            seen_new_meters,
+            seen_keys,
+            last_ts_per_meter,
+            auto_create_entities=auto_create_entities,
+        )
+        if v.ok:
+            valid.append(v)
+            if v.is_out_of_order:
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "out_of_order",
+                        f"Out-of-order: {v.meter_id} @ {v.timestamp_utc} "
+                        f"arrived after {last_ts_per_meter.get(v.meter_id)}",
+                        created_at,
+                        meter_id=v.meter_id,
+                        reading_timestamp_utc=v.timestamp_utc,
+                    )
+                )
+        else:
+            summary.rejected_rows += 1
+            counter_field = _REJECTION_COUNTER.get(v.rejection_reason)
+            if counter_field is not None:
+                setattr(summary, counter_field, getattr(summary, counter_field) + 1)
+            issues.append(
+                _issue_row(
+                    batch_id,
+                    v.rejection_reason,
+                    v.rejection_detail,
+                    created_at,
+                    meter_id=v.meter_id or None,
+                    reading_timestamp_utc=v.timestamp_utc or None,
+                )
+            )
+    return valid, issues, seen_new_meters
+
+
+def _resolve_entities(
+    conn: sqlite3.Connection,
+    validations: list[_RowValidation],
+    meter_map: dict[str, tuple[str, int]],
+    seen_new_meters: dict[str, str],
+    source_id: str,
+    batch_id: str,
+    created_at: str,
+    summary: IngestionSummary,
+) -> list[_Reading]:
+    # Create any new meters/buildings (all-or-nothing against the entity
+    # limit), then materialise validated rows into _Reading records.
+    # Only meters that appear in at least one VALID row are created.
+    # seen_new_meters also tracks rejected rows so a new meter split
+    # across two buildings is still caught during validation, but
+    # entity creation is gated on a surviving row.
+    meters_to_create = {
+        v.meter_id: seen_new_meters[v.meter_id] for v in validations if v.is_new_meter
+    }
+    if len(meters_to_create) > entities.MAX_AUTO_ENTITIES:
+        raise IngestionError(
+            "entity_limit_exceeded",
+            f"CSV references more than {entities.MAX_AUTO_ENTITIES} new meters",
+            max_new_meters=entities.MAX_AUTO_ENTITIES,
+        )
+    for meter_id, building_id in meters_to_create.items():
+        building_created, meter_created = entities.ensure_building_and_meter(
+            conn, building_id, meter_id, created_at
+        )
+        summary.buildings_created += int(building_created)
+        summary.meters_created += int(meter_created)
+        meter_map[meter_id] = (building_id, entities.DEFAULT_INTERVAL_MINUTES)
+
+    readings: list[_Reading] = []
+    for v in validations:
+        is_valid_int = 1 if 0 <= v.value_kwh <= MAX_VALID_READING_KWH else 0
+        readings.append(
+            _Reading(
+                str(uuid.uuid4()),
+                v.meter_id,
+                v.timestamp_utc,
+                v.value_kwh,
+                "kWh",
+                source_id,
+                batch_id,
+                is_valid_int,
+                created_at,
+                v.raw_value,
+            )
+        )
+    return readings
+
+
+def _insert_rows(
+    conn: sqlite3.Connection,
+    readings: list[_Reading],
+    issues: list[tuple],
+    meter_map: dict[str, tuple[str, int]],
+    batch_id: str,
+    created_at: str,
+    summary: IngestionSummary,
+) -> None:
+    # Bulk DB-dedup, gap detection, invalid-value flags, then insert.
+    existing = _existing_pairs(conn, [r.meter_id for r in readings])
     final: list[_Reading] = []
-    for rec in pending:
+    for rec in readings:
         if (rec.meter_id, rec.timestamp_utc) in existing:
             summary.rejected_rows += 1
             summary.duplicate_rows += 1
@@ -423,7 +499,6 @@ def _ingest_rows(
             final.append(rec)
     summary.accepted_rows = len(final)
 
-    # 6b. Gap detection on final (post-dedup), sorted per meter
     pending_by_meter: dict[str, list[_Reading]] = {}
     for rec in final:
         pending_by_meter.setdefault(rec.meter_id, []).append(rec)
@@ -446,7 +521,6 @@ def _ingest_rows(
                     )
                 )
 
-    # 7. Flag invalid stored rows (negative OR suspicious)
     for rec in final:
         if rec.is_valid == 0:
             if rec.value < 0:
@@ -475,7 +549,6 @@ def _ingest_rows(
                     )
                 )
 
-    # 8. Insert readings first, then issues (FK order)
     if final:
         conn.executemany(
             """INSERT INTO energy_readings
@@ -492,4 +565,44 @@ def _ingest_rows(
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
             issues,
         )
+
+
+def _ingest_rows(
+    conn: sqlite3.Connection,
+    reader: csv.DictReader,
+    source_id: str,
+    batch_id: str,
+    *,
+    max_rows: int,
+    auto_create_entities: bool,
+) -> IngestionSummary:
+    # Validate and insert every row. Runs inside a transaction (see ingest_csv).
+    summary = IngestionSummary()
+    created_at = now_z()
+
+    cursor = conn.execute("SELECT id, building_id, interval_minutes FROM meters")
+    meter_map = {
+        row["id"]: (row["building_id"], row["interval_minutes"]) for row in cursor.fetchall()
+    }
+
+    raw_rows = _parse_rows(reader, max_rows, summary)
+    validations, issues, seen_new_meters = _validate_rows(
+        raw_rows,
+        meter_map,
+        batch_id,
+        summary,
+        created_at,
+        auto_create_entities=auto_create_entities,
+    )
+    readings = _resolve_entities(
+        conn,
+        validations,
+        meter_map,
+        seen_new_meters,
+        source_id,
+        batch_id,
+        created_at,
+        summary,
+    )
+    _insert_rows(conn, readings, issues, meter_map, batch_id, created_at, summary)
     return summary

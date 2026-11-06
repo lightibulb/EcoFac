@@ -254,4 +254,8 @@ def test_analysis_failure_after_commit_does_not_undo_the_import(client, test_db,
     assert resp.status_code == 200
     assert resp.json()["accepted_rows"] == 1
     assert _snapshot(test_db)["energy_readings"] == 1
-    assert client.get("/api/v1/imports/ib-x").json()["status"] == "completed"
+    # P2-2: analysis failure leaves the batch as "analysis_failed"
+    # (visible for operator retry via POST /imports/{batch_id}/analyze).
+    # The import itself committed successfully -- that is what this test
+    # verifies (readings survive); only the batch status changes.
+    assert client.get("/api/v1/imports/ib-x").json()["status"] == "analysis_failed"
