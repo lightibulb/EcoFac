@@ -24,9 +24,18 @@ def test_db() -> Generator[sqlite3.Connection, None, None]:
     # Seed base metadata
     now = "2026-01-01T00:00:00Z"
     conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)", (now,))
-    conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)", (now,))
-    conn.execute("INSERT INTO meters (id, building_id, fuel_type, unit, created_at) VALUES ('m1', 'b1', 'electricity', 'kWh', ?)", (now,))
-    conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))
+    conn.execute(
+        "INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) VALUES ('m1', 'b1', 'electricity', 'kWh', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)",
+        (now,),
+    )
 
     yield conn
     conn.close()
@@ -35,6 +44,7 @@ def test_db() -> Generator[sqlite3.Connection, None, None]:
 @pytest.fixture
 def client(test_db: sqlite3.Connection) -> Generator[TestClient, None, None]:
     """Yield a FastAPI TestClient."""
+
     def override_get_db() -> Generator[sqlite3.Connection, None, None]:
         yield test_db
 

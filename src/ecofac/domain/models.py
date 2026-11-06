@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Domain models representing facilities and energy observations."""
+
 import dataclasses
 import datetime as dt
 

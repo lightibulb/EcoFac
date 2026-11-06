@@ -33,9 +33,7 @@ def _insert_decision(conn, decision_id, status, precedence, created_at):
     )
 
 
-def _insert_incident(
-    conn, incident_id, anomaly_id, status, created_at, anomaly_ts=None
-):
+def _insert_incident(conn, incident_id, anomaly_id, status, created_at, anomaly_ts=None):
     """Insert one incident plus its parent anomaly.
 
     The anomalies table has UNIQUE(meter_id, timestamp_utc, detector_name),
@@ -97,9 +95,7 @@ def test_world_state_latest_reading(client, test_db):
 
 
 def test_world_state_open_incident_count(client, test_db):
-    _insert_incident(
-        test_db, "inc1", "an1", "DETECTED", "2026-01-01T00:00:00Z"
-    )
+    _insert_incident(test_db, "inc1", "an1", "DETECTED", "2026-01-01T00:00:00Z")
     _insert_incident(
         test_db,
         "inc2",
@@ -115,12 +111,8 @@ def test_world_state_open_incident_count(client, test_db):
 
 
 def test_world_state_decision_status_counts(client, test_db):
-    _insert_decision(
-        test_db, "d1", "APPROVE", "clean", "2026-01-01T00:00:00Z"
-    )
-    _insert_decision(
-        test_db, "d2", "APPROVE", "clean", "2026-01-01T01:00:00Z"
-    )
+    _insert_decision(test_db, "d1", "APPROVE", "clean", "2026-01-01T00:00:00Z")
+    _insert_decision(test_db, "d2", "APPROVE", "clean", "2026-01-01T01:00:00Z")
     _insert_decision(
         test_db,
         "d3",
@@ -133,12 +125,8 @@ def test_world_state_decision_status_counts(client, test_db):
 
 
 def test_world_state_recent_events_sorted_newest_first(client, test_db):
-    _insert_decision(
-        test_db, "d1", "APPROVE", "clean", "2026-01-01T00:00:00Z"
-    )
-    _insert_incident(
-        test_db, "inc1", "an1", "DETECTED", "2026-01-01T05:00:00Z"
-    )
+    _insert_decision(test_db, "d1", "APPROVE", "clean", "2026-01-01T00:00:00Z")
+    _insert_incident(test_db, "inc1", "an1", "DETECTED", "2026-01-01T05:00:00Z")
     body = client.get(BASE).json()
     events = body["recent_events"]
     assert len(events) == 2
@@ -186,6 +174,7 @@ def test_world_state_no_auth_required(client):
 def test_world_state_no_pollution_from_invalid_method(client):
     resp = client.post(BASE)
     assert resp.status_code == 405
+
 
 def test_world_state_max_severity_logic(client, test_db):
     _insert_incident(test_db, "inc1", "an1", "DETECTED", "2026-01-01T00:00:00Z")

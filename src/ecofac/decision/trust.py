@@ -177,10 +177,7 @@ def resolve_trusted_reading(
     if meter_role is None:
         caveats.append(CAVEAT_ROLE_UNCLASSIFIED)
     elif meter_role != role:
-        msg = (
-            f"{field}: meter {meter_id} has role {meter_role!r} but {role!r} "
-            "is required"
-        )
+        msg = f"{field}: meter {meter_id} has role {meter_role!r} but {role!r} is required"
         raise TrustError(msg)
 
     interval = meter["interval_minutes"]
@@ -264,17 +261,23 @@ def resolve_trusted_pair(
         )
         raise TrustError(msg)
     it = resolve_trusted_reading(
-        conn, field="it_load", role=ROLE_IT_LOAD,
-        meter_id=it_ref[0], timestamp=it_ref[1], evaluation_time=evaluation_time,
+        conn,
+        field="it_load",
+        role=ROLE_IT_LOAD,
+        meter_id=it_ref[0],
+        timestamp=it_ref[1],
+        evaluation_time=evaluation_time,
     )
     cooling = resolve_trusted_reading(
-        conn, field="cooling_load", role=ROLE_COOLING,
-        meter_id=cooling_ref[0], timestamp=cooling_ref[1],
+        conn,
+        field="cooling_load",
+        role=ROLE_COOLING,
+        meter_id=cooling_ref[0],
+        timestamp=cooling_ref[1],
         evaluation_time=evaluation_time,
     )
     skew = abs(
-        (parse_aware_utc(it.timestamp_utc) - parse_aware_utc(cooling.timestamp_utc))
-        .total_seconds()
+        (parse_aware_utc(it.timestamp_utc) - parse_aware_utc(cooling.timestamp_utc)).total_seconds()
     )
     if skew > ALIGNMENT_TOLERANCE_SECONDS:
         msg = (

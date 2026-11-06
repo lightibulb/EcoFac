@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Statistical anomaly detection engines."""
+
 import datetime as dt
 import json
 import sqlite3
@@ -242,8 +243,7 @@ def _build_anomaly(
     so re-analysis cannot spawn duplicate anomalies or incidents.
     """
     existing = conn.execute(
-        "SELECT 1 FROM anomalies "
-        "WHERE meter_id = ? AND timestamp_utc = ? AND detector_name = ?",
+        "SELECT 1 FROM anomalies WHERE meter_id = ? AND timestamp_utc = ? AND detector_name = ?",
         (meter_id, target_ts, detector_name),
     ).fetchone()
     if existing:

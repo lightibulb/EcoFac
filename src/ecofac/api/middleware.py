@@ -34,9 +34,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     distributed traces can correlate. Otherwise a UUID is generated.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
         request.state.request_id = request_id
         response = await call_next(request)
@@ -52,15 +50,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     See docs/limitations.md.
     """
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         response = await call_next(request)
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
         return response
-
 
 
 def _too_large_detail(limit: int) -> dict:

@@ -4,6 +4,7 @@
 If this test ever fails, the evaluation pipeline has gone silently blind
 again (the exact failure mode of the original meter_id bug).
 """
+
 import datetime as dt
 
 from ecofac.domain.models import EnergyReading

@@ -77,8 +77,7 @@ def test_sorted_readings_do_not_flag_out_of_order(db_conn):
 def test_large_gap_is_flagged(db_conn):
     """A gap > 2x interval_minutes is logged (default interval = 60 min)."""
     csv_data = HEADER + (
-        "2026-01-01T00:00:00Z,b1,m1,10.0,kWh\n"
-        "2026-01-01T05:00:00Z,b1,m1,10.0,kWh\n"
+        "2026-01-01T00:00:00Z,b1,m1,10.0,kWh\n2026-01-01T05:00:00Z,b1,m1,10.0,kWh\n"
     )
     summary = ingest_csv(db_conn, csv_data, "s1", "ib1")
     assert summary.accepted_rows == 2

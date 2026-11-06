@@ -12,6 +12,7 @@ from ecofac.api.schemas import AuditEventResponse
 
 router = APIRouter()
 
+
 @router.get("/audit", tags=["Audit"])
 def list_audit(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],

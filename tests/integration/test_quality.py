@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Integration tests for the data quality engine."""
+
 import datetime as dt
 
 import pytest
@@ -17,23 +18,38 @@ def db_conn():
     init_db(conn)
     now = "2026-01-01T00:00:00Z"
     conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)", (now,))
-    conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)", (now,))
+    conn.execute(
+        "INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)",
+        (now,),
+    )
     conn.execute(
         "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) "
         "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)",
         (now,),
     )
-    conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))
-    conn.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'started', ?)", (now,))
+    conn.execute(
+        "INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'started', ?)",
+        (now,),
+    )
     yield conn
     conn.close()
 
 
 def _insert_reading(conn, reading_id, ts, value, *, is_valid=True):
     r = EnergyReading(
-        id=reading_id, meter_id="m1", timestamp_utc=ts,
-        value=value, unit="kWh", source_id="s1", batch_id="ib1",
-        is_valid=is_valid, created_at="2026-01-01T00:00:00Z",
+        id=reading_id,
+        meter_id="m1",
+        timestamp_utc=ts,
+        value=value,
+        unit="kWh",
+        source_id="s1",
+        batch_id="ib1",
+        is_valid=is_valid,
+        created_at="2026-01-01T00:00:00Z",
     )
     insert_reading(conn, r)
 

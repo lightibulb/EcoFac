@@ -48,7 +48,10 @@ def add_series(conn, meter_id, stamps, values):
         "INSERT INTO energy_readings (id, meter_id, timestamp_utc, value, unit, "
         "source_id, batch_id, is_valid, created_at) "
         "VALUES (?, ?, ?, ?, 'kWh', 's1', 'ib1', 1, ?)",
-        [(f"{meter_id}-{i}", meter_id, z(t), v, z(t)) for i, (t, v) in enumerate(zip(stamps, values, strict=True))],
+        [
+            (f"{meter_id}-{i}", meter_id, z(t), v, z(t))
+            for i, (t, v) in enumerate(zip(stamps, values, strict=True))
+        ],
     )
 
 
@@ -64,6 +67,7 @@ def conn():
 
 
 # ---- quality assessment uses the meter's own interval ----------------------
+
 
 @pytest.mark.parametrize("interval", [60, 30, 15])
 def test_complete_series_is_eligible_at_every_cadence(conn, interval):
@@ -111,8 +115,9 @@ def test_irregular_series_is_flagged(conn):
     assert report.actual_readings == 5  # counts rows, but...
     # ...gap between 30 and 55 minutes exceeds the cadence: a window ending
     # at the late sample must not look healthy for the missing slot.
-    window = assess_quality(conn, "m", START + dt.timedelta(minutes=30),
-                            START + dt.timedelta(minutes=45))
+    window = assess_quality(
+        conn, "m", START + dt.timedelta(minutes=30), START + dt.timedelta(minutes=45)
+    )
     assert window.missing_readings >= 1
 
 
@@ -136,6 +141,7 @@ def test_unknown_meter_falls_back_to_hourly_and_bad_interval_raises(conn):
 
 # ---- batch screening is time-window based and exhaustive --------------------
 
+
 def noisy(interval_min, hours, *, seed, base=50.0):
     rng = random.Random(seed)
     n = int(hours * 60 / interval_min)
@@ -155,7 +161,8 @@ def detector_set(conn, meter_id):
 def exhaustive(conn, meter_id):
     rows = conn.execute(
         "SELECT timestamp_utc FROM energy_readings WHERE meter_id = ? "
-        "AND is_valid = 1 ORDER BY timestamp_utc", (meter_id,),
+        "AND is_valid = 1 ORDER BY timestamp_utc",
+        (meter_id,),
     ).fetchall()
     for r in rows:
         detect_rolling_baseline(conn, meter_id, r["timestamp_utc"])
@@ -179,6 +186,7 @@ def spike(idxs, factor=3.0):
         for i in idxs:
             out[i] *= factor
         return out
+
     return apply
 
 
@@ -198,6 +206,7 @@ def test_screening_equals_exhaustive_detection_at_every_cadence(interval):
 
 def test_fifteen_minute_spike_is_not_hidden_by_a_row_count_window():
     """Regression: a 24-row window covered only 6 h of 15-minute data."""
+
     def shape(stamps, values):
         out = list(values)
         # noisy first 18 h, then a quiet 6 h so a 24-row window has tiny variance
@@ -207,6 +216,7 @@ def test_fifteen_minute_spike_is_not_hidden_by_a_row_count_window():
                 out[i] = 50.0 + (i % 2) * 0.01
         out[40 * 4] *= 1.4
         return out
+
     screened_db, exhaustive_db, _ = build_pair(15, shape)
     analyze_meter_series(screened_db, "m", create_incidents=False)
     assert detector_set(screened_db, "m") == exhaustive(exhaustive_db, "m")
@@ -217,6 +227,7 @@ def test_fifteen_minute_spike_is_not_hidden_by_a_row_count_window():
 def test_regime_shift_matches_exhaustive_detection():
     def shift(_stamps, values):
         return [v + (25.0 if i >= len(values) // 2 else 0.0) for i, v in enumerate(values)]
+
     screened_db, exhaustive_db, _ = build_pair(30, shift)
     analyze_meter_series(screened_db, "m", create_incidents=False)
     got = detector_set(screened_db, "m")

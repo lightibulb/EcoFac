@@ -12,6 +12,7 @@ from ecofac.api.schemas import BuildingResponse, MeterResponse
 
 router = APIRouter()
 
+
 @router.get("/buildings", tags=["Entities"])
 def list_buildings(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -21,6 +22,7 @@ def list_buildings(
     """List buildings with pagination."""
     cursor = conn.execute("SELECT * FROM buildings ORDER BY id LIMIT ? OFFSET ?", (limit, offset))
     return [BuildingResponse(**dict(row)) for row in cursor.fetchall()]
+
 
 @router.get("/buildings/{building_id}", tags=["Entities"])
 def get_building(
@@ -34,6 +36,7 @@ def get_building(
         raise HTTPException(status_code=404, detail="Building not found")
     return BuildingResponse(**dict(row))
 
+
 @router.get("/meters", tags=["Entities"])
 def list_meters(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
@@ -43,6 +46,7 @@ def list_meters(
     """List meters with pagination."""
     cursor = conn.execute("SELECT * FROM meters ORDER BY id LIMIT ? OFFSET ?", (limit, offset))
     return [MeterResponse(**dict(row)) for row in cursor.fetchall()]
+
 
 @router.get("/meters/{meter_id}", tags=["Entities"])
 def get_meter(

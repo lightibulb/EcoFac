@@ -43,29 +43,21 @@ def _ctx(
 
 def test_corrective_action_bypasses_current_violation():
     """Current load at 1100 (physical overload) -> proposed reduction to 800."""
-    decision = evaluate_decision(
-        _ctx(current_e=1100.0, predicted_e=800.0, corrective=True)
-    )
+    decision = evaluate_decision(_ctx(current_e=1100.0, predicted_e=800.0, corrective=True))
     assert decision.status == FinalDecisionStatus.APPROVE
 
 
 def test_default_mode_rejects_current_violation():
-    decision = evaluate_decision(
-        _ctx(current_e=1100.0, predicted_e=800.0, corrective=False)
-    )
+    decision = evaluate_decision(_ctx(current_e=1100.0, predicted_e=800.0, corrective=False))
     assert decision.status == FinalDecisionStatus.REJECT
 
 
 def test_corrective_action_still_rejects_predicted_violation():
     """Reduction to 1200 still exceeds capacity."""
-    decision = evaluate_decision(
-        _ctx(current_e=1100.0, predicted_e=1200.0, corrective=True)
-    )
+    decision = evaluate_decision(_ctx(current_e=1100.0, predicted_e=1200.0, corrective=True))
     assert decision.status == FinalDecisionStatus.REJECT
 
 
 def test_corrective_action_preserves_clean_approve():
-    decision = evaluate_decision(
-        _ctx(current_e=400.0, predicted_e=400.0, corrective=True)
-    )
+    decision = evaluate_decision(_ctx(current_e=400.0, predicted_e=400.0, corrective=True))
     assert decision.status == FinalDecisionStatus.APPROVE

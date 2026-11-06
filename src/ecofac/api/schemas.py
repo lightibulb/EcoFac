@@ -14,11 +14,13 @@ from ecofac.decision.transparent import (
 
 class HealthResponse(pydantic.BaseModel):
     """Health check response."""
+
     status: str
 
 
 class PaginatedResponse(pydantic.BaseModel):
     """Base paginated response."""
+
     total: int
     limit: int
     offset: int
@@ -26,6 +28,7 @@ class PaginatedResponse(pydantic.BaseModel):
 
 class BuildingResponse(pydantic.BaseModel):
     """Building data."""
+
     id: str
     org_id: str
     name: str
@@ -34,6 +37,7 @@ class BuildingResponse(pydantic.BaseModel):
 
 class MeterResponse(pydantic.BaseModel):
     """Meter data."""
+
     id: str
     building_id: str
     fuel_type: str
@@ -44,6 +48,7 @@ class MeterResponse(pydantic.BaseModel):
 
 class IncidentResponse(pydantic.BaseModel):
     """Incident data."""
+
     id: str
     anomaly_id: str
     status: str
@@ -55,11 +60,13 @@ class IncidentResponse(pydantic.BaseModel):
 
 class IncidentActionRequest(pydantic.BaseModel):
     """Payload for acknowledging or dismissing an incident."""
+
     reason: str | None = pydantic.Field(default=None, max_length=1000)
 
 
 class EvidenceResponse(pydantic.BaseModel):
     """Evidence record data."""
+
     id: str
     incident_id: str
     computation_log: str
@@ -68,6 +75,7 @@ class EvidenceResponse(pydantic.BaseModel):
 
 class AuditEventResponse(pydantic.BaseModel):
     """Audit event data."""
+
     id: str
     entity_type: str
     entity_id: str
@@ -78,6 +86,7 @@ class AuditEventResponse(pydantic.BaseModel):
 
 class ImportSummaryResponse(pydantic.BaseModel):
     """Result of a CSV import."""
+
     total_rows: int
     accepted_rows: int
     rejected_rows: int
@@ -95,6 +104,7 @@ class ImportSummaryResponse(pydantic.BaseModel):
 
 class ImportBatchResponse(pydantic.BaseModel):
     """Import batch status."""
+
     id: str
     source_id: str
     status: str
@@ -104,6 +114,7 @@ class ImportBatchResponse(pydantic.BaseModel):
 
 class QualityResponse(pydantic.BaseModel):
     """Data quality assessment."""
+
     meter_id: str
     period_start: str
     period_end: str
@@ -120,6 +131,7 @@ class QualityResponse(pydantic.BaseModel):
 
 class DecisionEvaluateRequest(pydantic.BaseModel):
     """Request body for the decision evaluation endpoint."""
+
     decision: TransparentDecisionRequest
     supersedes: str | None = None
     supersession_reason: str | None = pydantic.Field(default=None, max_length=1000)
@@ -127,6 +139,7 @@ class DecisionEvaluateRequest(pydantic.BaseModel):
 
 class DecisionEvaluateResponse(pydantic.BaseModel):
     """Response from the decision evaluation endpoint."""
+
     decision_id: str
     result: TransparentDecisionResult
 
@@ -138,6 +151,7 @@ class DecisionHistoryItem(pydantic.BaseModel):
     supersession-chain endpoints; they default to False/None for callers
     that construct the model directly.
     """
+
     id: str
     status: str
     precedence: str
@@ -153,6 +167,7 @@ class DecisionHistoryItem(pydantic.BaseModel):
 
 class DecisionRecordResponse(DecisionHistoryItem):
     """Full record for a single decision."""
+
     input_fingerprint: str
     config_fingerprint: str
     request: dict
@@ -171,6 +186,7 @@ class DecisionVerifyResponse(pydantic.BaseModel):
     means the outcome matches *by coincidence* under different engine code,
     and the caller should treat the result with caution.
     """
+
     verified: bool
     stored_input_fingerprint: str
     computed_input_fingerprint: str
@@ -196,12 +212,15 @@ class SupersessionChainResponse(pydantic.BaseModel):
     legacy data whose parent has multiple successors, so no branch is silently
     omitted from the response.
     """
+
     decision_id: str
     chain: list[DecisionHistoryItem]
     branches: list[DecisionHistoryItem] = pydantic.Field(default_factory=list)
 
+
 class DecisionStats(pydantic.BaseModel):
     """Aggregate decision metrics for the Overview section."""
+
     total: int
     approved: int
     rejected: int
@@ -212,6 +231,7 @@ class DecisionStats(pydantic.BaseModel):
 
 class ConstraintHeadroom(pydantic.BaseModel):
     """Headroom picture for one observed value against one physical limit."""
+
     physical_capacity_kw: float
     permitted_kw: float
     observed_kw: float
@@ -226,6 +246,7 @@ class EngineeringSummary(pydantic.BaseModel):
     All numbers are computed server-side from the decision's persisted
     evidence. The frontend renders them verbatim.
     """
+
     pue: float
     pue_provenance: str
     current_it_load_kw: float
@@ -239,6 +260,7 @@ class EngineeringSummary(pydantic.BaseModel):
     current_cooling: ConstraintHeadroom
     predicted_cooling: ConstraintHeadroom
 
+
 class ScenarioCreateRequest(pydantic.BaseModel):
     """Inputs for a hypothetical scenario evaluation.
 
@@ -246,6 +268,7 @@ class ScenarioCreateRequest(pydantic.BaseModel):
     predicted loads with ``REJECT / invalid_proposal`` rather than 400 —
     the caller sees the classification.
     """
+
     name: str = pydantic.Field(min_length=1, max_length=200)
     config: ConstraintConfig
     config_version: str = pydantic.Field(default="", max_length=100)
@@ -254,9 +277,7 @@ class ScenarioCreateRequest(pydantic.BaseModel):
     # Standard PUE definition: facility power / IT power, so never below 1.
     pue: float = pydantic.Field(ge=1.0, le=10.0, allow_inf_nan=False)
     proposed_it_delta_kw: float = pydantic.Field(default=0.0, allow_inf_nan=False)
-    proposed_cooling_delta_kw: float = pydantic.Field(
-        default=0.0, allow_inf_nan=False
-    )
+    proposed_cooling_delta_kw: float = pydantic.Field(default=0.0, allow_inf_nan=False)
     it_source: MeasurementSource = MeasurementSource.ASSUMED
     cooling_source: MeasurementSource = MeasurementSource.ASSUMED
     pue_source: MeasurementSource = MeasurementSource.ASSUMED
@@ -265,6 +286,7 @@ class ScenarioCreateRequest(pydantic.BaseModel):
 
 class ScenarioHistoryItem(pydantic.BaseModel):
     """Lightweight view of a stored scenario."""
+
     id: str
     name: str
     created_at: str
@@ -277,6 +299,7 @@ class ScenarioHistoryItem(pydantic.BaseModel):
 
 class ScenarioRecordResponse(ScenarioHistoryItem):
     """Full record for one scenario."""
+
     input_fingerprint: str
     config_fingerprint: str
     inputs: dict
@@ -286,6 +309,7 @@ class ScenarioRecordResponse(ScenarioHistoryItem):
 
 class ScenarioEvaluateResponse(pydantic.BaseModel):
     """Response from the scenario evaluation endpoint."""
+
     scenario_id: str
     decision_id: str | None
     result: TransparentDecisionResult
@@ -293,6 +317,7 @@ class ScenarioEvaluateResponse(pydantic.BaseModel):
 
 class ScenarioVerifyResponse(pydantic.BaseModel):
     """Verification result for one scenario."""
+
     verified: bool
     output_verified: bool
     stored_input_fingerprint: str
@@ -305,7 +330,8 @@ class ScenarioVerifyResponse(pydantic.BaseModel):
     verification_scope: str
     full_bundle_reproduced: bool
 
+
 class ScenarioComparisonRequest(pydantic.BaseModel):
     """Request body for multi-scenario comparison."""
-    scenario_ids: list[str] = pydantic.Field(min_length=2, max_length=10)
 
+    scenario_ids: list[str] = pydantic.Field(min_length=2, max_length=10)

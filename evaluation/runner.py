@@ -26,8 +26,7 @@ def seed_metadata(conn: sqlite3.Connection, now: str = "2026-01-01T00:00:00Z") -
     )
     for b in range(1, 6):
         conn.execute(
-            "INSERT INTO buildings (id, org_id, name, created_at) "
-            "VALUES (?, 'o1', 'Bldg', ?)",
+            "INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, 'o1', 'Bldg', ?)",
             (f"b{b}", now),
         )
         for m in range(1, 3):
@@ -181,8 +180,7 @@ def run_evaluation() -> None:
         f.write(f"- F1 Score: {detection_metrics['f1']}\n")
         f.write(f"- PR-AUC: {detection_metrics['pr_auc']}\n")
         f.write(
-            "- False Alerts / Bldg / Week: "
-            f"{detection_metrics['false_alerts_per_bldg_week']}\n\n"
+            f"- False Alerts / Bldg / Week: {detection_metrics['false_alerts_per_bldg_week']}\n\n"
         )
         f.write("## Verification\n")
         f.write("- Meter: m1-1 (synthetic 30% reduction intervention)\n")

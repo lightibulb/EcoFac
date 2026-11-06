@@ -23,9 +23,7 @@ def test_scenario_ground_truth_reconciles(scenario, tmp_path):
         seed=42,
     )
 
-    rows = list(
-        csv.DictReader((scenario_dir / "data.csv").open(encoding="utf-8"))
-    )
+    rows = list(csv.DictReader((scenario_dir / "data.csv").open(encoding="utf-8")))
     present = {(r["meter_id"], r["timestamp"]) for r in rows}
     gt = json.loads((scenario_dir / "ground_truth.json").read_text(encoding="utf-8"))
 
@@ -47,9 +45,7 @@ def test_scenario_quality_schema(scenario, tmp_path):
         buildings=2,
         seed=42,
     )
-    quality = json.loads(
-        (scenario_dir / "quality_ground_truth.json").read_text(encoding="utf-8")
-    )
+    quality = json.loads((scenario_dir / "quality_ground_truth.json").read_text(encoding="utf-8"))
     assert set(quality) == {"duplicates", "missing", "stale_readings"}
 
 
@@ -68,9 +64,7 @@ def test_scenario_reproducible(scenario, tmp_path):
         filename=str(b_dir / "data.csv"), scenario=scenario, days=3, buildings=1, seed=7
     )
     assert (a_dir / "data.csv").read_text() == (b_dir / "data.csv").read_text()
-    assert (
-        first["exact_injected_anomalies"] == second["exact_injected_anomalies"]
-    )
+    assert first["exact_injected_anomalies"] == second["exact_injected_anomalies"]
 
 
 def test_unknown_scenario_rejected(tmp_path):
@@ -90,7 +84,5 @@ def test_classic_default_preserved(tmp_path):
     a_dir.mkdir()
     b_dir.mkdir()
     generate_data(filename=str(a_dir / "data.csv"), days=2, seed=42)
-    generate_data(
-        filename=str(b_dir / "data.csv"), scenario="classic", days=2, seed=42
-    )
+    generate_data(filename=str(b_dir / "data.csv"), scenario="classic", days=2, seed=42)
     assert (a_dir / "data.csv").read_text() == (b_dir / "data.csv").read_text()

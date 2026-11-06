@@ -44,10 +44,7 @@ def main() -> int:
         conn = get_connection(str(db_path))
         init_db(conn)
         tables = {
-            row["name"]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            row["name"] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
         required = {
             "organizations",

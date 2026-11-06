@@ -25,11 +25,21 @@ REQUIRED_SCHEMA: dict[str, tuple[str, ...]] = {
     "organizations": ("id", "name", "created_at"),
     "buildings": ("id", "org_id", "name", "created_at"),
     "meters": (
-        "id", "building_id", "fuel_type", "unit", "interval_minutes",
-        "role", "relative_tolerance",
+        "id",
+        "building_id",
+        "fuel_type",
+        "unit",
+        "interval_minutes",
+        "role",
+        "relative_tolerance",
     ),
     "energy_readings": (
-        "id", "meter_id", "timestamp_utc", "value", "unit", "is_valid",
+        "id",
+        "meter_id",
+        "timestamp_utc",
+        "value",
+        "unit",
+        "is_valid",
     ),
     "anomalies": ("id", "meter_id", "timestamp_utc", "detector_name"),
     "incidents": ("id", "anomaly_id", "status"),
@@ -82,6 +92,7 @@ def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(schema_sql)
     _apply_additive_columns(conn)
     _apply_migrations(conn)
+
 
 def _apply_migrations(conn: sqlite3.Connection) -> None:
     conn.execute("""
@@ -151,11 +162,7 @@ def check_schema(conn: sqlite3.Connection) -> list[str]:
         if not existing:
             problems.append(f"missing table: {table}")
             continue
-        problems.extend(
-            f"missing column: {table}.{col}"
-            for col in columns
-            if col not in existing
-        )
+        problems.extend(f"missing column: {table}.{col}" for col in columns if col not in existing)
     return problems
 
 

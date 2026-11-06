@@ -43,23 +43,31 @@ def _make_record(
     req = TransparentDecisionRequest(
         config=ConstraintConfig(
             electrical=ElectricalLimits(
-                capacity=cap, reserve_pct=reserve,
+                capacity=cap,
+                reserve_pct=reserve,
             ),
             cooling=CoolingLimits(
-                capacity=cool_cap, reserve_pct=cool_reserve,
+                capacity=cool_cap,
+                reserve_pct=cool_reserve,
             ),
         ),
         config_version=config_version,
         it_load=RichMeasurement(
-            name="it_load", value=it, unit="kW",
+            name="it_load",
+            value=it,
+            unit="kW",
             source=MeasurementSource.ASSUMED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=cool, unit="kW",
+            name="cooling_load",
+            value=cool,
+            unit="kW",
             source=MeasurementSource.ASSUMED,
         ),
         pue=RichMeasurement(
-            name="pue", value=pue, unit="dimensionless",
+            name="pue",
+            value=pue,
+            unit="dimensionless",
             source=MeasurementSource.ASSUMED,
         ),
         proposed_it_delta=proposed_it,
@@ -124,8 +132,13 @@ def test_bottleneck_reject_reserve():
 
 def test_bottleneck_most_restrictive_electrical():
     record = _make_record(
-        it=850.0, pue=1.0, cap=1000.0, reserve=0.10,
-        cool=100.0, cool_cap=800.0, cool_reserve=0.10,
+        it=850.0,
+        pue=1.0,
+        cap=1000.0,
+        reserve=0.10,
+        cool=100.0,
+        cool_cap=800.0,
+        cool_reserve=0.10,
     )
     report = detect_bottlenecks(record)
     assert report.most_restrictive_constraint == "electrical"
@@ -227,9 +240,7 @@ def test_sensitivity_has_all_parameters():
 def test_sensitivity_it_load_change_detected():
     record = _make_record(it=850.0, pue=1.0, cap=1000.0)
     result = analyze_sensitivity(record)
-    it_param = next(
-        p for p in result.parameters if p.parameter == "it_load_kw"
-    )
+    it_param = next(p for p in result.parameters if p.parameter == "it_load_kw")
     assert it_param.verdict_changed is True
     assert any(s.status == "REJECT" for s in it_param.steps)
 
@@ -243,14 +254,9 @@ def test_sensitivity_pue_change_detected():
 
 
 def test_sensitivity_reserve_sweep_additive():
-    record = _make_record(
-        it=850.0, pue=1.0, cap=1000.0, reserve=0.10
-    )
+    record = _make_record(it=850.0, pue=1.0, cap=1000.0, reserve=0.10)
     result = analyze_sensitivity(record)
-    reserve_param = next(
-        p for p in result.parameters
-        if p.parameter == "electrical_reserve_pct"
-    )
+    reserve_param = next(p for p in result.parameters if p.parameter == "electrical_reserve_pct")
     assert reserve_param.baseline_value == 0.10
     step_values = [s.value for s in reserve_param.steps]
     assert 0.05 in step_values
@@ -270,6 +276,7 @@ def test_sensitivity_each_sweep_has_expected_step_count():
     for param in result.parameters:
         assert len(param.steps) <= 5
         assert len(param.steps) >= 1
+
 
 def test_comparison_rejects_duplicate_ids():
     a = _make_record(record_id="same-id")

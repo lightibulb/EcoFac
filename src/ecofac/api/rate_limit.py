@@ -84,9 +84,7 @@ class RateLimiter:
         with self._lock:
             if len(self._buckets) > MAX_RATE_LIMIT_BUCKETS:
                 cutoff = now - (self.window_seconds * 2)
-                self._buckets = {
-                    k: b for k, b in self._buckets.items() if b.window_start > cutoff
-                }
+                self._buckets = {k: b for k, b in self._buckets.items() if b.window_start > cutoff}
             bucket = self._buckets.get(key)
             if bucket is None or (now - bucket.window_start) >= self.window_seconds:
                 self._buckets[key] = _Bucket(count=1, window_start=now)
@@ -125,9 +123,7 @@ def is_rate_limit_enabled() -> bool:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Return 429 when a client exceeds the in-process rate limit."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         if not is_rate_limit_enabled():
             return await call_next(request)
         allowed, retry_after = _limiter.check(request)
@@ -138,3 +134,60 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 headers={"Retry-After": str(retry_after)},
             )
         return await call_next(request)
+
+
+# --- ECOFAC RATE LIMIT TOKEN VALIDATION FIX START ---
+
+
+def _ecofac_secure_rate_limiter() -> None:
+    import hmac  # noqa: PLC0415
+    import os  # noqa: PLC0415
+
+    if getattr(RateLimiter, "ecofac_secure_wrapped", False):
+        return
+
+    original_check = RateLimiter.check
+
+    def _token_is_valid(token: str) -> bool:
+        expected = os.getenv("ECOFAC_WRITE_TOKEN", "")
+        if not expected or not token:
+            return False
+        return hmac.compare_digest(token, expected)
+
+    def _without_token_header(request: object) -> object:
+        headers = getattr(request, "headers", {}) or {}
+        cleaned = {
+            key: value
+            for key, value in dict(headers).items()
+            if str(key).lower() != "x-ecofac-token"
+        }
+
+        class _StrippedRequest:
+            def __init__(self, base: object, clean_headers: dict) -> None:
+                self.method = getattr(base, "method", "GET")
+                self.client = getattr(base, "client", None)
+                self.url = getattr(base, "url", None)
+                self.scope = getattr(base, "scope", {})
+                self.headers = clean_headers
+
+        return _StrippedRequest(request, cleaned)
+
+    def check(self: object, request: object) -> tuple[bool, int]:
+        headers = getattr(request, "headers", {}) or {}
+        token = ""
+
+        if hasattr(headers, "get"):
+            token = headers.get("X-EcoFac-Token") or headers.get("x-ecofac-token")
+            token = token or ""
+
+        if token and not _token_is_valid(token):
+            return original_check(self, _without_token_header(request))
+
+        return original_check(self, request)
+
+    RateLimiter.check = check
+    RateLimiter.ecofac_secure_wrapped = True
+
+
+_ecofac_secure_rate_limiter()
+# --- ECOFAC RATE LIMIT TOKEN VALIDATION FIX END ---

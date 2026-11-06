@@ -101,9 +101,7 @@ def persist_decision(
 
     def _do() -> str:
         if supersedes is not None:
-            parent = conn.execute(
-                "SELECT 1 FROM decisions WHERE id = ?", (supersedes,)
-            ).fetchone()
+            parent = conn.execute("SELECT 1 FROM decisions WHERE id = ?", (supersedes,)).fetchone()
             if parent is None:
                 msg = f"Superseded decision {supersedes} does not exist"
                 raise ValueError(msg)
@@ -112,10 +110,7 @@ def persist_decision(
                 (supersedes,),
             ).fetchone()
             if existing_child is not None:
-                msg = (
-                    f"Decision {supersedes} is already superseded by "
-                    f"{existing_child['id']}"
-                )
+                msg = f"Decision {supersedes} is already superseded by {existing_child['id']}"
                 raise ValueError(msg)
         _register_config(conn, request, config_fp)
         conn.execute(
@@ -126,38 +121,46 @@ def persist_decision(
             "supersession_reason) "
             "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
-                decision_id, result.status, result.precedence,
-                result.engine_version, result.config_version,
+                decision_id,
+                result.status,
+                result.precedence,
+                result.engine_version,
+                result.config_version,
                 result.fingerprint.input_fingerprint,
                 result.fingerprint.config_fingerprint,
-                request_json, result_json, result.decision_timestamp,
-                now_z(), supersedes, supersession_reason,
+                request_json,
+                result_json,
+                result.decision_timestamp,
+                now_z(),
+                supersedes,
+                supersession_reason,
             ),
         )
         _log_audit(
-            conn, "DECISION", decision_id, "DECISION_CREATED",
+            conn,
+            "DECISION",
+            decision_id,
+            "DECISION_CREATED",
             f"status={result.status} precedence={result.precedence} "
             f"config_version={result.config_version} "
             f"supersedes={supersedes or 'none'}",
         )
         if supersedes is not None:
             _log_audit(
-                conn, "DECISION", supersedes, "DECISION_SUPERSEDED",
-                f"superseded_by={decision_id} "
-                f"reason={supersession_reason or 'none'}",
+                conn,
+                "DECISION",
+                supersedes,
+                "DECISION_SUPERSEDED",
+                f"superseded_by={decision_id} reason={supersession_reason or 'none'}",
             )
         return decision_id
 
     return persist_atomically(conn, _do)
 
 
-def get_decision(
-    conn: sqlite3.Connection, decision_id: str
-) -> dict | None:
+def get_decision(conn: sqlite3.Connection, decision_id: str) -> dict | None:
     """Return the full record for one decision, or None."""
-    row = conn.execute(
-        "SELECT * FROM decisions WHERE id = ?", (decision_id,)
-    ).fetchone()
+    row = conn.execute("SELECT * FROM decisions WHERE id = ?", (decision_id,)).fetchone()
     if row is None:
         return None
     return {
@@ -177,9 +180,7 @@ def get_decision(
     }
 
 
-def _filter_clause(
-    status: str | None, config_version: str | None
-) -> tuple[str, list[object]]:
+def _filter_clause(status: str | None, config_version: str | None) -> tuple[str, list[object]]:
     """Return (WHERE-clause-fragment, params) for the two optional filters."""
     sql = " WHERE 1=1"
     params: list[object] = []
@@ -200,9 +201,7 @@ def count_decisions(
 ) -> int:
     """Count decisions matching the given filters. Bounded single query."""
     clause, params = _filter_clause(status, config_version)
-    row = conn.execute(
-        f"SELECT count(*) AS c FROM decisions{clause}", params
-    ).fetchone()
+    row = conn.execute(f"SELECT count(*) AS c FROM decisions{clause}", params).fetchone()
     return int(row["c"])
 
 
@@ -216,17 +215,12 @@ def list_decisions(
 ) -> list[sqlite3.Row]:
     """Return stored decisions, newest first, with optional filters."""
     clause, params = _filter_clause(status, config_version)
-    sql = (
-        f"SELECT * FROM decisions{clause} "
-        "ORDER BY created_at DESC, id LIMIT ? OFFSET ?"
-    )
+    sql = f"SELECT * FROM decisions{clause} ORDER BY created_at DESC, id LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     return conn.execute(sql, params).fetchall()
 
 
-def batch_supersession_info(
-    conn: sqlite3.Connection, decision_ids: list[str]
-) -> dict[str, str]:
+def batch_supersession_info(conn: sqlite3.Connection, decision_ids: list[str]) -> dict[str, str]:
     """Return {parent_id: successor_id} for parents that have a successor.
 
     If legacy data has multiple successors for one parent, the earliest wins;
@@ -249,9 +243,7 @@ def batch_supersession_info(
     return result
 
 
-def verify_decision(
-    conn: sqlite3.Connection, decision_id: str
-) -> dict | None:
+def verify_decision(conn: sqlite3.Connection, decision_id: str) -> dict | None:
     """Recompute and verify both the fingerprints AND the top-level outcome.
 
     Scope is explicitly ``VERIFICATION_SCOPE`` — inputs, config, and the
@@ -281,9 +273,7 @@ def verify_decision(
     # way the wall clock never decides whether a historical decision verifies.
     replay_request = request
     if request.evaluation_time is None and is_time_dependent(request):
-        pinned = stored_result.get("evaluation_time") or stored_result.get(
-            "decision_timestamp"
-        )
+        pinned = stored_result.get("evaluation_time") or stored_result.get("decision_timestamp")
         if pinned:
             replay_request = request.model_copy(update={"evaluation_time": pinned})
     recomputed = decide_transparently(replay_request)
@@ -324,18 +314,14 @@ def _walk_supersession_impl(
     normally empty because ``persist_decision`` enforces a single-child
     supersession rule. Non-empty branches signal legacy data.
     """
-    present = conn.execute(
-        "SELECT 1 FROM decisions WHERE id = ?", (decision_id,)
-    ).fetchone()
+    present = conn.execute("SELECT 1 FROM decisions WHERE id = ?", (decision_id,)).fetchone()
     if present is None:
         return [], []
 
     root = decision_id
     visited = {decision_id}
     while True:
-        row = conn.execute(
-            "SELECT supersedes FROM decisions WHERE id = ?", (root,)
-        ).fetchone()
+        row = conn.execute("SELECT supersedes FROM decisions WHERE id = ?", (root,)).fetchone()
         if row is None or not row["supersedes"]:
             break
         root = row["supersedes"]
@@ -351,15 +337,12 @@ def _walk_supersession_impl(
 
     while current is not None and current not in down_visited:
         down_visited.add(current)
-        row = conn.execute(
-            "SELECT * FROM decisions WHERE id = ?", (current,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM decisions WHERE id = ?", (current,)).fetchone()
         if row is None:
             break
         chain.append(row)
         children = conn.execute(
-            "SELECT * FROM decisions WHERE supersedes = ? "
-            "ORDER BY created_at, id",
+            "SELECT * FROM decisions WHERE supersedes = ? ORDER BY created_at, id",
             (current,),
         ).fetchall()
         if not children:
@@ -376,8 +359,7 @@ def _walk_supersession_impl(
             continue
         down_visited.add(b_id)
         sub_children = conn.execute(
-            "SELECT * FROM decisions WHERE supersedes = ? "
-            "ORDER BY created_at, id",
+            "SELECT * FROM decisions WHERE supersedes = ? ORDER BY created_at, id",
             (b_id,),
         ).fetchall()
         for child in sub_children:
@@ -387,9 +369,7 @@ def _walk_supersession_impl(
     return chain, branches
 
 
-def walk_supersession_chain(
-    conn: sqlite3.Connection, decision_id: str
-) -> list[sqlite3.Row]:
+def walk_supersession_chain(conn: sqlite3.Connection, decision_id: str) -> list[sqlite3.Row]:
     """Return the primary supersession chain containing ``decision_id``."""
     chain, _ = _walk_supersession_impl(conn, decision_id)
     return chain

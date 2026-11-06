@@ -96,9 +96,7 @@ class CoolingCapacity(pydantic.BaseModel):
 
     capacity_kw: float = pydantic.Field(gt=0)
     safety_margin_pct: float = pydantic.Field(ge=0.0, lt=1.0)
-    heat_conversion_factor: float = pydantic.Field(
-        default=DEFAULT_HEAT_CONVERSION_FACTOR, gt=0.0
-    )
+    heat_conversion_factor: float = pydantic.Field(default=DEFAULT_HEAT_CONVERSION_FACTOR, gt=0.0)
 
 
 class ElectricalState(pydantic.BaseModel):
@@ -188,9 +186,7 @@ def calculate_electrical(
     safety_adjusted_headroom_kw = usable_capacity_kw - facility_power_kw_value
     return ElectricalState(
         it_load_kw=_round_kw(it_load_kw),
-        pue=PUEResult(
-            value=_round_pue(pue.value), source=pue.source, notes=pue.notes
-        ),
+        pue=PUEResult(value=_round_pue(pue.value), source=pue.source, notes=pue.notes),
         facility_power_kw=_round_kw(facility_power_kw_value),
         capacity_kw=_round_kw(capacity.capacity_kw),
         safety_margin_pct=capacity.safety_margin_pct,
@@ -276,9 +272,7 @@ def compute_predicted_state(
         )
         raise ValueError(msg)
     return FacilityState(
-        electrical=calculate_electrical(
-            predicted_it_load_kw, pue, electrical_capacity
-        ),
+        electrical=calculate_electrical(predicted_it_load_kw, pue, electrical_capacity),
         cooling=calculate_cooling(predicted_it_load_kw, cooling_capacity),
     )
 
@@ -291,25 +285,20 @@ def build_report(
     cooling_capacity: CoolingCapacity,
 ) -> CalculationReport:
     """Full report: current state, predicted state, changes, assumptions, formulas."""
-    current = compute_current_state(
-        it_load_kw, pue, electrical_capacity, cooling_capacity
-    )
+    current = compute_current_state(it_load_kw, pue, electrical_capacity, cooling_capacity)
     predicted = compute_predicted_state(
         current, changes, pue, electrical_capacity, cooling_capacity
     )
     formula_log = {
         "facility_power_kw": "facility_power_kw = it_load_kw * pue_value",
-        "physical_headroom_kw": (
-            "physical_headroom_kw = capacity_kw - facility_power_kw"
-        ),
+        "physical_headroom_kw": ("physical_headroom_kw = capacity_kw - facility_power_kw"),
         "safety_adjusted_headroom_kw": (
             "safety_adjusted_headroom_kw = capacity_kw * (1 - safety_margin_pct)"
             " - facility_power_kw"
         ),
         "heat_load_kw": "heat_load_kw = it_load_kw * heat_conversion_factor",
         "predicted_it_load_kw": (
-            "predicted_it_load_kw = current_it_load_kw"
-            " + sum(change.it_load_delta_kw)"
+            "predicted_it_load_kw = current_it_load_kw + sum(change.it_load_delta_kw)"
         ),
     }
     assumptions = [

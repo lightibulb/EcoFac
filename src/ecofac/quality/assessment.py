@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Data quality assessment engine."""
+
 import dataclasses
 import datetime as dt
 import sqlite3
@@ -35,9 +36,7 @@ def meter_interval_minutes(conn: sqlite3.Connection, meter_id: str) -> int:
     assessment of an unregistered meter still runs; trusted-decision
     resolution performs its own strict meter validation.
     """
-    row = conn.execute(
-        "SELECT interval_minutes FROM meters WHERE id = ?", (meter_id,)
-    ).fetchone()
+    row = conn.execute("SELECT interval_minutes FROM meters WHERE id = ?", (meter_id,)).fetchone()
     if row is None or row[0] is None:
         return DEFAULT_INTERVAL_MINUTES
     interval = int(row[0])

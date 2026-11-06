@@ -43,8 +43,7 @@ def conn():
     c.close()
 
 
-def add_meter(conn, meter_id, *, role=None, interval=60, unit="kWh", fuel="elec",
-              tolerance=None):
+def add_meter(conn, meter_id, *, role=None, interval=60, unit="kWh", fuel="elec", tolerance=None):
     conn.execute(
         "INSERT INTO meters (id, building_id, fuel_type, unit, interval_minutes, "
         "role, relative_tolerance, created_at) "
@@ -82,6 +81,7 @@ def resolve(conn, **kw):
 
 
 # ---- energy vs power --------------------------------------------------------
+
 
 @pytest.mark.parametrize(
     ("kwh", "interval", "expected_kw"),
@@ -140,6 +140,7 @@ def test_non_electric_meter_is_incompatible(conn):
 
 # ---- roles ------------------------------------------------------------------
 
+
 def test_wrong_role_is_rejected(conn):
     setup_pair(conn)
     conn.execute("UPDATE meters SET role = 'COOLING' WHERE id = 'it'")
@@ -163,6 +164,7 @@ def test_unclassified_role_is_a_visible_caveat_not_silent(conn):
 
 # ---- references, alignment, freshness --------------------------------------
 
+
 @pytest.mark.parametrize(
     ("it_ref", "cool_ref", "missing"),
     [
@@ -183,7 +185,8 @@ def test_mismatched_timestamps_are_rejected(conn):
     conn.execute(
         "INSERT OR IGNORE INTO energy_readings (id, meter_id, timestamp_utc, value, "
         "unit, source_id, batch_id, is_valid, created_at) VALUES "
-        "('c-prev','cool',?,10,'kWh','s1','ib1',1,?)", (PREV_HOUR, PREV_HOUR),
+        "('c-prev','cool',?,10,'kWh','s1','ib1',1,?)",
+        (PREV_HOUR, PREV_HOUR),
     )
     with pytest.raises(TrustError, match="not aligned"):
         resolve(conn, cooling_ref=("cool", PREV_HOUR))
@@ -215,7 +218,9 @@ def test_missing_and_invalid_readings_are_rejected(conn):
     setup_pair(conn)
     with pytest.raises(TrustError, match="not found"):
         resolve(conn, it_ref=("it", "2026-03-01T09:00:00Z"))
-    conn.execute("UPDATE energy_readings SET is_valid = 0 WHERE meter_id='it' AND timestamp_utc=?", (TS,))
+    conn.execute(
+        "UPDATE energy_readings SET is_valid = 0 WHERE meter_id='it' AND timestamp_utc=?", (TS,)
+    )
     with pytest.raises(TrustError, match="invalid"):
         resolve(conn)
 
@@ -227,6 +232,7 @@ def test_unknown_meter_is_rejected(conn):
 
 
 # ---- quality + tolerance are per measurement and server-derived ------------
+
 
 def test_quality_is_assessed_for_every_measurement(conn):
     setup_pair(conn)
@@ -266,12 +272,17 @@ def test_single_reading_resolver_rejects_unknown_role(conn):
     setup_pair(conn)
     with pytest.raises(TrustError, match="role"):
         resolve_trusted_reading(
-            conn, field="x", role="PUE", meter_id="it", timestamp=TS,
+            conn,
+            field="x",
+            role="PUE",
+            meter_id="it",
+            timestamp=TS,
             evaluation_time=NOW,
         )
 
 
 # ---- server-controlled freshness policy ------------------------------------
+
 
 def test_server_max_age_policy(monkeypatch):
     monkeypatch.delenv("ECOFAC_TRUSTED_MAX_AGE_SECONDS", raising=False)
@@ -284,6 +295,7 @@ def test_server_max_age_policy(monkeypatch):
 
 
 # ---- numeric helpers --------------------------------------------------------
+
 
 @pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf"), True, "1", None])
 def test_require_finite_rejects(bad):

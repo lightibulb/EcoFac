@@ -53,8 +53,14 @@ def db_conn():
 
 def _insert_at(conn, reading_id, ts, value):
     r = EnergyReading(
-        id=reading_id, meter_id="m1", timestamp_utc=ts, value=value,
-        unit="kWh", source_id="s1", batch_id="ib1", is_valid=True,
+        id=reading_id,
+        meter_id="m1",
+        timestamp_utc=ts,
+        value=value,
+        unit="kWh",
+        source_id="s1",
+        batch_id="ib1",
+        is_valid=True,
         created_at="2026-01-01T00:00:00Z",
     )
     insert_reading(conn, r)
@@ -71,9 +77,7 @@ def test_irregular_sampling_uses_time_window(db_conn):
     # 24-hour window: only 12 readings → 12 < 20 → None.
     assert detect_rolling_baseline(db_conn, "m1", "2026-01-03T00:00:00Z") is None
     # 48-hour window: 24 readings → fires.
-    anomaly = detect_rolling_baseline(
-        db_conn, "m1", "2026-01-03T00:00:00Z", window_hours=48
-    )
+    anomaly = detect_rolling_baseline(db_conn, "m1", "2026-01-03T00:00:00Z", window_hours=48)
     assert anomaly is not None
     assert anomaly.observed_consumption == 100.0
 
@@ -89,9 +93,7 @@ def test_insufficient_samples_returns_none(db_conn):
     assert detect_rolling_baseline(db_conn, "m1", "2026-01-02T00:00:00Z") is None
     assert detect_robust_mad(db_conn, "m1", "2026-01-02T00:00:00Z") is None
     # With a lower min_samples the detector will fire.
-    anomaly = detect_rolling_baseline(
-        db_conn, "m1", "2026-01-02T00:00:00Z", min_samples=5
-    )
+    anomaly = detect_rolling_baseline(db_conn, "m1", "2026-01-02T00:00:00Z", min_samples=5)
     assert anomaly is not None
 
 

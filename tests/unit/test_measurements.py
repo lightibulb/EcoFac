@@ -42,17 +42,13 @@ def test_absolute_overrides_relative():
         value=100.0,
         unit="kW",
         source=MeasurementSource.MEASURED,
-        uncertainty=UncertaintyMetadata(
-            absolute_tolerance=5.0, relative_tolerance=0.5
-        ),
+        uncertainty=UncertaintyMetadata(absolute_tolerance=5.0, relative_tolerance=0.5),
     )
     assert m.band() == (95.0, 105.0)
 
 
 def test_no_uncertainty_returns_none_band():
-    m = RichMeasurement(
-        name="x", value=100.0, unit="kW", source=MeasurementSource.MEASURED
-    )
+    m = RichMeasurement(name="x", value=100.0, unit="kW", source=MeasurementSource.MEASURED)
     assert m.band() is None
 
 
@@ -79,9 +75,7 @@ def test_assumed_source():
 
 
 def test_missing_source():
-    m = RichMeasurement(
-        name="it_load", value=None, unit="kW", source=MeasurementSource.MISSING
-    )
+    m = RichMeasurement(name="it_load", value=None, unit="kW", source=MeasurementSource.MISSING)
     assert not m.is_present()
     assert m.band() is None
 
@@ -97,8 +91,6 @@ def test_relative_tolerance_at_one_rejected():
 
 
 def test_frozen_model():
-    m = RichMeasurement(
-        name="x", value=1.0, unit="kW", source=MeasurementSource.MEASURED
-    )
+    m = RichMeasurement(name="x", value=1.0, unit="kW", source=MeasurementSource.MEASURED)
     with pytest.raises(pydantic.ValidationError):
         m.value = 2.0

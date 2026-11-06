@@ -41,8 +41,7 @@ def _post(client, content, batch="ib-x", source="src-x", **params):
 
 def _snapshot(db):
     return {
-        table: db.execute(f"SELECT count(*) AS c FROM {table}").fetchone()["c"]
-        for table in TABLES
+        table: db.execute(f"SELECT count(*) AS c FROM {table}").fetchone()["c"] for table in TABLES
     }
 
 

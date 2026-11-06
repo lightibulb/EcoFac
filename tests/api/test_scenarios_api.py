@@ -278,6 +278,4 @@ def test_append_only_scenarios(client, test_db):
             (scenario_id,),
         )
     with pytest.raises(sqlite3.DatabaseError, match="append-only"):
-        test_db.execute(
-            "DELETE FROM scenarios WHERE id = ?", (scenario_id,)
-        )
+        test_db.execute("DELETE FROM scenarios WHERE id = ?", (scenario_id,))

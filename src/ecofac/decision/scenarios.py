@@ -83,9 +83,7 @@ def validate_scenario_numerics(
         ("electrical", "min_headroom"),
         ("cooling", "min_headroom"),
     ):
-        checks.append(
-            (f"config.{section}.{key}", config_dump[section][key])
-        )
+        checks.append((f"config.{section}.{key}", config_dump[section][key]))
     for path, value in checks:
         if isinstance(value, bool) or not isinstance(value, int | float):
             msg = f"Scenario {path} must be a number (got {value!r})"
@@ -240,13 +238,9 @@ def evaluate_and_persist_scenario(
     return scenario_id, decision_id, result
 
 
-def get_scenario(
-    conn: sqlite3.Connection, scenario_id: str
-) -> dict | None:
+def get_scenario(conn: sqlite3.Connection, scenario_id: str) -> dict | None:
     """Return the full record for one scenario, or None."""
-    row = conn.execute(
-        "SELECT * FROM scenarios WHERE id = ?", (scenario_id,)
-    ).fetchone()
+    row = conn.execute("SELECT * FROM scenarios WHERE id = ?", (scenario_id,)).fetchone()
     if row is None:
         return None
     return {
@@ -266,9 +260,7 @@ def get_scenario(
     }
 
 
-def _scenario_filter(
-    status: str | None, config_version: str | None
-) -> tuple[str, list[object]]:
+def _scenario_filter(status: str | None, config_version: str | None) -> tuple[str, list[object]]:
     sql = " WHERE 1=1"
     params: list[object] = []
     if status is not None:
@@ -288,9 +280,7 @@ def count_scenarios(
 ) -> int:
     """Count scenarios matching the filters."""
     clause, params = _scenario_filter(status, config_version)
-    row = conn.execute(
-        f"SELECT count(*) AS c FROM scenarios{clause}", params
-    ).fetchone()
+    row = conn.execute(f"SELECT count(*) AS c FROM scenarios{clause}", params).fetchone()
     return int(row["c"])
 
 
@@ -304,17 +294,12 @@ def list_scenarios(
 ) -> list[sqlite3.Row]:
     """List scenarios newest first, with optional filters."""
     clause, params = _scenario_filter(status, config_version)
-    sql = (
-        f"SELECT * FROM scenarios{clause} "
-        "ORDER BY created_at DESC, id LIMIT ? OFFSET ?"
-    )
+    sql = f"SELECT * FROM scenarios{clause} ORDER BY created_at DESC, id LIMIT ? OFFSET ?"
     params.extend([limit, offset])
     return conn.execute(sql, params).fetchall()
 
 
-def verify_scenario(
-    conn: sqlite3.Connection, scenario_id: str
-) -> dict | None:
+def verify_scenario(conn: sqlite3.Connection, scenario_id: str) -> dict | None:
     """Recompute fingerprints and re-run the engine on stored inputs."""
     row = conn.execute(
         "SELECT input_json, config_json, result_json, "
@@ -332,12 +317,8 @@ def verify_scenario(
             "config_version": "verify-tmp",
         }
     )
-    computed_input = compute_fingerprint(
-        build_input_payload(request)
-    )
-    computed_config = compute_fingerprint(
-        build_config_payload(request)
-    )
+    computed_input = compute_fingerprint(build_input_payload(request))
+    computed_config = compute_fingerprint(build_config_payload(request))
 
     input_verified = computed_input == row["input_fingerprint"]
     config_verified = computed_config == row["config_fingerprint"]
@@ -349,14 +330,10 @@ def verify_scenario(
         and stored_result.get("precedence") == recomputed.precedence
     )
 
-    engine_version_match = (
-        row["engine_version"] == CURRENT_ENGINE_VERSION
-    )
+    engine_version_match = row["engine_version"] == CURRENT_ENGINE_VERSION
 
     return {
-        "verified": (
-            input_verified and config_verified and output_verified
-        ),
+        "verified": (input_verified and config_verified and output_verified),
         "output_verified": output_verified,
         "stored_input_fingerprint": row["input_fingerprint"],
         "computed_input_fingerprint": computed_input,

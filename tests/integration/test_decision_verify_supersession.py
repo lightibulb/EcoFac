@@ -47,11 +47,15 @@ def _req(it=400.0) -> TransparentDecisionRequest:
         config=_config(),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=it, unit="kW",
+            name="it_load",
+            value=it,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
+            name="cooling_load",
+            value=300.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         quality_eligible=True,
@@ -95,15 +99,21 @@ def test_supersession_rejects_second_child(db_conn):
     req_b = _req(it=500.0)
     result_b = decide_transparently(req_b)
     persist_decision(
-        db_conn, req_b, result_b,
-        supersedes=id_a, supersession_reason="first",
+        db_conn,
+        req_b,
+        result_b,
+        supersedes=id_a,
+        supersession_reason="first",
     )
     req_c = _req(it=600.0)
     result_c = decide_transparently(req_c)
     with pytest.raises(ValueError, match="already superseded"):
         persist_decision(
-            db_conn, req_c, result_c,
-            supersedes=id_a, supersession_reason="second",
+            db_conn,
+            req_c,
+            result_c,
+            supersedes=id_a,
+            supersession_reason="second",
         )
 
 
@@ -113,8 +123,11 @@ def test_supersession_chain_with_legacy_branches(db_conn):
     req_b = _req(it=500.0)
     result_b = decide_transparently(req_b)
     id_b = persist_decision(
-        db_conn, req_b, result_b,
-        supersedes=id_a, supersession_reason="first",
+        db_conn,
+        req_b,
+        result_b,
+        supersedes=id_a,
+        supersession_reason="first",
     )
     id_c = str(uuid.uuid4())
     req_c = _req(it=600.0)
@@ -126,15 +139,19 @@ def test_supersession_chain_with_legacy_branches(db_conn):
         "decision_timestamp, created_at, supersedes, supersession_reason) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
-            id_c, result_c.status, result_c.precedence,
-            result_c.engine_version, result_c.config_version,
+            id_c,
+            result_c.status,
+            result_c.precedence,
+            result_c.engine_version,
+            result_c.config_version,
             result_c.fingerprint.input_fingerprint,
             result_c.fingerprint.config_fingerprint,
             json.dumps(req_c.model_dump(mode="json"), sort_keys=True),
             json.dumps(result_c.model_dump(mode="json"), sort_keys=True),
             result_c.decision_timestamp,
             "9999-01-01T00:00:00Z",
-            id_a, "second",
+            id_a,
+            "second",
         ),
     )
     chain, branches = walk_supersession_chain_with_branches(db_conn, id_b)
@@ -144,9 +161,7 @@ def test_supersession_chain_with_legacy_branches(db_conn):
 
 def test_verify_engine_version_mismatch(db_conn, monkeypatch):
     did = _persist(db_conn, _req())
-    monkeypatch.setattr(
-        "ecofac.decision.store.CURRENT_ENGINE_VERSION", "0.9"
-    )
+    monkeypatch.setattr("ecofac.decision.store.CURRENT_ENGINE_VERSION", "0.9")
     v = verify_decision(db_conn, did)
     assert v is not None
     assert v["engine_version_match"] is False

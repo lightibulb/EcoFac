@@ -75,9 +75,7 @@ def _persist(conn, request):
 def test_decisions_table_exists(db_conn):
     tables = {
         row["name"]
-        for row in db_conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        ).fetchall()
+        for row in db_conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
     }
     assert "decisions" in tables
     assert "decision_configs" in tables
@@ -86,9 +84,7 @@ def test_decisions_table_exists(db_conn):
 def test_append_only_update_blocked(db_conn):
     did = _persist(db_conn, _request())
     with pytest.raises(sqlite3.DatabaseError, match="append-only"):
-        db_conn.execute(
-            "UPDATE decisions SET status = 'REJECT' WHERE id = ?", (did,)
-        )
+        db_conn.execute("UPDATE decisions SET status = 'REJECT' WHERE id = ?", (did,))
 
 
 def test_append_only_delete_blocked(db_conn):
@@ -122,7 +118,9 @@ def test_persist_decision_rejects_missing_supersedes(db_conn):
     result = decide_transparently(request)
     with pytest.raises(ValueError, match="does not exist"):
         persist_decision(
-            db_conn, request, result,
+            db_conn,
+            request,
+            result,
             supersedes="missing",
             supersession_reason="rebalance",
         )
@@ -134,7 +132,9 @@ def test_persist_decision_requires_supersession_reason(db_conn):
     result = decide_transparently(request)
     with pytest.raises(ValueError, match="supersession_reason is required"):
         persist_decision(
-            db_conn, request, result,
+            db_conn,
+            request,
+            result,
             supersedes=did,
             supersession_reason="   ",
         )
@@ -154,13 +154,10 @@ def test_persist_decision_creates_audit_event(db_conn):
 def test_config_registered_once(db_conn):
     _persist(db_conn, _request())
     _persist(db_conn, _request())
-    count = db_conn.execute(
-        "SELECT count(*) AS c FROM decision_configs"
-    ).fetchone()["c"]
+    count = db_conn.execute("SELECT count(*) AS c FROM decision_configs").fetchone()["c"]
     assert count == 1
     events = db_conn.execute(
-        "SELECT count(*) AS c FROM audit_events "
-        "WHERE action = 'CONFIG_REGISTERED'"
+        "SELECT count(*) AS c FROM audit_events WHERE action = 'CONFIG_REGISTERED'"
     ).fetchone()["c"]
     assert events == 1
 
@@ -168,9 +165,7 @@ def test_config_registered_once(db_conn):
 def test_config_registered_for_new_version(db_conn):
     _persist(db_conn, _request(config_version="cfg-1"))
     _persist(db_conn, _request(config_version="cfg-2"))
-    count = db_conn.execute(
-        "SELECT count(*) AS c FROM decision_configs"
-    ).fetchone()["c"]
+    count = db_conn.execute("SELECT count(*) AS c FROM decision_configs").fetchone()["c"]
     # Same shape but different fingerprint only if capacities differ — same
     # capacities mean identical fingerprint. Only config_version string differs,
     # but the fingerprint hashes only the config payload (capacity, reserve).
@@ -183,14 +178,20 @@ def test_supersession_chain_linear(db_conn):
     request_b = _request()
     result_b = decide_transparently(request_b)
     id_b = persist_decision(
-        db_conn, request_b, result_b,
-        supersedes=id_a, supersession_reason="rebalance",
+        db_conn,
+        request_b,
+        result_b,
+        supersedes=id_a,
+        supersession_reason="rebalance",
     )
     request_c = _request()
     result_c = decide_transparently(request_c)
     id_c = persist_decision(
-        db_conn, request_c, result_c,
-        supersedes=id_b, supersession_reason="final",
+        db_conn,
+        request_c,
+        result_c,
+        supersedes=id_b,
+        supersession_reason="final",
     )
     chain = walk_supersession_chain(db_conn, id_b)
     ids = [row["id"] for row in chain]
@@ -206,8 +207,11 @@ def test_supersession_emits_supersede_audit(db_conn):
     request_b = _request()
     result_b = decide_transparently(request_b)
     persist_decision(
-        db_conn, request_b, result_b,
-        supersedes=id_a, supersession_reason="refresh",
+        db_conn,
+        request_b,
+        result_b,
+        supersedes=id_a,
+        supersession_reason="refresh",
     )
     actions = [
         row["action"]
@@ -223,10 +227,7 @@ def test_verify_decision_returns_true_for_legit(db_conn):
     verification = verify_decision(db_conn, did)
     assert verification is not None
     assert verification["verified"] is True
-    assert (
-        verification["stored_input_fingerprint"]
-        == verification["computed_input_fingerprint"]
-    )
+    assert verification["stored_input_fingerprint"] == verification["computed_input_fingerprint"]
 
 
 def test_verify_decision_returns_none_for_missing(db_conn):
@@ -262,8 +263,8 @@ def test_list_decisions_newest_first(db_conn):
 
 
 def test_list_decisions_filter_by_status(db_conn):
-    _persist(db_conn, _request(it_value=400.0))      # APPROVE
-    _persist(db_conn, _request(it_value=1100.0))     # REJECT
+    _persist(db_conn, _request(it_value=400.0))  # APPROVE
+    _persist(db_conn, _request(it_value=1100.0))  # REJECT
     rows = list_decisions(db_conn, status="REJECT")
     assert len(rows) == 1
     assert rows[0]["status"] == "REJECT"
@@ -284,6 +285,4 @@ def test_list_decisions_pagination(db_conn):
     page2 = list_decisions(db_conn, limit=2, offset=2)
     assert len(page1) == 2
     assert len(page2) == 2
-    assert {row["id"] for row in page1}.isdisjoint(
-        {row["id"] for row in page2}
-    )
+    assert {row["id"] for row in page1}.isdisjoint({row["id"] for row in page2})

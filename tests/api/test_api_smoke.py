@@ -82,10 +82,7 @@ def test_api_smoke_sequence(client):
 
     # 11. Audit endpoint returns the transition
     audit = client.get("/api/v1/audit").json()
-    assert any(
-        a["entity_id"] == incident_id and "TRANSITION" in a["action"]
-        for a in audit
-    )
+    assert any(a["entity_id"] == incident_id and "TRANSITION" in a["action"] for a in audit)
 
     # 12. Dashboard root HTML renders
     html = client.get("/").text

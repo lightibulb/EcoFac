@@ -50,17 +50,13 @@ class UncertaintyMetadata(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(frozen=True)
 
-    absolute_tolerance: float | None = pydantic.Field(
-        default=None, ge=0.0, allow_inf_nan=False
-    )
+    absolute_tolerance: float | None = pydantic.Field(default=None, ge=0.0, allow_inf_nan=False)
     relative_tolerance: float | None = pydantic.Field(
         default=None, ge=0.0, lt=1.0, allow_inf_nan=False
     )
     notes: str | None = None
 
-    def tolerance_band(
-        self, value: float, *, floor: float = 0.0
-    ) -> tuple[float, float] | None:
+    def tolerance_band(self, value: float, *, floor: float = 0.0) -> tuple[float, float] | None:
         """Return (lower, upper) bounds around ``value``, or None if unknown.
 
         ``absolute_tolerance`` takes precedence when both are supplied. The
@@ -103,9 +99,7 @@ class RichMeasurement(pydantic.BaseModel):
     # Original stored reading, preserved when ``value`` was derived from it
     # (e.g. kWh over an interval converted to average kW). ``None`` for
     # measurements that were not converted.
-    raw_value: float | None = pydantic.Field(
-        default=None, ge=0.0, allow_inf_nan=False
-    )
+    raw_value: float | None = pydantic.Field(default=None, ge=0.0, allow_inf_nan=False)
     raw_unit: str | None = None
     interval_minutes: int | None = pydantic.Field(default=None, gt=0)
 
@@ -143,8 +137,5 @@ class RichMeasurement(pydantic.BaseModel):
     def validate_unit(self, expected: str) -> None:
         """Raise ``ValueError`` if ``self.unit`` differs from ``expected``."""
         if self.unit != expected:
-            msg = (
-                f"Measurement '{self.name}' has unit '{self.unit}', "
-                f"expected '{expected}'"
-            )
+            msg = f"Measurement '{self.name}' has unit '{self.unit}', expected '{expected}'"
             raise ValueError(msg)

@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Bulk analysis must find exactly what the per-reading detectors find."""
+
 import math
 import random
 

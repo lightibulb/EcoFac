@@ -65,9 +65,7 @@ class _Reading(typing.NamedTuple):
 
 
 UNITS = {"wh": 0.001, "kwh": 1.0, "mwh": 1000.0}
-REQUIRED_COLUMNS = frozenset(
-    {"timestamp", "building_id", "meter_id", "energy_value", "unit"}
-)
+REQUIRED_COLUMNS = frozenset({"timestamp", "building_id", "meter_id", "energy_value", "unit"})
 
 
 def _issue_row(
@@ -93,24 +91,20 @@ def _issue_row(
     )
 
 
-def _existing_pairs(
-    conn: sqlite3.Connection, meter_ids: list[str]
-) -> set[tuple[str, str]]:
+def _existing_pairs(conn: sqlite3.Connection, meter_ids: list[str]) -> set[tuple[str, str]]:
     """Fetch (meter_id, timestamp_utc) pairs already stored, chunked."""
     unique_meters = sorted(set(meter_ids))
     existing: set[tuple[str, str]] = set()
     chunk_size = 500
     for i in range(0, len(unique_meters), chunk_size):
-        chunk = unique_meters[i:i + chunk_size]
+        chunk = unique_meters[i : i + chunk_size]
         placeholders = ",".join("?" * len(chunk))
         cursor = conn.execute(
             f"SELECT meter_id, timestamp_utc FROM energy_readings "
             f"WHERE meter_id IN ({placeholders})",
             chunk,
         )
-        existing.update(
-            (row["meter_id"], row["timestamp_utc"]) for row in cursor.fetchall()
-        )
+        existing.update((row["meter_id"], row["timestamp_utc"]) for row in cursor.fetchall())
     return existing
 
 
@@ -174,9 +168,7 @@ def ingest_csv(
     """
     limit_bytes = int(max_size_mb * 1024 * 1024)
     if len(csv_content) > limit_bytes:
-        raise IngestionError(
-            "file_too_large", "File size exceeds limit", limit_bytes=limit_bytes
-        )
+        raise IngestionError("file_too_large", "File size exceeds limit", limit_bytes=limit_bytes)
 
     reader = csv.DictReader(io.StringIO(csv_content))
     try:
@@ -196,8 +188,12 @@ def ingest_csv(
 
     def _run() -> IngestionSummary:
         return _ingest_rows(
-            conn, reader, source_id, batch_id,
-            max_rows=max_rows, auto_create_entities=auto_create_entities,
+            conn,
+            reader,
+            source_id,
+            batch_id,
+            max_rows=max_rows,
+            auto_create_entities=auto_create_entities,
         )
 
     return persist_atomically(conn, _run)
@@ -223,8 +219,7 @@ def _ingest_rows(
 
     cursor = conn.execute("SELECT id, building_id, interval_minutes FROM meters")
     meter_map = {
-        row["id"]: (row["building_id"], row["interval_minutes"])
-        for row in cursor.fetchall()
+        row["id"]: (row["building_id"], row["interval_minutes"]) for row in cursor.fetchall()
     }
 
     try:
@@ -245,32 +240,41 @@ def _ingest_rows(
                 if not auto_create_entities:
                     summary.rejected_rows += 1
                     summary.unknown_meter_ids += 1
-                    issues.append(_issue_row(
-                        batch_id, "unknown_meter", f"Unknown meter: {meter_id}",
-                        created_at,
-                    ))
+                    issues.append(
+                        _issue_row(
+                            batch_id,
+                            "unknown_meter",
+                            f"Unknown meter: {meter_id}",
+                            created_at,
+                        )
+                    )
                     continue
                 reason = entities.invalid_identifier_reason(building_id, meter_id)
                 if reason is not None:
                     summary.rejected_rows += 1
                     summary.invalid_ids += 1
-                    issues.append(_issue_row(
-                        batch_id, "invalid_identifier",
-                        f"Invalid identifier on line {reader.line_num}: {reason}",
-                        created_at,
-                    ))
+                    issues.append(
+                        _issue_row(
+                            batch_id,
+                            "invalid_identifier",
+                            f"Invalid identifier on line {reader.line_num}: {reason}",
+                            created_at,
+                        )
+                    )
                     continue
                 is_new_meter = True
             else:
                 expected_building, _ = meter_map[meter_id]
                 if expected_building != building_id:
                     summary.rejected_rows += 1
-                    issues.append(_issue_row(
-                        batch_id,
-                        "building_mismatch",
-                        f"Meter {meter_id} does not belong to building {building_id}",
-                        created_at,
-                    ))
+                    issues.append(
+                        _issue_row(
+                            batch_id,
+                            "building_mismatch",
+                            f"Meter {meter_id} does not belong to building {building_id}",
+                            created_at,
+                        )
+                    )
                     continue
 
             # 2. Timestamp
@@ -280,10 +284,14 @@ def _ingest_rows(
             except ValueError:
                 summary.rejected_rows += 1
                 summary.invalid_timestamps += 1
-                issues.append(_issue_row(
-                    batch_id, "invalid_timestamp",
-                    f"Invalid timestamp: {ts_raw}", created_at,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "invalid_timestamp",
+                        f"Invalid timestamp: {ts_raw}",
+                        created_at,
+                    )
+                )
                 continue
 
             # 3. Unit
@@ -291,9 +299,14 @@ def _ingest_rows(
             if unit_raw not in UNITS:
                 summary.rejected_rows += 1
                 summary.invalid_units += 1
-                issues.append(_issue_row(
-                    batch_id, "invalid_unit", f"Unsupported unit: {unit_raw}", created_at,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "invalid_unit",
+                        f"Unsupported unit: {unit_raw}",
+                        created_at,
+                    )
+                )
                 continue
 
             # 4. Value
@@ -305,9 +318,14 @@ def _ingest_rows(
                     raise ValueError(msg)
             except ValueError:
                 summary.rejected_rows += 1
-                issues.append(_issue_row(
-                    batch_id, "malformed_value", f"Invalid value: {val_raw}", created_at,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "malformed_value",
+                        f"Invalid value: {val_raw}",
+                        created_at,
+                    )
+                )
                 continue
 
             # 5. Duplicate (within CSV)
@@ -315,11 +333,16 @@ def _ingest_rows(
             if key in seen:
                 summary.rejected_rows += 1
                 summary.duplicate_rows += 1
-                issues.append(_issue_row(
-                    batch_id, "duplicate",
-                    f"Duplicate in CSV: {meter_id} @ {ts_utc}", created_at,
-                    meter_id=meter_id, reading_timestamp_utc=ts_utc,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "duplicate",
+                        f"Duplicate in CSV: {meter_id} @ {ts_utc}",
+                        created_at,
+                        meter_id=meter_id,
+                        reading_timestamp_utc=ts_utc,
+                    )
+                )
                 continue
             seen.add(key)
 
@@ -341,21 +364,36 @@ def _ingest_rows(
             # 5b. Out-of-order (informational only)
             prev_high = last_ts_per_meter.get(meter_id)
             if prev_high is not None and ts_utc < prev_high:
-                issues.append(_issue_row(
-                    batch_id, "out_of_order",
-                    f"Out-of-order: {meter_id} @ {ts_utc} arrived after {prev_high}",
-                    created_at, meter_id=meter_id, reading_timestamp_utc=ts_utc,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "out_of_order",
+                        f"Out-of-order: {meter_id} @ {ts_utc} arrived after {prev_high}",
+                        created_at,
+                        meter_id=meter_id,
+                        reading_timestamp_utc=ts_utc,
+                    )
+                )
             if prev_high is None or ts_utc > prev_high:
                 last_ts_per_meter[meter_id] = ts_utc
 
             # 5c. Bounds
             is_valid_int = 1 if 0 <= val_kwh <= MAX_VALID_READING_KWH else 0
 
-            pending.append(_Reading(
-                str(uuid.uuid4()), meter_id, ts_utc, val_kwh, "kWh", source_id,
-                batch_id, is_valid_int, created_at, val_raw,
-            ))
+            pending.append(
+                _Reading(
+                    str(uuid.uuid4()),
+                    meter_id,
+                    ts_utc,
+                    val_kwh,
+                    "kWh",
+                    source_id,
+                    batch_id,
+                    is_valid_int,
+                    created_at,
+                    val_raw,
+                )
+            )
     except csv.Error as exc:
         # e.g. "field larger than field limit": the reader cannot continue.
         raise IngestionError(
@@ -371,11 +409,16 @@ def _ingest_rows(
         if (rec.meter_id, rec.timestamp_utc) in existing:
             summary.rejected_rows += 1
             summary.duplicate_rows += 1
-            issues.append(_issue_row(
-                batch_id, "duplicate",
-                f"Duplicate in DB: {rec.meter_id} @ {rec.timestamp_utc}", created_at,
-                meter_id=rec.meter_id, reading_timestamp_utc=rec.timestamp_utc,
-            ))
+            issues.append(
+                _issue_row(
+                    batch_id,
+                    "duplicate",
+                    f"Duplicate in DB: {rec.meter_id} @ {rec.timestamp_utc}",
+                    created_at,
+                    meter_id=rec.meter_id,
+                    reading_timestamp_utc=rec.timestamp_utc,
+                )
+            )
         else:
             final.append(rec)
     summary.accepted_rows = len(final)
@@ -392,32 +435,45 @@ def _ingest_rows(
             curr_dt = parse_utc(group[i].timestamp_utc)
             gap_min = (curr_dt - prev_dt).total_seconds() / 60.0
             if gap_min > 2 * interval:
-                issues.append(_issue_row(
-                    batch_id, "irregular_sampling",
-                    f"Gap {gap_min:.0f}min > 2x{interval}min for {gap_meter}",
-                    created_at, meter_id=gap_meter,
-                    reading_timestamp_utc=group[i].timestamp_utc,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "irregular_sampling",
+                        f"Gap {gap_min:.0f}min > 2x{interval}min for {gap_meter}",
+                        created_at,
+                        meter_id=gap_meter,
+                        reading_timestamp_utc=group[i].timestamp_utc,
+                    )
+                )
 
     # 7. Flag invalid stored rows (negative OR suspicious)
     for rec in final:
         if rec.is_valid == 0:
             if rec.value < 0:
                 summary.negative_consumption += 1
-                issues.append(_issue_row(
-                    batch_id, "negative_consumption",
-                    f"Negative reading: {rec.value} kWh",
-                    created_at, reading_id=rec.id, meter_id=rec.meter_id,
-                    reading_timestamp_utc=rec.timestamp_utc,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "negative_consumption",
+                        f"Negative reading: {rec.value} kWh",
+                        created_at,
+                        reading_id=rec.id,
+                        meter_id=rec.meter_id,
+                        reading_timestamp_utc=rec.timestamp_utc,
+                    )
+                )
             else:
-                issues.append(_issue_row(
-                    batch_id, "suspicious_value",
-                    f"Suspicious reading: {rec.value} kWh exceeds "
-                    f"{MAX_VALID_READING_KWH}",
-                    created_at, reading_id=rec.id, meter_id=rec.meter_id,
-                    reading_timestamp_utc=rec.timestamp_utc,
-                ))
+                issues.append(
+                    _issue_row(
+                        batch_id,
+                        "suspicious_value",
+                        f"Suspicious reading: {rec.value} kWh exceeds {MAX_VALID_READING_KWH}",
+                        created_at,
+                        reading_id=rec.id,
+                        meter_id=rec.meter_id,
+                        reading_timestamp_utc=rec.timestamp_utc,
+                    )
+                )
 
     # 8. Insert readings first, then issues (FK order)
     if final:

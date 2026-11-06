@@ -47,13 +47,11 @@ def ensure_building_and_meter(
     transaction; it never commits on its own.
     """
     building_exists = (
-        conn.execute("SELECT 1 FROM buildings WHERE id = ?", (building_id,)).fetchone()
-        is not None
+        conn.execute("SELECT 1 FROM buildings WHERE id = ?", (building_id,)).fetchone() is not None
     )
     if not building_exists:
         conn.execute(
-            "INSERT OR IGNORE INTO organizations (id, name, created_at) "
-            "VALUES (?, 'Auto Org', ?)",
+            "INSERT OR IGNORE INTO organizations (id, name, created_at) VALUES (?, 'Auto Org', ?)",
             (AUTO_ORG_ID, now),
         )
         conn.execute(

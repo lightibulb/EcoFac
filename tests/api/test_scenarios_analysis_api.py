@@ -105,9 +105,7 @@ def test_sensitivity_endpoint_detects_flip(client):
     sid = _create(client, it_load_kw=850.0, pue=1.0, cap=1000.0)
     resp = client.get(f"{BASE}/{sid}/sensitivity")
     body = resp.json()
-    pue_param = next(
-        p for p in body["parameters"] if p["parameter"] == "pue"
-    )
+    pue_param = next(p for p in body["parameters"] if p["parameter"] == "pue")
     assert pue_param["verdict_changed"] is True
 
 
@@ -119,9 +117,7 @@ def test_sensitivity_endpoint_404(client):
 def test_compare_two_scenarios(client):
     id_a = _create(client, it_load_kw=400.0)
     id_b = _create(client, it_load_kw=500.0)
-    resp = client.post(
-        f"{BASE}/compare", json={"scenario_ids": [id_a, id_b]}
-    )
+    resp = client.post(f"{BASE}/compare", json={"scenario_ids": [id_a, id_b]})
     assert resp.status_code == 200
     body = resp.json()
     assert len(body["scenarios"]) == 2
@@ -133,9 +129,7 @@ def test_compare_two_scenarios(client):
 def test_compare_flags_mixed_config_versions(client):
     id_a = _create(client, config_version="cfg-A")
     id_b = _create(client, config_version="cfg-B")
-    resp = client.post(
-        f"{BASE}/compare", json={"scenario_ids": [id_a, id_b]}
-    )
+    resp = client.post(f"{BASE}/compare", json={"scenario_ids": [id_a, id_b]})
     body = resp.json()
     assert body["mixed_config_versions"] is True
     assert set(body["config_versions"]) == {"cfg-A", "cfg-B"}
@@ -143,9 +137,7 @@ def test_compare_flags_mixed_config_versions(client):
 
 def test_compare_rejects_single_scenario(client):
     id_a = _create(client)
-    resp = client.post(
-        f"{BASE}/compare", json={"scenario_ids": [id_a]}
-    )
+    resp = client.post(f"{BASE}/compare", json={"scenario_ids": [id_a]})
     assert resp.status_code == 422
 
 
@@ -169,9 +161,7 @@ def test_compare_missing_scenario_404(client):
 def test_compare_identical_inputs_no_differences(client):
     id_a = _create(client)
     id_b = _create(client)
-    resp = client.post(
-        f"{BASE}/compare", json={"scenario_ids": [id_a, id_b]}
-    )
+    resp = client.post(f"{BASE}/compare", json={"scenario_ids": [id_a, id_b]})
     body = resp.json()
     for diff in body["input_differences"]:
         assert diff["differs"] is False

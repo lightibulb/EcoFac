@@ -99,9 +99,7 @@ def test_full_pipeline_end_to_end():
     incident_id = incident_ids.pop()
 
     # --- Stage 4: Incident exists in DETECTED state ---
-    inc_row = conn.execute(
-        "SELECT status FROM incidents WHERE id = ?", (incident_id,)
-    ).fetchone()
+    inc_row = conn.execute("SELECT status FROM incidents WHERE id = ?", (incident_id,)).fetchone()
     assert inc_row is not None
     assert inc_row["status"] == "DETECTED"
 
@@ -119,9 +117,7 @@ def test_full_pipeline_end_to_end():
         assert len(log["reading_ids"]) >= 1
         # Every referenced ID exists in energy_readings
         for rid in log["reading_ids"]:
-            found = conn.execute(
-                "SELECT 1 FROM energy_readings WHERE id = ?", (rid,)
-            ).fetchone()
+            found = conn.execute("SELECT 1 FROM energy_readings WHERE id = ?", (rid,)).fetchone()
             assert found is not None, f"Evidence references missing reading {rid}"
         # Detector metadata present
         assert "detector_name" in log
@@ -159,24 +155,29 @@ def test_full_pipeline_end_to_end():
 
 def test_full_pipeline_deterministic_on_repeat():
     """Running the same CSV twice produces the same statistical parameters."""
+
     def _run():
         conn = get_connection(":memory:")
         init_db(conn)
         _seed_metadata(conn)
         ingest_csv(conn, _spike_csv(), "s1", "ib1")
         findings = analyze_at(conn, "m1", TARGET_TS)
-        params = [json.loads(
-            conn.execute(
-                "SELECT detection_parameters FROM anomalies WHERE id = ?",
-                (f.anomaly_id,),
-            ).fetchone()["detection_parameters"]
-        ) for f in findings]
+        params = [
+            json.loads(
+                conn.execute(
+                    "SELECT detection_parameters FROM anomalies WHERE id = ?",
+                    (f.anomaly_id,),
+                ).fetchone()["detection_parameters"]
+            )
+            for f in findings
+        ]
         conn.close()
         return params
 
     first = _run()
     second = _run()
     assert len(first) == len(second) >= 1
+
     # Sort by detector name so comparison is order-independent
     def _key(p: dict) -> str:
         return p.get("detector_version", "") + str(p.get("z_score", 0))

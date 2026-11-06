@@ -17,9 +17,7 @@ from ecofac.timeutil import parse_utc, to_z
 
 router = APIRouter()
 
-BAD_TIMESTAMP = (
-    "Invalid ISO8601 date format (timezone required; encode '+' in offsets as %2B)"
-)
+BAD_TIMESTAMP = "Invalid ISO8601 date format (timezone required; encode '+' in offsets as %2B)"
 
 
 def _parse_aware(value: str) -> dt.datetime:

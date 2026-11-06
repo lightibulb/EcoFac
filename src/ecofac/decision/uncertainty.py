@@ -120,9 +120,7 @@ def _assess_model_uncertainty(
     measured_count = sum(1 for m in measurements if m.is_measured())
     estimated_count = sum(1 for m in measurements if m.is_estimated())
     unknown_count = sum(
-        1
-        for m in measurements
-        if m.is_present() and not m.is_measured() and not m.is_estimated()
+        1 for m in measurements if m.is_present() and not m.is_measured() and not m.is_estimated()
     )
     has_any_tolerance = any(m.band() is not None for m in measurements)
 
@@ -133,14 +131,11 @@ def _assess_model_uncertainty(
 
     if not has_any_tolerance:
         rationale.append(
-            "no tolerance metadata supplied; uncertainty is UNKNOWN and "
-            "cannot be bounded"
+            "no tolerance metadata supplied; uncertainty is UNKNOWN and cannot be bounded"
         )
         return ModelUncertaintyLevel.UNKNOWN, rationale
 
-    rationale.append(
-        "explicit tolerances provided; measurements are not perfect"
-    )
+    rationale.append("explicit tolerances provided; measurements are not perfect")
 
     if estimated_count == 0 and unknown_count == 0:
         # All measured but with explicit non-zero tolerance -> not LOW.
@@ -149,6 +144,7 @@ def _assess_model_uncertainty(
     if estimated_count <= measured_count:
         return ModelUncertaintyLevel.MODERATE, rationale
     return ModelUncertaintyLevel.HIGH, rationale
+
 
 def assess_uncertainty(
     measurements: list[RichMeasurement],

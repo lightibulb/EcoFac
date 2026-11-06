@@ -49,30 +49,17 @@ def _review_hints(
     hints: list[str] = []
     if precedence == "data_quality_ineligible":
         if uncertainty.missing_measurements:
-            hints.append(
-                "Provide values for: "
-                + ", ".join(uncertainty.missing_measurements)
-            )
+            hints.append("Provide values for: " + ", ".join(uncertainty.missing_measurements))
         if uncertainty.stale_measurements:
-            hints.append(
-                "Provide fresh readings for: "
-                + ", ".join(uncertainty.stale_measurements)
-            )
+            hints.append("Provide fresh readings for: " + ", ".join(uncertainty.stale_measurements))
         if uncertainty.low_quality_measurements:
             hints.append(
-                "Resolve quality flags for: "
-                + ", ".join(uncertainty.low_quality_measurements)
+                "Resolve quality flags for: " + ", ".join(uncertainty.low_quality_measurements)
             )
         if not hints and uncertainty.quality_flags:
-            hints.append(
-                "Resolve quality flags: "
-                + ", ".join(uncertainty.quality_flags)
-            )
+            hints.append("Resolve quality flags: " + ", ".join(uncertainty.quality_flags))
         if not hints:
-            hints.append(
-                "Resolve quality issues before this decision "
-                "can be approved."
-            )
+            hints.append("Resolve quality issues before this decision can be approved.")
     elif precedence == "near_threshold":
         hints.append(
             "Free capacity headroom by reducing load, or supply measured "
@@ -83,8 +70,7 @@ def _review_hints(
     elif precedence == "conflicting_inputs":
         hints.append("Reconcile conflicting inputs.")
     hints.extend(
-        f"Measurement '{s.measurement_name}' tolerance could flip the "
-        f"verdict: {s.reason}"
+        f"Measurement '{s.measurement_name}' tolerance could flip the verdict: {s.reason}"
         for s in sensitivity
         if s.could_change_verdict
     )
@@ -103,18 +89,13 @@ def build_explanation(
     limiting = _limiting_constraint(evaluations)
     if limiting is not None:
         limiting_name = limiting.name
-        headroom = (
-            f"{limiting.headroom_to_permitted:.4f} "
-            f"(permitted {limiting.permitted:.4f})"
-        )
+        headroom = f"{limiting.headroom_to_permitted:.4f} (permitted {limiting.permitted:.4f})"
     else:
         limiting_name = None
         headroom = None
 
     passed = [e.reason for e in evaluations if e.severity == ConstraintSeverity.OK]
-    warnings = [
-        e.reason for e in evaluations if e.severity == ConstraintSeverity.WARNING
-    ]
+    warnings = [e.reason for e in evaluations if e.severity == ConstraintSeverity.WARNING]
     failed = [
         e.reason
         for e in evaluations
@@ -127,13 +108,9 @@ def build_explanation(
 
     uncertainty_notes: list[str] = []
     if uncertainty.data_quality_level != "OK":
-        uncertainty_notes.append(
-            f"data quality level: {uncertainty.data_quality_level}"
-        )
+        uncertainty_notes.append(f"data quality level: {uncertainty.data_quality_level}")
     if uncertainty.model_uncertainty_level not in ("LOW", "UNKNOWN"):
-        uncertainty_notes.append(
-            f"model uncertainty level: {uncertainty.model_uncertainty_level}"
-        )
+        uncertainty_notes.append(f"model uncertainty level: {uncertainty.model_uncertainty_level}")
     uncertainty_notes.extend(
         f"sensitivity: {s.measurement_name} tolerance could flip verdict"
         for s in sensitivity

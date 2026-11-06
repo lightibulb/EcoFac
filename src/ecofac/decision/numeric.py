@@ -54,9 +54,7 @@ def validate_pue_value(value: object, name: str = "pue") -> float:
     return number
 
 
-def clamp_band(
-    lower: float, upper: float, *, floor: float = 0.0
-) -> tuple[float, float, bool]:
+def clamp_band(lower: float, upper: float, *, floor: float = 0.0) -> tuple[float, float, bool]:
     """Clamp a tolerance band at a physical floor.
 
     Returns ``(lower, upper, was_clamped)``. Only the lower bound is clamped:

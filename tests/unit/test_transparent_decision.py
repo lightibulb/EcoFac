@@ -108,9 +108,7 @@ def test_review_near_threshold():
     assert result.status == "REVIEW"
     assert result.precedence == "near_threshold"
     hints = result.explanation["what_would_change_decision"]
-    assert any(
-        "headroom" in h.lower() or "capacity" in h.lower() for h in hints
-    )
+    assert any("headroom" in h.lower() or "capacity" in h.lower() for h in hints)
 
 
 def test_missing_measurement_forces_review():
@@ -143,9 +141,7 @@ def test_sensitivity_can_change_verdict():
     )
     result = decide_transparently(req)
     assert result.status == "REVIEW"
-    sensitivity_it = [
-        s for s in result.sensitivity if s.measurement_name == "it_load"
-    ]
+    sensitivity_it = [s for s in result.sensitivity if s.measurement_name == "it_load"]
     assert len(sensitivity_it) == 1
     assert sensitivity_it[0].could_change_verdict is True
 

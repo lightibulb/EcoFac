@@ -20,14 +20,23 @@ def db_conn():
     now = "2026-01-01T00:00:00Z"
 
     conn.execute("INSERT INTO organizations (id, name, created_at) VALUES ('o1', 'Org', ?)", (now,))
-    conn.execute("INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)", (now,))
+    conn.execute(
+        "INSERT INTO buildings (id, org_id, name, created_at) VALUES ('b1', 'o1', 'Bldg', ?)",
+        (now,),
+    )
     conn.execute(
         "INSERT INTO meters (id, building_id, fuel_type, unit, created_at) "
         "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)",
-        (now,)
+        (now,),
     )
-    conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)", (now,))
-    conn.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'started', ?)", (now,))
+    conn.execute(
+        "INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1', 'Src', 'csv', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1', 's1', 'started', ?)",
+        (now,),
+    )
 
     yield conn
     conn.close()
@@ -39,9 +48,15 @@ def _insert_series(conn, values, start_hour=0, day=1):
         ts = dt.datetime(2026, 1, day, start_hour, 0, tzinfo=dt.UTC)
         ts += dt.timedelta(hours=i)
         r = EnergyReading(
-            id=f"r-{day}-{i}", meter_id="m1", timestamp_utc=ts.isoformat().replace("+00:00", "Z"),
-            value=val, unit="kWh", source_id="s1", batch_id="ib1",
-            is_valid=True, created_at="2026-01-01T00:00:00Z"
+            id=f"r-{day}-{i}",
+            meter_id="m1",
+            timestamp_utc=ts.isoformat().replace("+00:00", "Z"),
+            value=val,
+            unit="kWh",
+            source_id="s1",
+            batch_id="ib1",
+            is_valid=True,
+            created_at="2026-01-01T00:00:00Z",
         )
         insert_reading(conn, r)
 
@@ -107,9 +122,15 @@ def test_missing_readings_quality_impact(db_conn):
 
     # Insert a filler reading from the previous day to maintain the 24-item window
     r = EnergyReading(
-        id="r-0", meter_id="m1", timestamp_utc="2025-12-31T23:00:00Z",
-        value=10.0, unit="kWh", source_id="s1", batch_id="ib1",
-        is_valid=True, created_at="2026-01-01T00:00:00Z"
+        id="r-0",
+        meter_id="m1",
+        timestamp_utc="2025-12-31T23:00:00Z",
+        value=10.0,
+        unit="kWh",
+        source_id="s1",
+        batch_id="ib1",
+        is_valid=True,
+        created_at="2026-01-01T00:00:00Z",
     )
     insert_reading(db_conn, r)
 

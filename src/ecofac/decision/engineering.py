@@ -21,9 +21,7 @@ REQUIRED_CALC_INPUTS = (
 )
 
 
-def _headroom(
-    observed: float, capacity: float, reserve_pct: float
-) -> dict:
+def _headroom(observed: float, capacity: float, reserve_pct: float) -> dict:
     """Return the headroom picture for one observed value against one limit."""
     permitted = capacity * (1.0 - reserve_pct)
     return {
@@ -66,33 +64,29 @@ def build_engineering_summary(record: dict) -> dict:
         "pue": float(calc_inputs["pue"]),
         "pue_provenance": str(calc_inputs["pue_provenance"]),
         "current_it_load_kw": float(calc_inputs["current_it_load_kw"]),
-        "current_facility_power_kw": float(
-            calc_inputs["current_facility_power_kw"]
-        ),
-        "current_cooling_load_kw": float(
-            calc_inputs["current_cooling_load_kw"]
-        ),
+        "current_facility_power_kw": float(calc_inputs["current_facility_power_kw"]),
+        "current_cooling_load_kw": float(calc_inputs["current_cooling_load_kw"]),
         "predicted_it_load_kw": float(calc_inputs["predicted_it_load_kw"]),
-        "predicted_facility_power_kw": float(
-            calc_inputs["predicted_facility_power_kw"]
-        ),
-        "predicted_cooling_load_kw": float(
-            calc_inputs["predicted_cooling_load_kw"]
-        ),
+        "predicted_facility_power_kw": float(calc_inputs["predicted_facility_power_kw"]),
+        "predicted_cooling_load_kw": float(calc_inputs["predicted_cooling_load_kw"]),
         "current_electrical": _headroom(
             float(calc_inputs["current_facility_power_kw"]),
-            elec_cap, elec_res,
+            elec_cap,
+            elec_res,
         ),
         "predicted_electrical": _headroom(
             float(calc_inputs["predicted_facility_power_kw"]),
-            elec_cap, elec_res,
+            elec_cap,
+            elec_res,
         ),
         "current_cooling": _headroom(
             float(calc_inputs["current_cooling_load_kw"]),
-            cool_cap, cool_res,
+            cool_cap,
+            cool_res,
         ),
         "predicted_cooling": _headroom(
             float(calc_inputs["predicted_cooling_load_kw"]),
-            cool_cap, cool_res,
+            cool_cap,
+            cool_res,
         ),
     }

@@ -30,6 +30,7 @@ input silently produce APPROVE. Exploratory (``HYPOTHETICAL``) behaviour is
 unchanged: the same facts are recorded as advisories in the evidence but do not
 by themselves change the verdict.
 """
+
 import dataclasses
 import datetime as dt
 from enum import StrEnum
@@ -180,11 +181,11 @@ def _formulas() -> dict[str, str]:
 
 
 # How the PUE used by a decision was obtained. Recorded in evidence.
-PUE_TRUSTED = "trusted"                      # measured, with a server-resolved reference
+PUE_TRUSTED = "trusted"  # measured, with a server-resolved reference
 PUE_UNVERIFIED_MEASURED = "unverified_measured"  # claimed measured, no trusted reference
-PUE_CONFIGURED = "configured"                # explicit configured value
-PUE_ASSUMED = "assumed"                      # supplied but estimated/assumed
-PUE_ASSUMED_DEFAULT = "assumed_default"      # absent; library default 1.0 applied
+PUE_CONFIGURED = "configured"  # explicit configured value
+PUE_ASSUMED = "assumed"  # supplied but estimated/assumed
+PUE_ASSUMED_DEFAULT = "assumed_default"  # absent; library default 1.0 applied
 
 _PUE_ASSUMED_BASES = (PUE_ASSUMED, PUE_ASSUMED_DEFAULT)
 
@@ -209,11 +210,7 @@ def _resolve_pue(pue: RichMeasurement | None) -> _PueInfo:
     explicit, recorded assumption (``assumed_default``), never silent. A
     supplied PUE must be finite and ``>= 1.0`` (standard definition).
     """
-    if (
-        pue is None
-        or pue.value is None
-        or pue.source == MeasurementSource.MISSING
-    ):
+    if pue is None or pue.value is None or pue.source == MeasurementSource.MISSING:
         synthetic = RichMeasurement(
             name="pue",
             value=DEFAULT_PUE_VALUE,
@@ -231,16 +228,10 @@ def _resolve_pue(pue: RichMeasurement | None) -> _PueInfo:
     value = validate_pue_value(pue.value)
     if pue.source == MeasurementSource.MEASURED:
         basis = PUE_TRUSTED if pue.reference_id else PUE_UNVERIFIED_MEASURED
-        return _PueInfo(
-            value, PUESource.MEASURED.value, basis, pue, is_default=False
-        )
+        return _PueInfo(value, PUESource.MEASURED.value, basis, pue, is_default=False)
     if pue.source == MeasurementSource.CONFIGURED:
-        return _PueInfo(
-            value, PUESource.CONFIGURED.value, PUE_CONFIGURED, pue, is_default=False
-        )
-    return _PueInfo(
-        value, PUESource.ASSUMED.value, PUE_ASSUMED, pue, is_default=False
-    )
+        return _PueInfo(value, PUESource.CONFIGURED.value, PUE_CONFIGURED, pue, is_default=False)
+    return _PueInfo(value, PUESource.ASSUMED.value, PUE_ASSUMED, pue, is_default=False)
 
 
 def _validate_units(request: TransparentDecisionRequest) -> None:
@@ -336,8 +327,14 @@ def _band_result(
         status_at_upper=status_high,
         could_change_verdict=changed,
         reason=_sensitivity_reason(
-            measurement.name, low, high, status_low, status_high,
-            baseline_status, changed=changed, clamped=clamped,
+            measurement.name,
+            low,
+            high,
+            status_low,
+            status_high,
+            baseline_status,
+            changed=changed,
+            clamped=clamped,
         ),
     )
 
@@ -374,7 +371,10 @@ def _compute_sensitivity(
 
         results.append(
             _band_result(
-                it_load, it_band, _status_it, baseline_status,
+                it_load,
+                it_band,
+                _status_it,
+                baseline_status,
                 clamped=it_load.band_clamped(),
             )
         )
@@ -386,9 +386,7 @@ def _compute_sensitivity(
             delta = measured_value - current_cooling
             new_predicted_cooling = max(0.0, predicted_cooling + delta)
             ctx = build_context(
-                predicted_electrical=facility_power_kw(
-                    max(0.0, predicted_it), pue_value
-                ),
+                predicted_electrical=facility_power_kw(max(0.0, predicted_it), pue_value),
                 predicted_cooling=new_predicted_cooling,
                 current_electrical=facility_power_kw(current_it, pue_value),
                 current_cooling=measured_value,
@@ -397,7 +395,10 @@ def _compute_sensitivity(
 
         results.append(
             _band_result(
-                cooling_load, cooling_band, _status_cooling, baseline_status,
+                cooling_load,
+                cooling_band,
+                _status_cooling,
+                baseline_status,
                 clamped=cooling_load.band_clamped(),
             )
         )
@@ -407,9 +408,7 @@ def _compute_sensitivity(
 
         def _status_pue(candidate_pue: float) -> str:
             ctx = build_context(
-                predicted_electrical=facility_power_kw(
-                    max(0.0, predicted_it), candidate_pue
-                ),
+                predicted_electrical=facility_power_kw(max(0.0, predicted_it), candidate_pue),
                 predicted_cooling=predicted_cooling,
                 current_electrical=facility_power_kw(current_it, candidate_pue),
                 current_cooling=current_cooling,
@@ -418,7 +417,10 @@ def _compute_sensitivity(
 
         results.append(
             _band_result(
-                pue, pue_band, _status_pue, baseline_status,
+                pue,
+                pue_band,
+                _status_pue,
+                baseline_status,
                 clamped=pue.band_clamped(floor=MIN_PUE),
             )
         )
@@ -486,10 +488,7 @@ def is_time_dependent(request: TransparentDecisionRequest) -> bool:
     not — the future check cannot trigger for it — so pinning
     ``evaluation_time`` for such requests only breaks reproducibility.
     """
-    return (
-        request.mode == DecisionMode.TRUSTED
-        or request.max_measurement_age_seconds is not None
-    )
+    return request.mode == DecisionMode.TRUSTED or request.max_measurement_age_seconds is not None
 
 
 def pinned_request(
@@ -552,13 +551,10 @@ def _derive_uncertainty_flags(
                 "timestamp, so freshness cannot be established"
             )
     if request.max_measurement_age_seconds is None:
-        flags.append(
-            "freshness_policy_missing: no max measurement age is configured"
-        )
+        flags.append("freshness_policy_missing: no max measurement age is configured")
     if uncertainty.model_uncertainty_level == ModelUncertaintyLevel.UNKNOWN:
         flags.append(
-            "unknown_model_uncertainty: no tolerance metadata is available "
-            "for the measurements"
+            "unknown_model_uncertainty: no tolerance metadata is available for the measurements"
         )
     if pue_info.trust_basis in _PUE_ASSUMED_BASES:
         supplied_source = request.pue.source.value if request.pue else "unknown"
@@ -568,18 +564,12 @@ def _derive_uncertainty_flags(
             else f"supplied with {supplied_source} provenance"
         )
         flags.append(
-            f"pue_assumed: PUE is {what}; an assumed PUE cannot support an "
-            "operational APPROVE"
+            f"pue_assumed: PUE is {what}; an assumed PUE cannot support an operational APPROVE"
         )
     elif pue_info.trust_basis == PUE_UNVERIFIED_MEASURED:
-        flags.append(
-            "pue_unverified: PUE is labelled MEASURED but carries no trusted "
-            "reference"
-        )
+        flags.append("pue_unverified: PUE is labelled MEASURED but carries no trusted reference")
     flags.extend(
-        f"sensitivity_changes_verdict: {s.reason}"
-        for s in sensitivity
-        if s.could_change_verdict
+        f"sensitivity_changes_verdict: {s.reason}" for s in sensitivity if s.could_change_verdict
     )
     return flags
 
@@ -591,9 +581,7 @@ def decide_transparently(
     _validate_units(request)
 
     operational = request.mode == DecisionMode.TRUSTED
-    evaluation_time = to_z(
-        parse_aware_utc(request.evaluation_time or now_z(), "evaluation_time")
-    )
+    evaluation_time = to_z(parse_aware_utc(request.evaluation_time or now_z(), "evaluation_time"))
     eval_dt = parse_aware_utc(evaluation_time)
 
     current_it, it_present = _extract(request.it_load)
@@ -602,9 +590,7 @@ def decide_transparently(
     pue_value = pue_info.value
 
     effective_it_delta = request.proposed_it_delta if it_present else 0.0
-    effective_cooling_delta = (
-        request.proposed_cooling_delta if cooling_present else 0.0
-    )
+    effective_cooling_delta = request.proposed_cooling_delta if cooling_present else 0.0
 
     predicted_it = predicted_load_kw(current_it, effective_it_delta)
     predicted_cooling = predicted_load_kw(current_cooling, effective_cooling_delta)
@@ -644,10 +630,7 @@ def decide_transparently(
     effective_stale = request.quality_stale or bool(stale_by_age)
 
     effective_quality_eligible = (
-        request.quality_eligible
-        and it_present
-        and cooling_present
-        and not future_names
+        request.quality_eligible and it_present and cooling_present and not future_names
     )
 
     measurements = [request.it_load, request.cooling_load, pue_info.measurement]
@@ -736,16 +719,10 @@ def decide_transparently(
         ),
         PUE_ASSUMED: "PUE is an assumed/estimated value, not measured",
         PUE_CONFIGURED: "PUE is an explicitly configured value, not measured",
-        PUE_UNVERIFIED_MEASURED: (
-            "PUE is labelled MEASURED but has no trusted reference"
-        ),
+        PUE_UNVERIFIED_MEASURED: ("PUE is labelled MEASURED but has no trusted reference"),
         PUE_TRUSTED: "PUE comes from a trusted measurement reference",
     }[pue_info.trust_basis]
-    advisories = (
-        []
-        if operational
-        else [f"advisory (not applied): {f}" for f in derived_flags]
-    )
+    advisories = [] if operational else [f"advisory (not applied): {f}" for f in derived_flags]
 
     cooling_basis = (
         COOLING_BASIS_MEASURED
@@ -753,9 +730,7 @@ def decide_transparently(
         else f"stated_cooling_load_{request.cooling_load.source.value.lower()}"
     )
 
-    input_references = [
-        _to_input_reference(m) for m in (request.it_load, request.cooling_load)
-    ]
+    input_references = [_to_input_reference(m) for m in (request.it_load, request.cooling_load)]
     if not pue_info.is_default:
         input_references.append(_to_input_reference(pue_info.measurement))
 
@@ -819,9 +794,7 @@ def decide_transparently(
 
     fingerprint_request = request
     if request.evaluation_time is None and is_time_dependent(request):
-        fingerprint_request = request.model_copy(
-            update={"evaluation_time": evaluation_time}
-        )
+        fingerprint_request = request.model_copy(update={"evaluation_time": evaluation_time})
     fingerprint = build_fingerprint(
         engine_version=decision.engine_version,
         config_version=decision.config_version,

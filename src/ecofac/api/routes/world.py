@@ -101,13 +101,10 @@ def world_state(
       ]
     }
     """
-    buildings = conn.execute(
-        "SELECT id, name FROM buildings ORDER BY id"
-    ).fetchall()
+    buildings = conn.execute("SELECT id, name FROM buildings ORDER BY id").fetchall()
 
     meters = conn.execute(
-        "SELECT id, building_id, fuel_type, unit, interval_minutes "
-        "FROM meters ORDER BY id"
+        "SELECT id, building_id, fuel_type, unit, interval_minutes FROM meters ORDER BY id"
     ).fetchall()
 
     latest_by_meter = _latest_reading_per_meter(conn)
@@ -122,23 +119,25 @@ def world_state(
     buildings_out = []
     for b in buildings:
         b_meters = [m for m in meters if m["building_id"] == b["id"]]
-        buildings_out.append({
-            "id": b["id"],
-            "name": b["name"],
-            "meters": [
-                {
-                    "id": m["id"],
-                    "fuel_type": m["fuel_type"],
-                    "unit": m["unit"],
-                    "interval_minutes": m["interval_minutes"],
-                    "latest_reading": latest_by_meter.get(m["id"]),
-                    "open_incidents": open_inc.get(m["id"], 0),
-                    "total_incidents": total_inc.get(m["id"], 0),
+        buildings_out.append(
+            {
+                "id": b["id"],
+                "name": b["name"],
+                "meters": [
+                    {
+                        "id": m["id"],
+                        "fuel_type": m["fuel_type"],
+                        "unit": m["unit"],
+                        "interval_minutes": m["interval_minutes"],
+                        "latest_reading": latest_by_meter.get(m["id"]),
+                        "open_incidents": open_inc.get(m["id"], 0),
+                        "total_incidents": total_inc.get(m["id"], 0),
                         "max_severity": max_sev.get(m["id"], 0),
-                }
-                for m in b_meters
-            ],
-        })
+                    }
+                    for m in b_meters
+                ],
+            }
+        )
 
     return {
         "generated_at": now_z(),
@@ -195,9 +194,8 @@ def _max_severity_per_meter(conn: sqlite3.Connection) -> dict[str, int]:
     ).fetchall()
     return {row["meter_id"]: row["max_sev"] for row in rows}
 
-def _count_per_meter(
-    conn: sqlite3.Connection, kind: str
-) -> dict[str, int]:
+
+def _count_per_meter(conn: sqlite3.Connection, kind: str) -> dict[str, int]:
     """Return {meter_id: incident_count}. ``kind`` selects open vs total."""
     if kind == "open_incidents":
         placeholders = ",".join("?" * len(OPEN_INCIDENT_STATUSES))
@@ -220,9 +218,7 @@ def _count_per_meter(
 
 
 def _decision_counts(conn: sqlite3.Connection) -> dict[str, int]:
-    rows = conn.execute(
-        "SELECT status, COUNT(*) AS c FROM decisions GROUP BY status"
-    ).fetchall()
+    rows = conn.execute("SELECT status, COUNT(*) AS c FROM decisions GROUP BY status").fetchall()
     return {row["status"]: int(row["c"]) for row in rows}
 
 
@@ -288,4 +284,3 @@ def _recent_events(conn: sqlite3.Connection) -> list[dict]:
     events = incident_events + decision_events
     events.sort(key=lambda e: e["timestamp"], reverse=True)
     return events[:RECENT_LIMIT]
-

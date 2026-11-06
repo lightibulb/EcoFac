@@ -116,8 +116,7 @@ def test_evidence_has_detector_version(db_conn):
     _insert_reading(db_conn, "r1", "2026-01-01T12:00:00Z", 100.0)
     anomaly = _make_anomaly(
         supporting_ids=["r0"],
-        config={"window_size": 24, "z_score": 9.0, "z_threshold": 3.0,
-                "detector_version": "1.0"},
+        config={"window_size": 24, "z_score": 9.0, "z_threshold": 3.0, "detector_version": "1.0"},
     )
     evidence = json.loads(build_computation_log(db_conn, anomaly))
     assert evidence["detector_version"] == "1.0"
@@ -145,8 +144,13 @@ def test_evidence_has_human_readable_explanation(db_conn):
     _insert_reading(db_conn, "t1", "2026-01-01T12:00:00Z", 100.0)
     anomaly = _make_anomaly(
         supporting_ids=["r0"],
-        config={"window_size": 24, "z_score": 45.6, "z_threshold": 3.0,
-                "detector_version": "1.0", "sample_count": 1},
+        config={
+            "window_size": 24,
+            "z_score": 45.6,
+            "z_threshold": 3.0,
+            "detector_version": "1.0",
+            "sample_count": 1,
+        },
     )
     evidence = json.loads(build_computation_log(db_conn, anomaly))
     expl = evidence["explanation"]
@@ -164,8 +168,7 @@ def test_evidence_deterministic_across_builds(db_conn):
     _insert_reading(db_conn, "t1", "2026-01-01T12:00:00Z", 100.0)
     anomaly = _make_anomaly(
         supporting_ids=["r0", "r1"],
-        config={"window_size": 24, "z_score": 12.3, "z_threshold": 3.0,
-                "detector_version": "1.0"},
+        config={"window_size": 24, "z_score": 12.3, "z_threshold": 3.0, "detector_version": "1.0"},
     )
     first = build_computation_log(db_conn, anomaly)
     second = build_computation_log(db_conn, anomaly)
@@ -195,9 +198,7 @@ def test_incident_traceable_to_readings(db_conn):
 
     # evidence → readings (every referenced ID must exist)
     for rid in evidence["reading_ids"]:
-        found = db_conn.execute(
-            "SELECT 1 FROM energy_readings WHERE id = ?", (rid,)
-        ).fetchone()
+        found = db_conn.execute("SELECT 1 FROM energy_readings WHERE id = ?", (rid,)).fetchone()
         assert found is not None, f"Evidence references missing reading {rid}"
 
 
@@ -250,9 +251,7 @@ def test_incident_survives_across_connections(tmp_path):
     conn1.close()
 
     conn2 = get_connection(str(db_file))
-    row = conn2.execute(
-        "SELECT id FROM incidents WHERE anomaly_id = ?", ("a1",)
-    ).fetchone()
+    row = conn2.execute("SELECT id FROM incidents WHERE anomaly_id = ?", ("a1",)).fetchone()
     assert row is not None
     assert row["id"] == incident_id
     evidence_count = conn2.execute(

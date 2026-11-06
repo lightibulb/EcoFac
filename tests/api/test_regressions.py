@@ -2,11 +2,11 @@
 
 """Regression tests for specific API bugs."""
 
+
 def test_new_source_id_is_auto_created(client):
     """Uploading a file with an unknown source ID should auto-create it and succeed."""
     csv_content = (
-        "timestamp,building_id,meter_id,energy_value,unit\n"
-        "2026-01-01T12:00:00Z,b1,m1,10.5,kWh\n"
+        "timestamp,building_id,meter_id,energy_value,unit\n2026-01-01T12:00:00Z,b1,m1,10.5,kWh\n"
     )
     files = {"file": ("test.csv", csv_content, "text/csv")}
     data = {"source_id": "new-source", "batch_id": "ib1"}
@@ -14,6 +14,7 @@ def test_new_source_id_is_auto_created(client):
     response = client.post("/api/v1/imports", files=files, data=data)
     assert response.status_code == 200
     assert response.json()["accepted_rows"] == 1
+
 
 def test_quality_rejects_naive_timestamps(client):
     """Naive start/end params must produce a 400, not a 500."""
@@ -23,11 +24,11 @@ def test_quality_rejects_naive_timestamps(client):
     )
     assert response.status_code == 400
 
+
 def test_csv_naive_timestamp_rejected_via_http(client):
     """CSV rows with naive timestamps are rejected with a counter."""
     csv_content = (
-        "timestamp,building_id,meter_id,energy_value,unit\n"
-        "2026-01-01T12:00:00,b1,m1,10.5,kWh\n"
+        "timestamp,building_id,meter_id,energy_value,unit\n2026-01-01T12:00:00,b1,m1,10.5,kWh\n"
     )
     files = {"file": ("n.csv", csv_content, "text/csv")}
     data = {"source_id": "s1", "batch_id": "ib-naive"}
@@ -35,6 +36,7 @@ def test_csv_naive_timestamp_rejected_via_http(client):
     assert resp.status_code == 200
     body = resp.json()
     assert body["accepted_rows"] == 0
+
 
 def test_full_incident_lifecycle_via_http(client):
     """DETECTED -> UNDER_REVIEW -> ACKNOWLEDGED -> RESOLVED over HTTP."""
@@ -49,8 +51,7 @@ def test_full_incident_lifecycle_via_http(client):
     assert resp.status_code == 200
 
     spike = (
-        "timestamp,building_id,meter_id,energy_value,unit\n"
-        "2026-01-02T00:00:00Z,b1,m1,100.0,kWh\n"
+        "timestamp,building_id,meter_id,energy_value,unit\n2026-01-02T00:00:00Z,b1,m1,100.0,kWh\n"
     )
     resp = client.post(
         "/api/v1/imports",
@@ -59,9 +60,7 @@ def test_full_incident_lifecycle_via_http(client):
     )
     assert resp.status_code == 200
 
-    resp = client.post(
-        "/api/v1/analyze/m1", params={"timestamp": "2026-01-02T00:00:00Z"}
-    )
+    resp = client.post("/api/v1/analyze/m1", params={"timestamp": "2026-01-02T00:00:00Z"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "anomalies_detected"

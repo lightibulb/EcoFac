@@ -30,9 +30,18 @@ def conn():
         "VALUES ('m1', 'b1', 'electricity', 'kWh', ?)",
         (NOW,),
     )
-    c.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1','S','csv',?)", (NOW,))
-    c.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1','s1','started',?)", (NOW,))
-    c.execute("INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib2','s1','started',?)", (NOW,))
+    c.execute(
+        "INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1','S','csv',?)",
+        (NOW,),
+    )
+    c.execute(
+        "INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib1','s1','started',?)",
+        (NOW,),
+    )
+    c.execute(
+        "INSERT INTO import_batches (id, source_id, status, imported_at) VALUES ('ib2','s1','started',?)",
+        (NOW,),
+    )
     yield c
     c.close()
 
@@ -107,7 +116,10 @@ def test_ingest_inside_outer_transaction_never_commits_by_itself(conn):
 
 def test_failed_ingest_inside_outer_transaction_keeps_outer_work(conn):
     conn.execute("BEGIN IMMEDIATE")
-    conn.execute("INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('mark','M','csv',?)", (NOW,))
+    conn.execute(
+        "INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('mark','M','csv',?)",
+        (NOW,),
+    )
     text = HEADER + _row(ts="2026-01-01T00:00:00Z") + _row(ts="2026-01-01T01:00:00Z")
     with pytest.raises(IngestionError):
         ingest_csv(conn, text, "s1", "ib1", max_rows=1)
@@ -139,7 +151,9 @@ def test_auto_create_makes_meter_and_building_for_a_storable_row(conn):
     assert (summary.accepted_rows, summary.buildings_created, summary.meters_created) == (1, 1, 1)
     building = conn.execute("SELECT org_id FROM buildings WHERE id = 'b-new'").fetchone()
     assert building["org_id"] == "o-auto"
-    assert conn.execute("SELECT building_id FROM meters WHERE id = 'm-new'").fetchone()[0] == "b-new"
+    assert (
+        conn.execute("SELECT building_id FROM meters WHERE id = 'm-new'").fetchone()[0] == "b-new"
+    )
 
 
 def test_default_library_behaviour_still_rejects_unknown_meters(conn):

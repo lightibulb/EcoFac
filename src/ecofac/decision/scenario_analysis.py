@@ -32,6 +32,7 @@ ADDITIVE_STEPS = (-0.05, -0.02, 0.0, 0.02, 0.05)
 
 class BottleneckFinding(pydantic.BaseModel):
     """One bottleneck detected in a scenario."""
+
     category: str
     state: str
     constraint_name: str
@@ -45,6 +46,7 @@ class BottleneckFinding(pydantic.BaseModel):
 
 class ScenarioBottleneckReport(pydantic.BaseModel):
     """Bottleneck analysis for one scenario."""
+
     scenario_id: str
     status: str
     precedence: str
@@ -76,9 +78,7 @@ def _extract_constraints(
     return current, predicted
 
 
-def _classify_constraint(
-    constraint: dict, state: str
-) -> BottleneckFinding | None:
+def _classify_constraint(constraint: dict, state: str) -> BottleneckFinding | None:
     """Return the most severe classification for one constraint, or None."""
     name = constraint.get("name")
     if name not in ("electrical", "cooling"):
@@ -99,10 +99,7 @@ def _classify_constraint(
             headroom_to_physical_kw=h_phys,
             permitted_kw=perm,
             physical_capacity_kw=phys,
-            reason=(
-                f"{name} observed load exceeds physical capacity "
-                f"({-h_phys:.2f} kW over)."
-            ),
+            reason=(f"{name} observed load exceeds physical capacity ({-h_phys:.2f} kW over)."),
         )
 
     if h_perm is not None and h_perm < 0:
@@ -200,10 +197,7 @@ def detect_bottlenecks(record: dict) -> ScenarioBottleneckReport:
             findings.append(f)
 
     most_restrictive: str | None = None
-    numeric_preds = [
-        p for p in predicted
-        if p.get("headroom_to_permitted") is not None
-    ]
+    numeric_preds = [p for p in predicted if p.get("headroom_to_permitted") is not None]
     if numeric_preds:
         worst = min(
             numeric_preds,
@@ -218,20 +212,23 @@ def detect_bottlenecks(record: dict) -> ScenarioBottleneckReport:
             severity = "WARNING"
         else:
             severity = "INFO"
-        findings.insert(0, BottleneckFinding(
-            category="most_restrictive",
-            state="predicted",
-            constraint_name=worst["name"],
-            severity=severity,
-            headroom_to_permitted_kw=h,
-            headroom_to_physical_kw=worst.get("headroom_to_physical"),
-            permitted_kw=perm_val,
-            physical_capacity_kw=worst.get("physical_capacity"),
-            reason=(
-                f"{worst['name']} has the smallest predicted headroom "
-                f"({h:.2f} kW) among all evaluated constraints."
+        findings.insert(
+            0,
+            BottleneckFinding(
+                category="most_restrictive",
+                state="predicted",
+                constraint_name=worst["name"],
+                severity=severity,
+                headroom_to_permitted_kw=h,
+                headroom_to_physical_kw=worst.get("headroom_to_physical"),
+                permitted_kw=perm_val,
+                physical_capacity_kw=worst.get("physical_capacity"),
+                reason=(
+                    f"{worst['name']} has the smallest predicted headroom "
+                    f"({h:.2f} kW) among all evaluated constraints."
+                ),
             ),
-        ))
+        )
 
     if status == "APPROVE":
         for p in predicted:
@@ -240,29 +237,25 @@ def detect_bottlenecks(record: dict) -> ScenarioBottleneckReport:
             if h is None or perm is None or perm <= 0:
                 continue
             ratio = h / perm
-            if (
-                APPROACHING_PERMITTED_RATIO
-                <= ratio
-                < INSUFFICIENT_MARGIN_RATIO
-            ):
-                findings.append(BottleneckFinding(
-                    category=f"{p['name']}_insufficient_margin",
-                    state="predicted",
-                    constraint_name=p["name"],
-                    severity="INFO",
-                    headroom_to_permitted_kw=h,
-                    headroom_to_physical_kw=p.get(
-                        "headroom_to_physical"
-                    ),
-                    permitted_kw=perm,
-                    physical_capacity_kw=p.get("physical_capacity"),
-                    reason=(
-                        f"Decision is APPROVE but {p['name']} headroom is "
-                        f"{ratio * 100:.1f}% of permitted — below the "
-                        f"{INSUFFICIENT_MARGIN_RATIO * 100:.0f}% comfort "
-                        "margin."
-                    ),
-                ))
+            if APPROACHING_PERMITTED_RATIO <= ratio < INSUFFICIENT_MARGIN_RATIO:
+                findings.append(
+                    BottleneckFinding(
+                        category=f"{p['name']}_insufficient_margin",
+                        state="predicted",
+                        constraint_name=p["name"],
+                        severity="INFO",
+                        headroom_to_permitted_kw=h,
+                        headroom_to_physical_kw=p.get("headroom_to_physical"),
+                        permitted_kw=perm,
+                        physical_capacity_kw=p.get("physical_capacity"),
+                        reason=(
+                            f"Decision is APPROVE but {p['name']} headroom is "
+                            f"{ratio * 100:.1f}% of permitted — below the "
+                            f"{INSUFFICIENT_MARGIN_RATIO * 100:.0f}% comfort "
+                            "margin."
+                        ),
+                    )
+                )
 
     return ScenarioBottleneckReport(
         scenario_id=scenario_id,
@@ -277,6 +270,7 @@ def detect_bottlenecks(record: dict) -> ScenarioBottleneckReport:
 
 class ScenarioSnapshot(pydantic.BaseModel):
     """Compact view of one scenario for comparison."""
+
     id: str
     name: str
     status: str
@@ -302,6 +296,7 @@ class ScenarioSnapshot(pydantic.BaseModel):
 
 class InputDiffEntry(pydantic.BaseModel):
     """Comparison of one input field across scenarios."""
+
     field_name: str
     units: str | None
     values: list[Any]
@@ -310,6 +305,7 @@ class InputDiffEntry(pydantic.BaseModel):
 
 class ScenarioComparisonResponse(pydantic.BaseModel):
     """Comparison of multiple scenarios."""
+
     scenarios: list[ScenarioSnapshot]
     input_differences: list[InputDiffEntry]
     mixed_config_versions: bool
@@ -393,12 +389,8 @@ def _build_snapshot(record: dict) -> ScenarioSnapshot:
             current_cooling_headroom_kw=None,
             predicted_cooling_headroom_kw=None,
             data_quality_level=uncertainty.get("data_quality_level"),
-            model_uncertainty_level=uncertainty.get(
-                "model_uncertainty_level"
-            ),
-            most_restrictive_constraint=(
-                bottleneck.most_restrictive_constraint
-            ),
+            model_uncertainty_level=uncertainty.get("model_uncertainty_level"),
+            most_restrictive_constraint=(bottleneck.most_restrictive_constraint),
         )
 
     return ScenarioSnapshot(
@@ -414,25 +406,15 @@ def _build_snapshot(record: dict) -> ScenarioSnapshot:
         current_facility_power_kw=eng.get("current_facility_power_kw"),
         current_cooling_load_kw=eng.get("current_cooling_load_kw"),
         predicted_it_load_kw=eng.get("predicted_it_load_kw"),
-        predicted_facility_power_kw=eng.get(
-            "predicted_facility_power_kw"
-        ),
+        predicted_facility_power_kw=eng.get("predicted_facility_power_kw"),
         predicted_cooling_load_kw=eng.get("predicted_cooling_load_kw"),
-        current_electrical_headroom_kw=_headroom(
-            eng, "current_electrical"
-        ),
-        predicted_electrical_headroom_kw=_headroom(
-            eng, "predicted_electrical"
-        ),
+        current_electrical_headroom_kw=_headroom(eng, "current_electrical"),
+        predicted_electrical_headroom_kw=_headroom(eng, "predicted_electrical"),
         current_cooling_headroom_kw=_headroom(eng, "current_cooling"),
         predicted_cooling_headroom_kw=_headroom(eng, "predicted_cooling"),
         data_quality_level=uncertainty.get("data_quality_level"),
-        model_uncertainty_level=uncertainty.get(
-            "model_uncertainty_level"
-        ),
-        most_restrictive_constraint=(
-            bottleneck.most_restrictive_constraint
-        ),
+        model_uncertainty_level=uncertainty.get("model_uncertainty_level"),
+        most_restrictive_constraint=(bottleneck.most_restrictive_constraint),
     )
 
 
@@ -458,12 +440,9 @@ def _build_explanation(
         )
 
     input_summary = "; ".join(
-        f"{d.field_name}=[{', '.join(str(v) for v in d.values)}]"
-        for d in differing
+        f"{d.field_name}=[{', '.join(str(v) for v in d.values)}]" for d in differing
     )
-    outcome_summary = "; ".join(
-        f"{s.id[:8]}: {s.status}/{s.precedence}" for s in snapshots
-    )
+    outcome_summary = "; ".join(f"{s.id[:8]}: {s.status}/{s.precedence}" for s in snapshots)
     return (
         f"Scenarios differ in: {input_summary}. Outcomes: "
         f"{outcome_summary}. See per-scenario constraint evaluations for "
@@ -495,12 +474,14 @@ def compare_scenarios(records: list[dict]) -> ScenarioComparisonResponse:
             else:
                 normalized.append(v)
         differs = len({str(v) for v in normalized}) > 1
-        input_differences.append(InputDiffEntry(
-            field_name=name,
-            units=units,
-            values=values,
-            differs=differs,
-        ))
+        input_differences.append(
+            InputDiffEntry(
+                field_name=name,
+                units=units,
+                values=values,
+                differs=differs,
+            )
+        )
 
     config_versions = sorted({r["config_version"] for r in records})
     mixed_config_versions = len(config_versions) > 1
@@ -518,6 +499,7 @@ def compare_scenarios(records: list[dict]) -> ScenarioComparisonResponse:
 
 class SensitivityStep(pydantic.BaseModel):
     """One swept value and its decision outcome."""
+
     value: float
     status: str
     precedence: str
@@ -526,6 +508,7 @@ class SensitivityStep(pydantic.BaseModel):
 
 class ParameterSensitivity(pydantic.BaseModel):
     """Sweep results for one input parameter."""
+
     parameter: str
     units: str | None
     baseline_value: float
@@ -535,6 +518,7 @@ class ParameterSensitivity(pydantic.BaseModel):
 
 class SensitivityAnalysisResponse(pydantic.BaseModel):
     """Sensitivity analysis for one scenario."""
+
     scenario_id: str
     baseline_status: str
     baseline_precedence: str
@@ -612,9 +596,7 @@ def _get_path(container: dict, path: tuple[str, ...]) -> Any:
     return current
 
 
-def _set_path(
-    container: dict, path: tuple[str, ...], value: Any
-) -> None:
+def _set_path(container: dict, path: tuple[str, ...], value: Any) -> None:
     current: Any = container
     for key in path[:-1]:
         if not isinstance(current, dict) or key not in current:
@@ -642,31 +624,22 @@ def _request_payload_from_record(record: dict) -> dict:
 def analyze_sensitivity(record: dict) -> SensitivityAnalysisResponse:
     """Deterministic multiplicative/additive sweep over supported inputs."""
     base_payload = _request_payload_from_record(record)
-    baseline = decide_transparently(
-        TransparentDecisionRequest.model_validate(base_payload)
-    )
+    baseline = decide_transparently(TransparentDecisionRequest.model_validate(base_payload))
     baseline_status = baseline.status
     baseline_precedence = baseline.precedence
 
     parameters: list[ParameterSensitivity] = []
     for sweep in _SWEEPS:
         section = sweep["section"]
-        container = (
-            base_payload if section == "input" else base_payload["config"]
-        )
+        container = base_payload if section == "input" else base_payload["config"]
         baseline_value = _get_path(container, sweep["path"])
         if not isinstance(baseline_value, int | float):
             continue
 
         if sweep["mode"] == "multiplicative":
-            step_values = [
-                float(baseline_value) * m
-                for m in MULTIPLICATIVE_STEPS
-            ]
+            step_values = [float(baseline_value) * m for m in MULTIPLICATIVE_STEPS]
         else:
-            step_values = [
-                float(baseline_value) + a for a in ADDITIVE_STEPS
-            ]
+            step_values = [float(baseline_value) + a for a in ADDITIVE_STEPS]
 
         steps: list[SensitivityStep] = []
         for new_value in step_values:
@@ -677,38 +650,36 @@ def analyze_sensitivity(record: dict) -> SensitivityAnalysisResponse:
                 continue
 
             mutated = copy.deepcopy(base_payload)
-            target = (
-                mutated if section == "input" else mutated["config"]
-            )
+            target = mutated if section == "input" else mutated["config"]
             _set_path(target, sweep["path"], new_value)
 
             try:
-                request = TransparentDecisionRequest.model_validate(
-                    mutated
-                )
+                request = TransparentDecisionRequest.model_validate(mutated)
                 result = decide_transparently(request)
             except (ValueError, pydantic.ValidationError):
                 continue
 
-            steps.append(SensitivityStep(
-                value=round(new_value, 4),
-                status=result.status,
-                precedence=result.precedence,
-                changed_from_baseline=result.status != baseline_status,
-            ))
+            steps.append(
+                SensitivityStep(
+                    value=round(new_value, 4),
+                    status=result.status,
+                    precedence=result.precedence,
+                    changed_from_baseline=result.status != baseline_status,
+                )
+            )
 
         if not steps:
             continue
 
-        parameters.append(ParameterSensitivity(
-            parameter=sweep["name"],
-            units=sweep["units"],
-            baseline_value=round(float(baseline_value), 4),
-            steps=steps,
-            verdict_changed=any(
-                s.changed_from_baseline for s in steps
-            ),
-        ))
+        parameters.append(
+            ParameterSensitivity(
+                parameter=sweep["name"],
+                units=sweep["units"],
+                baseline_value=round(float(baseline_value), 4),
+                steps=steps,
+                verdict_changed=any(s.changed_from_baseline for s in steps),
+            )
+        )
 
     return SensitivityAnalysisResponse(
         scenario_id=record["id"],

@@ -38,12 +38,16 @@ def _req(
         config=_config(),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=400.0, unit=it_unit,
+            name="it_load",
+            value=400.0,
+            unit=it_unit,
             source=MeasurementSource.MEASURED,
             measurement_timestamp=it_timestamp,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit=cool_unit,
+            name="cooling_load",
+            value=300.0,
+            unit=cool_unit,
             source=MeasurementSource.MEASURED,
             measurement_timestamp=cool_timestamp,
         ),
@@ -69,31 +73,23 @@ def test_correct_units_accepted():
 
 def test_stale_measurement_forces_review():
     old_ts = (dt.datetime.now(dt.UTC) - dt.timedelta(hours=10)).isoformat()
-    result = decide_transparently(
-        _req(max_age=3600, it_timestamp=old_ts)
-    )
+    result = decide_transparently(_req(max_age=3600, it_timestamp=old_ts))
     assert result.status == "REVIEW"
     assert result.uncertainty.stale_measurements
 
 
 def test_fresh_measurement_ok():
     fresh_ts = dt.datetime.now(dt.UTC).isoformat()
-    result = decide_transparently(
-        _req(max_age=3600, it_timestamp=fresh_ts)
-    )
+    result = decide_transparently(_req(max_age=3600, it_timestamp=fresh_ts))
     assert result.status == "APPROVE"
 
 
 def test_no_max_age_means_no_check():
     old_ts = (dt.datetime.now(dt.UTC) - dt.timedelta(days=30)).isoformat()
-    result = decide_transparently(
-        _req(max_age=None, it_timestamp=old_ts)
-    )
+    result = decide_transparently(_req(max_age=None, it_timestamp=old_ts))
     assert result.status == "APPROVE"
 
 
 def test_unparseable_timestamp_treated_as_stale():
-    result = decide_transparently(
-        _req(max_age=3600, it_timestamp="not-a-timestamp")
-    )
+    result = decide_transparently(_req(max_age=3600, it_timestamp="not-a-timestamp"))
     assert result.status == "REVIEW"

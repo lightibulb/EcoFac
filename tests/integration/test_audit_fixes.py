@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Regression tests for the data-integrity audit fixes."""
+
 import datetime as dt
 import json
 import sqlite3
@@ -44,8 +45,7 @@ def test_non_finite_values_are_rejected_not_fatal(db_conn):
 
 def test_rejected_row_does_not_shadow_a_later_valid_row(db_conn):
     csv_data = HEADER + (
-        "2026-01-01T00:00:00Z,b1,m1-1,10,BTU\n"
-        "2026-01-01T00:00:00Z,b1,m1-1,10,kWh\n"
+        "2026-01-01T00:00:00Z,b1,m1-1,10,BTU\n2026-01-01T00:00:00Z,b1,m1-1,10,kWh\n"
     )
     summary = ingest_csv(db_conn, csv_data, "s1", "ib1")
     assert summary.accepted_rows == 1
@@ -69,16 +69,14 @@ def test_reimporting_negative_reading_does_not_crash(db_conn):
 
 def test_headers_are_case_and_space_insensitive(db_conn):
     csv_data = (
-        " Timestamp , Building_ID ,METER_ID,Energy_Value,Unit\n"
-        "2026-01-01T00:00:00Z,b1,m1-1,5,kWh\n"
+        " Timestamp , Building_ID ,METER_ID,Energy_Value,Unit\n2026-01-01T00:00:00Z,b1,m1-1,5,kWh\n"
     )
     assert ingest_csv(db_conn, csv_data, "s1", "ib1").accepted_rows == 1
 
 
 def test_sub_second_timestamps_are_truncated_so_ordering_stays_consistent(db_conn):
     csv_data = HEADER + (
-        "2026-01-01T00:00:00.500Z,b1,m1-1,5,kWh\n"
-        "2026-01-01T00:00:00Z,b1,m1-1,6,kWh\n"
+        "2026-01-01T00:00:00.500Z,b1,m1-1,5,kWh\n2026-01-01T00:00:00Z,b1,m1-1,6,kWh\n"
     )
     summary = ingest_csv(db_conn, csv_data, "s1", "ib1")
     assert summary.accepted_rows == 1
@@ -89,11 +87,17 @@ def test_sub_second_timestamps_are_truncated_so_ordering_stays_consistent(db_con
 
 def _insert_anomaly(conn, anomaly_id, detector, reading_ids):
     anomaly = Anomaly(
-        id=anomaly_id, building_id="b1", meter_id="m1-1",
+        id=anomaly_id,
+        building_id="b1",
+        meter_id="m1-1",
         timestamp_utc="2026-01-01T12:00:00Z",
-        observed_consumption=100.0, expected_consumption=10.0,
-        absolute_deviation=90.0, percentage_deviation=900.0,
-        detector_name=detector, severity="high", is_data_quality_eligible=True,
+        observed_consumption=100.0,
+        expected_consumption=10.0,
+        absolute_deviation=90.0,
+        percentage_deviation=900.0,
+        detector_name=detector,
+        severity="high",
+        is_data_quality_eligible=True,
         detection_timestamp="2026-01-01T12:05:00Z",
         supporting_observation_ids=reading_ids,
         detection_parameters='{"window_size": 24}',
@@ -128,7 +132,9 @@ def test_create_incident_is_idempotent(anomaly_db):
 
 def test_two_detectors_share_one_incident_with_two_evidence_records(anomaly_db):
     rid = _reading_id(anomaly_db)
-    first = create_incident(anomaly_db, _insert_anomaly(anomaly_db, "a1", "rolling_baseline", [rid]))
+    first = create_incident(
+        anomaly_db, _insert_anomaly(anomaly_db, "a1", "rolling_baseline", [rid])
+    )
     second = create_incident(anomaly_db, _insert_anomaly(anomaly_db, "a2", "robust_mad", [rid]))
     assert first == second
     evidence = anomaly_db.execute(

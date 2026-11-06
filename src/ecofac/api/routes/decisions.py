@@ -77,9 +77,7 @@ def _resolve_trusted(
     """
     if req.mode != DecisionMode.TRUSTED:
         if req.inputs_resolved_by_server or req.trust_caveats:
-            return req.model_copy(
-                update={"inputs_resolved_by_server": False, "trust_caveats": []}
-            )
+            return req.model_copy(update={"inputs_resolved_by_server": False, "trust_caveats": []})
         return req
 
     evaluation_dt = dt.datetime.now(dt.UTC)
@@ -147,9 +145,7 @@ def _resolve_trusted(
     )
 
 
-def _enrich_history_item(
-    row: sqlite3.Row, successors: dict[str, str]
-) -> DecisionHistoryItem:
+def _enrich_history_item(row: sqlite3.Row, successors: dict[str, str]) -> DecisionHistoryItem:
     """Build a DecisionHistoryItem with supersession indicators populated."""
     return DecisionHistoryItem(
         **dict(row),
@@ -200,13 +196,14 @@ def list_decisions_endpoint(
     filters (independent of limit/offset), so paginators can compute page
     counts without extra round-trips.
     """
-    total = count_decisions(
-        conn, status=status, config_version=config_version
-    )
+    total = count_decisions(conn, status=status, config_version=config_version)
     response.headers["X-Total-Count"] = str(total)
     rows = list_decisions(
-        conn, limit=limit, offset=offset,
-        status=status, config_version=config_version,
+        conn,
+        limit=limit,
+        offset=offset,
+        status=status,
+        config_version=config_version,
     )
     successors = batch_supersession_info(conn, [row["id"] for row in rows])
     return [_enrich_history_item(row, successors) for row in rows]
@@ -220,22 +217,15 @@ def decision_stats_endpoint(
     stats = aggregate_decisions(conn)
     latest = stats["latest_row"]
     recent = stats["recent_rows"]
-    all_ids = (
-        ([latest["id"]] if latest is not None else [])
-        + [row["id"] for row in recent]
-    )
+    all_ids = ([latest["id"]] if latest is not None else []) + [row["id"] for row in recent]
     successors = batch_supersession_info(conn, all_ids)
     return DecisionStats(
         total=stats["total"],
         approved=stats["approved"],
         rejected=stats["rejected"],
         review=stats["review"],
-        latest_decision=(
-            _enrich_history_item(latest, successors) if latest else None
-        ),
-        recent_activity=[
-            _enrich_history_item(row, successors) for row in recent
-        ],
+        latest_decision=(_enrich_history_item(latest, successors) if latest else None),
+        recent_activity=[_enrich_history_item(row, successors) for row in recent],
     )
 
 

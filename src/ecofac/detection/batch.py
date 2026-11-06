@@ -7,6 +7,7 @@ formulas, slightly looser thresholds, so screening can only over-select) and
 then hands the few candidates to the authoritative detectors. The detectors
 remain the single source of truth for what counts as an anomaly.
 """
+
 import dataclasses
 import datetime as dt
 import logging
@@ -114,9 +115,7 @@ def analyze_meter_series(
             try:
                 incident_ids.add(create_incident(conn, anomaly))
             except ValueError:
-                logger.warning(
-                    "Skipped incident for anomaly %s", anomaly.id, exc_info=True
-                )
+                logger.warning("Skipped incident for anomaly %s", anomaly.id, exc_info=True)
                 summary.skipped += 1
     return summary, incident_ids
 
@@ -141,9 +140,7 @@ def analyze_all(
     total = AnalysisSummary()
     all_incidents: set[str] = set()
     for meter_id in sorted(set(meter_ids)):
-        part, incident_ids = analyze_meter_series(
-            conn, meter_id, create_incidents=create_incidents
-        )
+        part, incident_ids = analyze_meter_series(conn, meter_id, create_incidents=create_incidents)
         total.anomalies_detected += part.anomalies_detected
         total.anomalies_gated += part.anomalies_gated
         total.skipped += part.skipped

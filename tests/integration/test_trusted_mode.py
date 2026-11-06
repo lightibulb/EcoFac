@@ -40,8 +40,7 @@ def db_conn():
         (now,),
     )
     conn.execute(
-        "INSERT INTO data_sources (id, name, source_type, created_at) "
-        "VALUES ('s1','S','csv',?)",
+        "INSERT INTO data_sources (id, name, source_type, created_at) VALUES ('s1','S','csv',?)",
         (now,),
     )
     conn.execute(
@@ -65,11 +64,15 @@ def test_trusted_mode_requires_meter_id():
         config=_config(),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=400.0, unit="kW",
+            name="it_load",
+            value=400.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
+            name="cooling_load",
+            value=300.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         quality_eligible=True,
@@ -87,19 +90,29 @@ def _operational_request(**overrides) -> TransparentDecisionRequest:
         "config": _config(),
         "config_version": "cfg-1",
         "it_load": RichMeasurement(
-            name="it_load", value=400.0, unit="kW",
+            name="it_load",
+            value=400.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
             uncertainty=UncertaintyMetadata(relative_tolerance=0.02),
-            measurement_timestamp=ts, reference_id="r-it", meter_id="it",
+            measurement_timestamp=ts,
+            reference_id="r-it",
+            meter_id="it",
         ),
         "cooling_load": RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
+            name="cooling_load",
+            value=300.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
             uncertainty=UncertaintyMetadata(relative_tolerance=0.03),
-            measurement_timestamp=ts, reference_id="r-c", meter_id="cool",
+            measurement_timestamp=ts,
+            reference_id="r-c",
+            meter_id="cool",
         ),
         "pue": RichMeasurement(
-            name="pue", value=1.4, unit="dimensionless",
+            name="pue",
+            value=1.4,
+            unit="dimensionless",
             source=MeasurementSource.CONFIGURED,
         ),
         "quality_eligible": True,
@@ -123,11 +136,15 @@ def test_trusted_mode_without_trusted_inputs_cannot_approve():
         config=_config(),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=400.0, unit="kW",
+            name="it_load",
+            value=400.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
+            name="cooling_load",
+            value=300.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         quality_eligible=True,

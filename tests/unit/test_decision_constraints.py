@@ -38,25 +38,34 @@ def test_compute_predicted_happy_path():
 
 
 def test_compute_predicted_missing_it():
-    assert compute_predicted(
-        FacilityMeasurements(cooling_load_kw=200.0),
-        ProposedChange(),
-    ) is None
+    assert (
+        compute_predicted(
+            FacilityMeasurements(cooling_load_kw=200.0),
+            ProposedChange(),
+        )
+        is None
+    )
 
 
 def test_compute_predicted_missing_cooling():
-    assert compute_predicted(
-        FacilityMeasurements(it_load_kw=500.0),
-        ProposedChange(),
-    ) is None
+    assert (
+        compute_predicted(
+            FacilityMeasurements(it_load_kw=500.0),
+            ProposedChange(),
+        )
+        is None
+    )
 
 
 def test_compute_predicted_zero_it_returns_none():
     """A projected zero or negative IT load is meaningless for PUE."""
-    assert compute_predicted(
-        FacilityMeasurements(it_load_kw=10.0, cooling_load_kw=5.0),
-        ProposedChange(it_load_delta_kw=-20.0),
-    ) is None
+    assert (
+        compute_predicted(
+            FacilityMeasurements(it_load_kw=10.0, cooling_load_kw=5.0),
+            ProposedChange(it_load_delta_kw=-20.0),
+        )
+        is None
+    )
 
 
 def test_evaluate_electrical_pass():

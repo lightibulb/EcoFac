@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """The simulator's labels must be fair and its defect counts must be published."""
+
 import csv
 import json
 import random

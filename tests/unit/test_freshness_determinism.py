@@ -21,7 +21,10 @@ EVAL = "2026-03-01T12:00:00Z"
 
 def m(name, value, ts):
     return RichMeasurement(
-        name=name, value=value, unit="kW", source=MeasurementSource.MEASURED,
+        name=name,
+        value=value,
+        unit="kW",
+        source=MeasurementSource.MEASURED,
         measurement_timestamp=ts,
     )
 
@@ -82,16 +85,12 @@ def test_naive_timestamp_is_treated_as_invalid_not_local_time():
 
 
 def test_caller_stale_flag_cannot_hide_real_staleness():
-    result = decide_transparently(
-        request("2026-03-01T09:00:00Z", quality_stale=False)
-    )
+    result = decide_transparently(request("2026-03-01T09:00:00Z", quality_stale=False))
     assert result.status == "REVIEW"
 
 
 def test_caller_can_only_add_staleness_never_remove_it():
-    fresh_but_flagged = decide_transparently(
-        request("2026-03-01T11:30:00Z", quality_stale=True)
-    )
+    fresh_but_flagged = decide_transparently(request("2026-03-01T11:30:00Z", quality_stale=True))
     assert fresh_but_flagged.status == "REVIEW"
 
 
@@ -111,8 +110,7 @@ def test_replay_is_unaffected_by_wall_clock_advancing(conn, monkeypatch):
     decision_id = persist_decision(conn, req, result)
 
     stored = json.loads(
-        conn.execute("SELECT request_json FROM decisions WHERE id=?", (decision_id,))
-        .fetchone()[0]
+        conn.execute("SELECT request_json FROM decisions WHERE id=?", (decision_id,)).fetchone()[0]
     )
     assert stored["evaluation_time"] == EVAL  # pinned at persistence
 

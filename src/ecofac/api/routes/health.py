@@ -8,6 +8,7 @@ from ecofac.api.schemas import HealthResponse
 
 router = APIRouter()
 
+
 @router.get("/health", tags=["Health"])
 def health_check() -> HealthResponse:
     """Basic health check."""

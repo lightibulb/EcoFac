@@ -109,9 +109,8 @@ def decide(
 
     if failed:
         status = DecisionStatus.REJECT
-        explanation = (
-            f"Rejected: {len(failed)} constraint(s) failed - "
-            + "; ".join(f"{ev.name}: {ev.reason}" for ev in failed)
+        explanation = f"Rejected: {len(failed)} constraint(s) failed - " + "; ".join(
+            f"{ev.name}: {ev.reason}" for ev in failed
         )
     else:
         status = DecisionStatus.APPROVE

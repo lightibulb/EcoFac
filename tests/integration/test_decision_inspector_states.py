@@ -41,9 +41,7 @@ def inspector_ctx():
     conn.close()
 
 
-def _config(
-    *, cap=1000.0, cool_cap=800.0, reserve=0.10
-) -> ConstraintConfig:
+def _config(*, cap=1000.0, cool_cap=800.0, reserve=0.10) -> ConstraintConfig:
     return ConstraintConfig(
         electrical=ElectricalLimits(capacity=cap, reserve_pct=reserve),
         cooling=CoolingLimits(capacity=cool_cap, reserve_pct=reserve),
@@ -106,8 +104,15 @@ def _assert_inspector_contract(record: dict) -> None:
     result = record["result"]
 
     # Identity
-    for f in ("id", "status", "precedence", "engine_version",
-              "config_version", "decision_timestamp", "created_at"):
+    for f in (
+        "id",
+        "status",
+        "precedence",
+        "engine_version",
+        "config_version",
+        "decision_timestamp",
+        "created_at",
+    ):
         assert f in record, f"missing identity field {f}"
 
     # Fingerprints used for evidence and reproducibility.
@@ -131,10 +136,14 @@ def _assert_inspector_contract(record: dict) -> None:
     assert "calculation_inputs" in evidence
     ci = evidence["calculation_inputs"]
     for f in (
-        "current_it_load_kw", "current_facility_power_kw",
-        "current_cooling_load_kw", "predicted_it_load_kw",
-        "predicted_facility_power_kw", "predicted_cooling_load_kw",
-        "pue", "pue_provenance",
+        "current_it_load_kw",
+        "current_facility_power_kw",
+        "current_cooling_load_kw",
+        "predicted_it_load_kw",
+        "predicted_facility_power_kw",
+        "predicted_cooling_load_kw",
+        "pue",
+        "pue_provenance",
     ):
         assert f in ci, f"missing calculation_input {f}"
 
@@ -142,9 +151,16 @@ def _assert_inspector_contract(record: dict) -> None:
     sm = result["state_machine_decision"]
     assert "evaluated_constraints" in sm
     for ev in sm["evaluated_constraints"]:
-        for f in ("name", "severity", "observed", "permitted",
-                  "physical_capacity", "headroom_to_permitted",
-                  "headroom_to_physical", "reason"):
+        for f in (
+            "name",
+            "severity",
+            "observed",
+            "permitted",
+            "physical_capacity",
+            "headroom_to_permitted",
+            "headroom_to_physical",
+            "reason",
+        ):
             assert f in ev, f"constraint missing {f}"
 
     # Evidence structure
@@ -155,9 +171,16 @@ def _assert_inspector_contract(record: dict) -> None:
     # Uncertainty
     assert "uncertainty" in result
     u = result["uncertainty"]
-    for f in ("data_quality_level", "model_uncertainty_level",
-              "missing_measurements", "stale_measurements", "quality_flags",
-              "rationale", "assumptions", "model_limitations"):
+    for f in (
+        "data_quality_level",
+        "model_uncertainty_level",
+        "missing_measurements",
+        "stale_measurements",
+        "quality_flags",
+        "rationale",
+        "assumptions",
+        "model_limitations",
+    ):
         assert f in u, f"uncertainty missing {f}"
 
     # Reproducibility
@@ -169,8 +192,7 @@ def _assert_inspector_contract(record: dict) -> None:
     # Explanation
     assert "explanation" in result
     expl = result["explanation"]
-    for f in ("summary", "limiting_constraint", "headroom_summary",
-              "what_would_change_decision"):
+    for f in ("summary", "limiting_constraint", "headroom_summary", "what_would_change_decision"):
         assert f in expl, f"explanation missing {f}"
 
 
@@ -267,10 +289,7 @@ def test_invalid_proposal_rejected(inspector_ctx):
     record = _fetch_record(client, did)
     assert record["status"] == "REJECT"
     assert record["precedence"] == "invalid_proposal"
-    reasons = (
-        record["result"]["evidence"]["calculation_inputs"]
-        ["invalid_proposal_reasons"]
-    )
+    reasons = record["result"]["evidence"]["calculation_inputs"]["invalid_proposal_reasons"]
     assert len(reasons) > 0
     assert "negative" in reasons[0].lower()
 
@@ -285,7 +304,7 @@ def test_missing_evidence_old_record(inspector_ctx):
         "decision_timestamp, created_at, supersedes, supersession_reason) "
         "VALUES ('old-1', 'APPROVE', 'clean', '0.9', 'cfg-1', "
         "'fp1', 'fp2', '{}', "
-        "'{\"evidence\": {\"calculation_inputs\": {}}}', "
+        '\'{"evidence": {"calculation_inputs": {}}}\', '
         "'2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', NULL, NULL)"
     )
     # Engineering endpoint must return 422 — the UI relies on this
@@ -303,9 +322,9 @@ def test_missing_evidence_old_record(inspector_ctx):
     record = {
         "id": "old-1",
         "result": json.loads(
-            conn.execute(
-                "SELECT result_json FROM decisions WHERE id = 'old-1'"
-            ).fetchone()["result_json"]
+            conn.execute("SELECT result_json FROM decisions WHERE id = 'old-1'").fetchone()[
+                "result_json"
+            ]
         ),
     }
     with pytest.raises(ValueError, match="predates"):
@@ -352,12 +371,12 @@ def test_all_states_render_through_api(inspector_ctx):
     """Every inspector state can be fetched via the API."""
     conn, client = inspector_ctx
     cases = [
-        _req(it=400.0),                                    # APPROVE
-        _req(it=1100.0),                                   # REJECT physical
-        _req(it=950.0),                                    # REJECT reserve
-        _req(it=850.0),                                    # REVIEW near threshold
+        _req(it=400.0),  # APPROVE
+        _req(it=1100.0),  # REJECT physical
+        _req(it=950.0),  # REJECT reserve
+        _req(it=850.0),  # REVIEW near threshold
         _req(quality_eligible=False, quality_flags=["missing_data"]),
-        _req(proposed_it_delta=-500.0),                    # REJECT invalid
+        _req(proposed_it_delta=-500.0),  # REJECT invalid
     ]
     ids = [_persist(conn, c) for c in cases]
     for decision_id in ids:
@@ -375,9 +394,13 @@ def test_verify_decision_store_helper_reports_full_scope(inspector_ctx):
     v = verify_decision(conn, did)
     assert v is not None
     for key in (
-        "verified", "output_verified", "engine_version_match",
-        "verification_scope", "full_bundle_reproduced",
-        "stored_engine_version", "current_engine_version",
+        "verified",
+        "output_verified",
+        "engine_version_match",
+        "verification_scope",
+        "full_bundle_reproduced",
+        "stored_engine_version",
+        "current_engine_version",
     ):
         assert key in v, f"verify missing {key}"
     assert v["verification_scope"] == "input_config_output_status"

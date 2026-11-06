@@ -39,21 +39,20 @@ def _req(
         config=_config(),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=it_value, unit="kW",
+            name="it_load",
+            value=it_value,
+            unit="kW",
             source=MeasurementSource.MEASURED,
-            uncertainty=(
-                UncertaintyMetadata(absolute_tolerance=it_tol) if it_tol else None
-            ),
+            uncertainty=(UncertaintyMetadata(absolute_tolerance=it_tol) if it_tol else None),
             reference_id="reading-it-1",
             measurement_timestamp="2026-01-01T00:00:00Z",
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=cool_value, unit="kW",
+            name="cooling_load",
+            value=cool_value,
+            unit="kW",
             source=MeasurementSource.MEASURED,
-            uncertainty=(
-                UncertaintyMetadata(absolute_tolerance=cool_tol)
-                if cool_tol else None
-            ),
+            uncertainty=(UncertaintyMetadata(absolute_tolerance=cool_tol) if cool_tol else None),
         ),
         quality_eligible=quality,
     )
@@ -72,6 +71,7 @@ def test_full_flow_reject_and_reproduce():
     result = decide_transparently(req)
     assert result.status == "REJECT"
     from ecofac.decision.transparent import pinned_request  # noqa: PLC0415
+
     pinned = pinned_request(req, result)
     verified = verify_reproduction(
         result.fingerprint,

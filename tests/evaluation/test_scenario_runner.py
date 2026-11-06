@@ -8,9 +8,7 @@ from evaluation.scenario_eval import run_scenario_evaluation, write_report
 
 
 def test_scenario_runner_smoke():
-    results = run_scenario_evaluation(
-        seeds=(42,), scenarios=("classic", "noise")
-    )
+    results = run_scenario_evaluation(seeds=(42,), scenarios=("classic", "noise"))
     assert len(results) == 2
     for r in results:
         assert r["scenario"] in {"classic", "noise"}

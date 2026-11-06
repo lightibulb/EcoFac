@@ -63,12 +63,8 @@ class ReserveConfig(pydantic.BaseModel):
 
     capacity: float = pydantic.Field(gt=0, allow_inf_nan=False)
     reserve_pct: float = pydantic.Field(ge=0.0, lt=1.0, allow_inf_nan=False)
-    warning_threshold_pct: float = pydantic.Field(
-        ge=0.0, lt=1.0, default=0.10, allow_inf_nan=False
-    )
-    min_headroom: float = pydantic.Field(
-        ge=0.0, default=0.0, allow_inf_nan=False
-    )
+    warning_threshold_pct: float = pydantic.Field(ge=0.0, lt=1.0, default=0.10, allow_inf_nan=False)
+    min_headroom: float = pydantic.Field(ge=0.0, default=0.0, allow_inf_nan=False)
 
 
 class ElectricalLimits(ReserveConfig):
@@ -140,10 +136,7 @@ def evaluate_load(
 
     if observed > config.capacity:
         severity = ConstraintSeverity.PHYSICAL_VIOLATION
-        reason = (
-            f"{name}: observed {observed:.4f} exceeds physical capacity "
-            f"{config.capacity:.4f}"
-        )
+        reason = f"{name}: observed {observed:.4f} exceeds physical capacity {config.capacity:.4f}"
     elif observed > permitted:
         severity = ConstraintSeverity.RESERVE_VIOLATION
         reason = (
@@ -165,10 +158,7 @@ def evaluate_load(
         )
     else:
         severity = ConstraintSeverity.OK
-        reason = (
-            f"{name}: observed {observed:.4f} within permitted "
-            f"{permitted:.4f}"
-        )
+        reason = f"{name}: observed {observed:.4f} within permitted {permitted:.4f}"
 
     return LimitEvaluation(
         name=name,
@@ -213,9 +203,7 @@ def evaluate_all(
     else:
         limiting = min(evals, key=lambda e: e.headroom_to_permitted).name
 
-    evals_final = [
-        e.model_copy(update={"is_limiting": e.name == limiting}) for e in evals
-    ]
+    evals_final = [e.model_copy(update={"is_limiting": e.name == limiting}) for e in evals]
     violations = [
         e.name
         for e in evals_final
@@ -225,11 +213,7 @@ def evaluate_all(
             ConstraintSeverity.RESERVE_VIOLATION,
         )
     ]
-    warnings = [
-        e.name
-        for e in evals_final
-        if e.severity == ConstraintSeverity.WARNING
-    ]
+    warnings = [e.name for e in evals_final if e.severity == ConstraintSeverity.WARNING]
 
     return ConstraintSummary(
         evaluations=evals_final,

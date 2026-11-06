@@ -26,18 +26,20 @@ def _config() -> ConstraintConfig:
     )
 
 
-def _req(
-    it=400.0, cool=300.0, it_delta=0.0, cool_delta=0.0
-) -> TransparentDecisionRequest:
+def _req(it=400.0, cool=300.0, it_delta=0.0, cool_delta=0.0) -> TransparentDecisionRequest:
     return TransparentDecisionRequest(
         config=_config(),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=it, unit="kW",
+            name="it_load",
+            value=it,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=cool, unit="kW",
+            name="cooling_load",
+            value=cool,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         proposed_it_delta=it_delta,
@@ -49,7 +51,9 @@ def _req(
 def test_negative_measurement_value_rejected_at_schema():
     with pytest.raises(pydantic.ValidationError):
         RichMeasurement(
-            name="it_load", value=-1.0, unit="kW",
+            name="it_load",
+            value=-1.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         )
 

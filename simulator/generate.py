@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Reproducible synthetic data generator for EcoFac evaluation."""
+
 import csv
 import datetime as dt
 import json
@@ -61,26 +62,34 @@ def _gen_classic(
                         value *= rng.uniform(1.5, 3.0)
                         is_spike = True
 
-                    readings.append({
-                        "timestamp": ts_str,
-                        "building_id": bldg_id,
-                        "meter_id": meter_id,
-                        "energy_value": round(value, 2),
-                        "unit": "kWh",
-                    })
-                    if is_spike:
-                        ground_truth.append({
+                    readings.append(
+                        {
+                            "timestamp": ts_str,
                             "building_id": bldg_id,
                             "meter_id": meter_id,
-                            "timestamp": ts_str,
-                            "type": "spike",
-                        })
+                            "energy_value": round(value, 2),
+                            "unit": "kWh",
+                        }
+                    )
+                    if is_spike:
+                        ground_truth.append(
+                            {
+                                "building_id": bldg_id,
+                                "meter_id": meter_id,
+                                "timestamp": ts_str,
+                                "type": "spike",
+                            }
+                        )
     stale_skipped = min(3, days) * 24 if buildings >= 3 and meters_per_bldg >= 2 else 0
-    return readings, ground_truth, {
-        "missing_rate": 0.01,
-        "dupes_rate": 0.01,
-        "stale_skipped": stale_skipped,
-    }
+    return (
+        readings,
+        ground_truth,
+        {
+            "missing_rate": 0.01,
+            "dupes_rate": 0.01,
+            "stale_skipped": stale_skipped,
+        },
+    )
 
 
 def _gen_gradual(
@@ -117,25 +126,33 @@ def _gen_gradual(
                     if rng.random() < anomaly_prob and value > 0:
                         value *= rng.uniform(1.5, 3.0)
                         is_spike = True
-                    readings.append({
-                        "timestamp": ts_str,
-                        "building_id": bldg_id,
-                        "meter_id": meter_id,
-                        "energy_value": round(value, 2),
-                        "unit": "kWh",
-                    })
-                    if is_spike:
-                        ground_truth.append({
+                    readings.append(
+                        {
+                            "timestamp": ts_str,
                             "building_id": bldg_id,
                             "meter_id": meter_id,
-                            "timestamp": ts_str,
-                            "type": "spike",
-                        })
-    return readings, ground_truth, {
-        "missing_rate": 0.01,
-        "dupes_rate": 0.01,
-        "stale_skipped": 0,
-    }
+                            "energy_value": round(value, 2),
+                            "unit": "kWh",
+                        }
+                    )
+                    if is_spike:
+                        ground_truth.append(
+                            {
+                                "building_id": bldg_id,
+                                "meter_id": meter_id,
+                                "timestamp": ts_str,
+                                "type": "spike",
+                            }
+                        )
+    return (
+        readings,
+        ground_truth,
+        {
+            "missing_rate": 0.01,
+            "dupes_rate": 0.01,
+            "stale_skipped": 0,
+        },
+    )
 
 
 def _gen_persistent(
@@ -171,25 +188,33 @@ def _gen_persistent(
                     if rng.random() < anomaly_prob and value > 0:
                         value *= rng.uniform(1.5, 3.0)
                         is_spike = True
-                    readings.append({
-                        "timestamp": ts_str,
-                        "building_id": bldg_id,
-                        "meter_id": meter_id,
-                        "energy_value": round(value, 2),
-                        "unit": "kWh",
-                    })
-                    if is_spike:
-                        ground_truth.append({
+                    readings.append(
+                        {
+                            "timestamp": ts_str,
                             "building_id": bldg_id,
                             "meter_id": meter_id,
-                            "timestamp": ts_str,
-                            "type": "spike",
-                        })
-    return readings, ground_truth, {
-        "missing_rate": 0.01,
-        "dupes_rate": 0.01,
-        "stale_skipped": 0,
-    }
+                            "energy_value": round(value, 2),
+                            "unit": "kWh",
+                        }
+                    )
+                    if is_spike:
+                        ground_truth.append(
+                            {
+                                "building_id": bldg_id,
+                                "meter_id": meter_id,
+                                "timestamp": ts_str,
+                                "type": "spike",
+                            }
+                        )
+    return (
+        readings,
+        ground_truth,
+        {
+            "missing_rate": 0.01,
+            "dupes_rate": 0.01,
+            "stale_skipped": 0,
+        },
+    )
 
 
 def _gen_intermittent(
@@ -212,7 +237,7 @@ def _gen_intermittent(
             for day in range(days):
                 current_date = start_date + dt.timedelta(days=day)
                 is_weekend = current_date.weekday() >= 5
-                spike_day = (day % 3 == 0)
+                spike_day = day % 3 == 0
                 for hour in range(24):
                     ts = current_date + dt.timedelta(hours=hour)
                     ts_str = ts.isoformat().replace("+00:00", "Z")
@@ -223,25 +248,33 @@ def _gen_intermittent(
                     is_spike = spike_day and 14 <= hour <= 16
                     if is_spike:
                         value *= rng.uniform(2.5, 3.5)
-                    readings.append({
-                        "timestamp": ts_str,
-                        "building_id": bldg_id,
-                        "meter_id": meter_id,
-                        "energy_value": round(value, 2),
-                        "unit": "kWh",
-                    })
-                    if is_spike:
-                        ground_truth.append({
+                    readings.append(
+                        {
+                            "timestamp": ts_str,
                             "building_id": bldg_id,
                             "meter_id": meter_id,
-                            "timestamp": ts_str,
-                            "type": "spike",
-                        })
-    return readings, ground_truth, {
-        "missing_rate": 0.01,
-        "dupes_rate": 0.01,
-        "stale_skipped": 0,
-    }
+                            "energy_value": round(value, 2),
+                            "unit": "kWh",
+                        }
+                    )
+                    if is_spike:
+                        ground_truth.append(
+                            {
+                                "building_id": bldg_id,
+                                "meter_id": meter_id,
+                                "timestamp": ts_str,
+                                "type": "spike",
+                            }
+                        )
+    return (
+        readings,
+        ground_truth,
+        {
+            "missing_rate": 0.01,
+            "dupes_rate": 0.01,
+            "stale_skipped": 0,
+        },
+    )
 
 
 def _gen_irregular(
@@ -276,26 +309,34 @@ def _gen_irregular(
                     if rng.random() < anomaly_prob and value > 0:
                         value *= rng.uniform(1.5, 3.0)
                         is_spike = True
-                    readings.append({
-                        "timestamp": ts_str,
-                        "building_id": bldg_id,
-                        "meter_id": meter_id,
-                        "energy_value": round(value, 2),
-                        "unit": "kWh",
-                    })
-                    if is_spike:
-                        ground_truth.append({
+                    readings.append(
+                        {
+                            "timestamp": ts_str,
                             "building_id": bldg_id,
                             "meter_id": meter_id,
-                            "timestamp": ts_str,
-                            "type": "spike",
-                        })
+                            "energy_value": round(value, 2),
+                            "unit": "kWh",
+                        }
+                    )
+                    if is_spike:
+                        ground_truth.append(
+                            {
+                                "building_id": bldg_id,
+                                "meter_id": meter_id,
+                                "timestamp": ts_str,
+                                "type": "spike",
+                            }
+                        )
                     hour += 1 if rng.random() < 0.7 else 2
-    return readings, ground_truth, {
-        "missing_rate": 0.01,
-        "dupes_rate": 0.01,
-        "stale_skipped": 0,
-    }
+    return (
+        readings,
+        ground_truth,
+        {
+            "missing_rate": 0.01,
+            "dupes_rate": 0.01,
+            "stale_skipped": 0,
+        },
+    )
 
 
 def _gen_noise(
@@ -324,18 +365,24 @@ def _gen_noise(
                     schedule = 5.0 if not is_weekend and 8 <= hour <= 18 else 0.0
                     noise = rng.gauss(0, 4.0)
                     value = base_load + seasonal + schedule + noise
-                    readings.append({
-                        "timestamp": ts_str,
-                        "building_id": bldg_id,
-                        "meter_id": meter_id,
-                        "energy_value": round(value, 2),
-                        "unit": "kWh",
-                    })
-    return readings, [], {
-        "missing_rate": 0.01,
-        "dupes_rate": 0.01,
-        "stale_skipped": 0,
-    }
+                    readings.append(
+                        {
+                            "timestamp": ts_str,
+                            "building_id": bldg_id,
+                            "meter_id": meter_id,
+                            "energy_value": round(value, 2),
+                            "unit": "kWh",
+                        }
+                    )
+    return (
+        readings,
+        [],
+        {
+            "missing_rate": 0.01,
+            "dupes_rate": 0.01,
+            "stale_skipped": 0,
+        },
+    )
 
 
 def _gen_flatline(
@@ -371,26 +418,34 @@ def _gen_flatline(
                         schedule = 5.0 if not is_weekend and 8 <= hour <= 18 else 0.0
                         noise = rng.gauss(0, 1.0)
                         value = base_load + seasonal + schedule + noise
-                        is_anomaly = (day == stuck_end + 1 and hour < 3)
-                    readings.append({
-                        "timestamp": ts_str,
-                        "building_id": bldg_id,
-                        "meter_id": meter_id,
-                        "energy_value": round(value, 2),
-                        "unit": "kWh",
-                    })
-                    if is_anomaly:
-                        ground_truth.append({
+                        is_anomaly = day == stuck_end + 1 and hour < 3
+                    readings.append(
+                        {
+                            "timestamp": ts_str,
                             "building_id": bldg_id,
                             "meter_id": meter_id,
-                            "timestamp": ts_str,
-                            "type": "recovery",
-                        })
-    return readings, ground_truth, {
-        "missing_rate": 0.01,
-        "dupes_rate": 0.01,
-        "stale_skipped": 0,
-    }
+                            "energy_value": round(value, 2),
+                            "unit": "kWh",
+                        }
+                    )
+                    if is_anomaly:
+                        ground_truth.append(
+                            {
+                                "building_id": bldg_id,
+                                "meter_id": meter_id,
+                                "timestamp": ts_str,
+                                "type": "recovery",
+                            }
+                        )
+    return (
+        readings,
+        ground_truth,
+        {
+            "missing_rate": 0.01,
+            "dupes_rate": 0.01,
+            "stale_skipped": 0,
+        },
+    )
 
 
 def _gen_mixed(
@@ -406,12 +461,14 @@ def _gen_mixed(
     for i, r in enumerate(readings):
         if i % 97 == 0:
             r["energy_value"] = round(r["energy_value"] * 2.5, 2)
-            extra_gt.append({
-                "building_id": r["building_id"],
-                "meter_id": r["meter_id"],
-                "timestamp": r["timestamp"],
-                "type": "spike",
-            })
+            extra_gt.append(
+                {
+                    "building_id": r["building_id"],
+                    "meter_id": r["meter_id"],
+                    "timestamp": r["timestamp"],
+                    "type": "spike",
+                }
+            )
     cfg["missing_rate"] = 0.10
     return readings, gt + extra_gt, cfg
 

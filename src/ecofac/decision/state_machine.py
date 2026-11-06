@@ -125,16 +125,12 @@ def _evaluate_context_constraints(
     return current_summary.evaluations + predicted_summary.evaluations
 
 
-def _reasons_for(
-    evaluations: list[LimitEvaluation], severity: ConstraintSeverity
-) -> list[str]:
+def _reasons_for(evaluations: list[LimitEvaluation], severity: ConstraintSeverity) -> list[str]:
     """Collect human-readable reasons for every evaluation at a given severity."""
     return [ev.reason for ev in evaluations if ev.severity == severity]
 
 
-def _any_severity(
-    evaluations: list[LimitEvaluation], severity: ConstraintSeverity
-) -> bool:
+def _any_severity(evaluations: list[LimitEvaluation], severity: ConstraintSeverity) -> bool:
     """True if any evaluation has the given severity."""
     return any(ev.severity == severity for ev in evaluations)
 
@@ -154,15 +150,9 @@ def _build_decision(
             warnings.append("data quality is ineligible")
         if context.quality_stale:
             warnings.append("measurements are stale")
-        unresolved.extend(
-            f"quality: {flag}" for flag in context.quality_flags
-        )
-        unresolved.extend(
-            f"uncertainty: {flag}" for flag in context.uncertainty_flags
-        )
-        unresolved.extend(
-            f"conflict: {flag}" for flag in context.conflicting_inputs
-        )
+        unresolved.extend(f"quality: {flag}" for flag in context.quality_flags)
+        unresolved.extend(f"uncertainty: {flag}" for flag in context.uncertainty_flags)
+        unresolved.extend(f"conflict: {flag}" for flag in context.conflicting_inputs)
     return FinalDecision(
         status=status,
         precedence=precedence,
@@ -210,11 +200,7 @@ def evaluate_decision(context: DecisionContext) -> FinalDecision:
     if not context.quality_eligible or context.quality_stale:
         quality_reasons: list[str] = []
         if not context.quality_eligible:
-            flags = (
-                ", ".join(context.quality_flags)
-                if context.quality_flags
-                else "no flags"
-            )
+            flags = ", ".join(context.quality_flags) if context.quality_flags else "no flags"
             quality_reasons.append(f"data quality ineligible: {flags}")
         if context.quality_stale:
             quality_reasons.append("measurements are stale")

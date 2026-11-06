@@ -23,9 +23,7 @@ def calculate_pr_auc(precisions: list[float], recalls: list[float]) -> float:
     return max(0.0, min(1.0, auc))
 
 
-def _ranked_pr_curve(
-    predictions: list[sqlite3.Row], truth_set: set[tuple[str, str]]
-) -> float:
+def _ranked_pr_curve(predictions: list[sqlite3.Row], truth_set: set[tuple[str, str]]) -> float:
     """Calculate threshold-swept PR-AUC, grouping equal anomaly scores."""
     if not truth_set or not predictions:
         return 0.0
@@ -69,9 +67,7 @@ def evaluate_detection(
     with open(ground_truth_path, encoding="utf-8") as f:
         truth = json.load(f)
     truth_set = {(t["meter_id"], t["timestamp"]) for t in truth}
-    cursor = conn.execute(
-        "SELECT meter_id, timestamp_utc, detection_parameters FROM anomalies"
-    )
+    cursor = conn.execute("SELECT meter_id, timestamp_utc, detection_parameters FROM anomalies")
     predictions = cursor.fetchall()
     pred_set = {(p["meter_id"], p["timestamp_utc"]) for p in predictions}
     true_positives = len(truth_set.intersection(pred_set))
@@ -87,16 +83,10 @@ def evaluate_detection(
         if (true_positives + false_negatives) > 0
         else 0.0
     )
-    f1 = (
-        2 * (precision * recall) / (precision + recall)
-        if (precision + recall) > 0
-        else 0.0
-    )
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0.0
     pr_auc = _ranked_pr_curve(predictions, truth_set)
     weeks = days / 7.0
-    false_alerts_per_week = (
-        false_positives / (buildings * weeks) if buildings > 0 else 0.0
-    )
+    false_alerts_per_week = false_positives / (buildings * weeks) if buildings > 0 else 0.0
     return {
         "precision": round(precision, 3),
         "recall": round(recall, 3),
@@ -115,8 +105,7 @@ def evaluate_quality(
 ) -> dict:
     """Calculate data quality defect counts and capture rates."""
     cursor = conn.execute(
-        "SELECT issue_type, count(*) AS c FROM data_quality_issues "
-        "GROUP BY issue_type"
+        "SELECT issue_type, count(*) AS c FROM data_quality_issues GROUP BY issue_type"
     )
     issues = {row["issue_type"]: row["c"] for row in cursor.fetchall()}
     result = {
@@ -134,9 +123,7 @@ def evaluate_quality(
     result["duplicates_injected"] = injected_dupes
     result["missing_injected"] = int(truth.get("missing", 0))
     result["duplicate_capture_rate"] = (
-        round(result["duplicates_caught"] / injected_dupes, 3)
-        if injected_dupes > 0
-        else 1.0
+        round(result["duplicates_caught"] / injected_dupes, 3) if injected_dupes > 0 else 1.0
     )
     return result
 
@@ -147,9 +134,7 @@ def evaluate_quality(
 DEFAULT_MIN_SAMPLES = 20
 
 
-def _eligible_candidates(
-    conn: sqlite3.Connection, min_samples: int
-) -> list[tuple[str, str]]:
+def _eligible_candidates(conn: sqlite3.Connection, min_samples: int) -> list[tuple[str, str]]:
     """Every (meter_id, timestamp_utc) where a detector could have run."""
     candidates: list[tuple[str, str]] = []
     for meter_row in conn.execute("SELECT DISTINCT meter_id FROM energy_readings"):
@@ -159,9 +144,7 @@ def _eligible_candidates(
             "WHERE meter_id = ? AND is_valid = 1 ORDER BY timestamp_utc",
             (meter_id,),
         ).fetchall()
-        candidates.extend(
-            (meter_id, row["timestamp_utc"]) for row in rows[min_samples:]
-        )
+        candidates.extend((meter_id, row["timestamp_utc"]) for row in rows[min_samples:])
     return candidates
 
 
@@ -217,19 +200,13 @@ def evaluate_detection_v2(
         tn += 1
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    f1 = (
-        2 * precision * recall / (precision + recall)
-        if (precision + recall) > 0
-        else 0.0
-    )
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
     fnr = fn / (fn + tp) if (fn + tp) > 0 else 0.0
     pr_auc = _ranked_pr_curve(emitted, truth_set)
     delay = _detection_delay_mean(emitted, truth_by_meter)
     weeks = days / 7.0
-    false_alerts_per_week = (
-        fp / (buildings * weeks) if buildings > 0 else 0.0
-    )
+    false_alerts_per_week = fp / (buildings * weeks) if buildings > 0 else 0.0
 
     return {
         "precision": round(precision, 4),
@@ -259,9 +236,7 @@ def compare_configs(
         truth = json.load(f)
     truth_set = {(t["meter_id"], t["timestamp"]) for t in truth}
     scored: list[tuple[str, str, float]] = []
-    for row in conn.execute(
-        "SELECT meter_id, timestamp_utc, detection_parameters FROM anomalies"
-    ):
+    for row in conn.execute("SELECT meter_id, timestamp_utc, detection_parameters FROM anomalies"):
         try:
             params = json.loads(row["detection_parameters"] or "{}")
             z = abs(float(params.get("z_score", 0.0)))
@@ -279,19 +254,17 @@ def compare_configs(
         fn = len(truth_set - kept)
         precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-        f1 = (
-            2 * precision * recall / (precision + recall)
-            if (precision + recall) > 0
-            else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        results.append(
+            {
+                "config": cfg,
+                "emitted": len(kept),
+                "true_positives": tp,
+                "false_positives": fp,
+                "false_negatives": fn,
+                "precision": round(precision, 4),
+                "recall": round(recall, 4),
+                "f1": round(f1, 4),
+            }
         )
-        results.append({
-            "config": cfg,
-            "emitted": len(kept),
-            "true_positives": tp,
-            "false_positives": fp,
-            "false_negatives": fn,
-            "precision": round(precision, 4),
-            "recall": round(recall, 4),
-            "f1": round(f1, 4),
-        })
     return results

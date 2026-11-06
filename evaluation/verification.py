@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Before/after intervention verification engine."""
+
 import dataclasses
 import datetime as dt
 import sqlite3

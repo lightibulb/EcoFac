@@ -46,9 +46,11 @@ def test_analyze_accepts_offset_timestamps_and_reports_recorded_findings(client)
 
 def test_gated_anomaly_never_becomes_an_incident(client):
     # 23 readings (hour 23 missing) -> the quality window before the spike has a gap.
-    gappy = HEADER + "".join(
-        f"2026-01-01T{h:02d}:00:00Z,b1,m1,10.0,kWh\n" for h in range(23)
-    ) + "2025-12-31T23:00:00Z,b1,m1,10.0,kWh\n"
+    gappy = (
+        HEADER
+        + "".join(f"2026-01-01T{h:02d}:00:00Z,b1,m1,10.0,kWh\n" for h in range(23))
+        + "2025-12-31T23:00:00Z,b1,m1,10.0,kWh\n"
+    )
     _post_csv(client, gappy, "ib-gappy")
     _post_csv(client, SPIKE, "ib-spike", analyze="false")
     body = client.post("/api/v1/analyze/m1", params={"timestamp": "2026-01-02T00:00:00Z"}).json()
@@ -58,10 +60,21 @@ def test_gated_anomaly_never_becomes_an_incident(client):
 
 
 def test_unknown_meter_and_bad_ranges_are_rejected(client):
-    assert client.post("/api/v1/analyze/nope", params={"timestamp": "2026-01-01T00:00:00Z"}).status_code == 404
-    resp = client.get("/api/v1/quality/nope", params={"start": "2026-01-01T00:00:00Z", "end": "2026-01-02T00:00:00Z"})
+    assert (
+        client.post(
+            "/api/v1/analyze/nope", params={"timestamp": "2026-01-01T00:00:00Z"}
+        ).status_code
+        == 404
+    )
+    resp = client.get(
+        "/api/v1/quality/nope",
+        params={"start": "2026-01-01T00:00:00Z", "end": "2026-01-02T00:00:00Z"},
+    )
     assert resp.status_code == 404
-    resp = client.get("/api/v1/quality/m1", params={"start": "2026-01-02T00:00:00Z", "end": "2026-01-01T00:00:00Z"})
+    resp = client.get(
+        "/api/v1/quality/m1",
+        params={"start": "2026-01-02T00:00:00Z", "end": "2026-01-01T00:00:00Z"},
+    )
     assert resp.status_code == 400
 
 
@@ -100,7 +113,11 @@ def test_missing_incident_returns_404_and_body_is_optional(client):
 
 
 def test_chart_data_skips_invalid_readings(client):
-    _post_csv(client, HEADER + "2026-01-01T00:00:00Z,b1,m1,-5,kWh\n2026-01-01T01:00:00Z,b1,m1,7,kWh\n", "ib-neg")
+    _post_csv(
+        client,
+        HEADER + "2026-01-01T00:00:00Z,b1,m1,-5,kWh\n2026-01-01T01:00:00Z,b1,m1,7,kWh\n",
+        "ib-neg",
+    )
     data = client.get("/api/v1/dashboard/chart-data").json()
     assert data["data"] == [7.0]
 

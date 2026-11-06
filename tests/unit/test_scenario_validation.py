@@ -56,16 +56,12 @@ def test_valid_inputs_pass():
 
 def test_nan_it_load_rejected():
     with pytest.raises(ValueError, match="it_load_kw must be finite"):
-        validate_scenario_numerics(
-            **_default_kwargs(it_load_kw=float("nan"))
-        )
+        validate_scenario_numerics(**_default_kwargs(it_load_kw=float("nan")))
 
 
 def test_inf_it_load_rejected():
     with pytest.raises(ValueError, match="it_load_kw must be finite"):
-        validate_scenario_numerics(
-            **_default_kwargs(it_load_kw=float("inf"))
-        )
+        validate_scenario_numerics(**_default_kwargs(it_load_kw=float("inf")))
 
 
 def test_nan_pue_rejected():
@@ -79,12 +75,8 @@ def test_inf_pue_rejected():
 
 
 def test_nan_proposed_delta_rejected():
-    with pytest.raises(
-        ValueError, match="proposed_it_delta_kw must be finite"
-    ):
-        validate_scenario_numerics(
-            **_default_kwargs(proposed_it_delta_kw=float("nan"))
-        )
+    with pytest.raises(ValueError, match="proposed_it_delta_kw must be finite"):
+        validate_scenario_numerics(**_default_kwargs(proposed_it_delta_kw=float("nan")))
 
 
 def test_inf_capacity_rejected():
@@ -101,9 +93,7 @@ def test_nan_min_headroom_rejected():
     validator must catch it before the engine uses it."""
     dump = _config_dump()
     dump["cooling"]["min_headroom"] = float("nan")
-    with pytest.raises(
-        ValueError, match=r"config\.cooling\.min_headroom must be finite"
-    ):
+    with pytest.raises(ValueError, match=r"config\.cooling\.min_headroom must be finite"):
         validate_scenario_numerics(**_default_kwargs(config_dump=dump))
 
 
@@ -112,15 +102,11 @@ def test_zero_it_load_passes():
 
 
 def test_zero_proposed_delta_passes():
-    validate_scenario_numerics(
-        **_default_kwargs(proposed_it_delta_kw=0.0)
-    )
+    validate_scenario_numerics(**_default_kwargs(proposed_it_delta_kw=0.0))
 
 
 def test_negative_proposed_delta_passes_validation():
-    validate_scenario_numerics(
-        **_default_kwargs(proposed_it_delta_kw=-100.0)
-    )
+    validate_scenario_numerics(**_default_kwargs(proposed_it_delta_kw=-100.0))
 
 
 def test_finite_boundary_values_pass():

@@ -41,25 +41,19 @@ def test_all_measured_no_tolerance_is_unknown():
 
 
 def test_all_measured_with_tolerance_is_moderate():
-    report = assess_uncertainty(
-        [_measured("a", 1.0, tol=0.1), _measured("b", 2.0, tol=0.2)]
-    )
+    report = assess_uncertainty([_measured("a", 1.0, tol=0.1), _measured("b", 2.0, tol=0.2)])
     assert report.data_quality_level == DataQualityLevel.OK
     assert report.model_uncertainty_level == ModelUncertaintyLevel.MODERATE
 
 
 def test_partial_tolerance_mixed_with_assumed_is_moderate():
-    report = assess_uncertainty(
-        [_measured("a", 1.0, tol=0.1), _assumed("pue", 1.4)]
-    )
+    report = assess_uncertainty([_measured("a", 1.0, tol=0.1), _assumed("pue", 1.4)])
     assert report.model_uncertainty_level == ModelUncertaintyLevel.MODERATE
     assert "pue" in report.estimated_parameters
 
 
 def test_quality_flags_degrade():
-    report = assess_uncertainty(
-        [_measured("a", 1.0)], quality_flags=["missing_data"]
-    )
+    report = assess_uncertainty([_measured("a", 1.0)], quality_flags=["missing_data"])
     assert report.data_quality_level == DataQualityLevel.DEGRADED
 
 
@@ -69,9 +63,7 @@ def test_stale_is_unusable():
 
 
 def test_missing_measurement_is_unusable():
-    missing = RichMeasurement(
-        name="it", value=None, unit="kW", source=MeasurementSource.MISSING
-    )
+    missing = RichMeasurement(name="it", value=None, unit="kW", source=MeasurementSource.MISSING)
     report = assess_uncertainty([missing])
     assert report.data_quality_level == DataQualityLevel.UNUSABLE
     assert "it" in report.missing_measurements
@@ -89,9 +81,7 @@ def test_model_limitations_always_listed():
 
 
 def test_tolerance_used_lists_named_measurements():
-    report = assess_uncertainty(
-        [_measured("it", 100.0, tol=5.0), _measured("cool", 50.0)]
-    )
+    report = assess_uncertainty([_measured("it", 100.0, tol=5.0), _measured("cool", 50.0)])
     assert report.tolerance_used == ["it"]
 
 

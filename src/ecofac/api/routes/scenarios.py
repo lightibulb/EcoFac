@@ -151,13 +151,14 @@ def list_scenarios_endpoint(
     Response header X-Total-Count carries the total matching the
     active filters.
     """
-    total = count_scenarios(
-        conn, status=status, config_version=config_version
-    )
+    total = count_scenarios(conn, status=status, config_version=config_version)
     response.headers["X-Total-Count"] = str(total)
     rows = list_scenarios(
-        conn, limit=limit, offset=offset,
-        status=status, config_version=config_version,
+        conn,
+        limit=limit,
+        offset=offset,
+        status=status,
+        config_version=config_version,
     )
     return [_enrich(row) for row in rows]
 

@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """A reading that matches its own daily routine is not an anomaly."""
+
 import datetime as dt
 
 from ecofac.detection.anomaly import detect_robust_mad, detect_rolling_baseline

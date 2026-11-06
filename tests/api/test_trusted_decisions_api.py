@@ -26,8 +26,17 @@ def _default_policy(monkeypatch):
     monkeypatch.delenv("ECOFAC_TRUSTED_MAX_AGE_SECONDS", raising=False)
 
 
-def seed(db, *, ts=None, it_role="IT_LOAD", cool_role="COOLING",
-         it_tol=0.02, cool_tol=0.03, interval=INTERVAL, with_prev=True):
+def seed(
+    db,
+    *,
+    ts=None,
+    it_role="IT_LOAD",
+    cool_role="COOLING",
+    it_tol=0.02,
+    cool_tol=0.03,
+    interval=INTERVAL,
+    with_prev=True,
+):
     ts = ts or slot()
     db.execute(
         "INSERT OR IGNORE INTO import_batches (id, source_id, status, imported_at) "
@@ -54,7 +63,10 @@ def seed(db, *, ts=None, it_role="IT_LOAD", cool_role="COOLING",
 
 def decision(ts, *, it_ref=True, cool_ref=True, pue="configured", **overrides):
     it = {
-        "name": "it_load", "value": 1.0, "unit": "kW", "source": "ESTIMATED",
+        "name": "it_load",
+        "value": 1.0,
+        "unit": "kW",
+        "source": "ESTIMATED",
         "uncertainty": {"absolute_tolerance": 0.0001},  # caller lies about accuracy
     }
     cool = {"name": "cooling_load", "value": 1.0, "unit": "kW", "source": "ESTIMATED"}
@@ -79,11 +91,9 @@ def decision(ts, *, it_ref=True, cool_ref=True, pue="configured", **overrides):
         "mode": "trusted",
     }
     if pue == "configured":
-        body["pue"] = {"name": "pue", "value": 1.4, "unit": "dimensionless",
-                       "source": "CONFIGURED"}
+        body["pue"] = {"name": "pue", "value": 1.4, "unit": "dimensionless", "source": "CONFIGURED"}
     elif pue == "measured":
-        body["pue"] = {"name": "pue", "value": 1.4, "unit": "dimensionless",
-                       "source": "MEASURED"}
+        body["pue"] = {"name": "pue", "value": 1.4, "unit": "dimensionless", "source": "MEASURED"}
     body.update(overrides)
     return {"decision": body}
 
@@ -98,6 +108,7 @@ def applied_flags(resp):
 
 
 # ---- the happy path and energy/power semantics ------------------------------
+
 
 def test_trusted_path_converts_energy_to_power_and_preserves_the_raw_reading(client, test_db):
     ts = seed(test_db)
@@ -127,6 +138,7 @@ def test_fifteen_minute_meters_are_not_read_as_hourly(client, test_db):
 
 
 # ---- partial trust / missing references / alignment -------------------------
+
 
 def test_partial_trust_is_rejected(client, test_db):
     ts = seed(test_db)
@@ -159,6 +171,7 @@ def test_future_timestamp_is_rejected(client, test_db):
 
 
 # ---- semantics: roles, units, intervals -------------------------------------
+
 
 def test_wrong_meter_role_is_rejected(client, test_db):
     ts = seed(test_db, it_role="COOLING")
@@ -202,6 +215,7 @@ def test_invalid_reading_is_rejected(client, test_db):
 
 
 # ---- caller-supplied metadata cannot override server derivation -------------
+
 
 def test_caller_quality_claims_cannot_override_real_quality(client, test_db):
     ts = seed(test_db)
@@ -258,6 +272,7 @@ def test_caller_cannot_claim_server_resolution_or_uncertainty_flags(client, test
 
 # ---- PUE and uncertainty policy ---------------------------------------------
 
+
 def test_missing_pue_in_trusted_mode_is_review(client, test_db):
     ts = seed(test_db)
     resp = post(client, decision(ts, pue=None))
@@ -297,6 +312,7 @@ def test_unclassified_meter_role_cannot_approve(client, test_db):
 
 # ---- numeric safety at the boundary ------------------------------------------
 
+
 @pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity"])
 def test_non_finite_numbers_are_rejected_over_http(client, test_db, token):
     ts = seed(test_db)
@@ -310,6 +326,7 @@ def test_non_finite_numbers_are_rejected_over_http(client, test_db, token):
 
 
 # ---- deterministic verification ---------------------------------------------
+
 
 def test_trusted_decision_verifies_after_wall_clock_advances(client, test_db, monkeypatch):
     ts = seed(test_db)

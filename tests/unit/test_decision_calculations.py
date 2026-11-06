@@ -37,6 +37,7 @@ def _measured_pue(value: float = 1.4) -> PUEResult:
 # Schema invariants
 # ---------------------------------------------------------------------------
 
+
 def test_pue_source_enum_values():
     assert PUESource.MEASURED.value == "MEASURED"
     assert PUESource.CONFIGURED.value == "CONFIGURED"
@@ -83,6 +84,7 @@ def test_cooling_capacity_default_heat_factor():
 # calculate_electrical
 # ---------------------------------------------------------------------------
 
+
 def test_electrical_basic():
     state = calculate_electrical(500.0, _measured_pue(1.4), _electrical_capacity())
     assert state.facility_power_kw == 700.0
@@ -105,9 +107,7 @@ def test_electrical_overload_negative_headroom():
 
 
 def test_electrical_pue_source_preserved():
-    pue = PUEResult(
-        value=1.4, source=PUESource.ASSUMED, notes="industry average"
-    )
+    pue = PUEResult(value=1.4, source=PUESource.ASSUMED, notes="industry average")
     state = calculate_electrical(500.0, pue, _electrical_capacity())
     assert state.pue.source == PUESource.ASSUMED
     assert state.pue.notes == "industry average"
@@ -116,6 +116,7 @@ def test_electrical_pue_source_preserved():
 # ---------------------------------------------------------------------------
 # calculate_cooling
 # ---------------------------------------------------------------------------
+
 
 def test_cooling_basic():
     state = calculate_cooling(500.0, _cooling_capacity())
@@ -145,6 +146,7 @@ def test_cooling_overload_negative_headroom():
 # compute_current_state
 # ---------------------------------------------------------------------------
 
+
 def test_current_state_rejects_negative_it_load():
     with pytest.raises(ValueError, match="it_load_kw must be >= 0"):
         compute_current_state(
@@ -169,6 +171,7 @@ def test_current_state_zero_it_load():
 # ---------------------------------------------------------------------------
 # compute_predicted_state
 # ---------------------------------------------------------------------------
+
 
 def _current_state() -> FacilityState:
     return compute_current_state(
@@ -237,6 +240,7 @@ def test_predicted_rejects_negative_it_load():
 # ---------------------------------------------------------------------------
 # build_report
 # ---------------------------------------------------------------------------
+
 
 def test_build_report_shape():
     report = build_report(
@@ -335,9 +339,7 @@ def test_build_report_pue_measured_source_preserved():
 def test_build_report_configured_pue():
     report = build_report(
         500.0,
-        PUEResult(
-            value=1.5, source=PUESource.CONFIGURED, notes="design spec"
-        ),
+        PUEResult(value=1.5, source=PUESource.CONFIGURED, notes="design spec"),
         [],
         _electrical_capacity(),
         _cooling_capacity(),

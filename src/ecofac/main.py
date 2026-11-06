@@ -75,8 +75,7 @@ app = FastAPI(
     title="EcoFac API",
     version="0.1.0",
     description=(
-        "Local demonstration API. Not production-secure. "
-        "Requires auth for public deployment."
+        "Local demonstration API. Not production-secure. Requires auth for public deployment."
     ),
 )
 
@@ -118,15 +117,18 @@ def serve_dashboard(request: Request) -> HTMLResponse:
     """Serve the main dashboard UI."""
     return templates.TemplateResponse(request=request, name="index.html")
 
+
 @app.get("/decisions", response_class=HTMLResponse, tags=["Decision Center"])
 def serve_decisions(request: Request) -> HTMLResponse:
     """Serve the Decision Center UI."""
     return templates.TemplateResponse(request=request, name="decisions.html")
 
+
 @app.get("/scenarios", response_class=HTMLResponse, tags=["Scenario Workbench"])
 def serve_scenarios(request: Request) -> HTMLResponse:
     """Serve the Scenario Workbench UI."""
     return templates.TemplateResponse(request=request, name="scenarios.html")
+
 
 def _sanitize_json(obj: Any) -> Any:
     """Recursively replace non-finite floats with strings for JSON safety.
@@ -154,6 +156,7 @@ async def _sanitize_validation_error(
     """Return a JSON-safe 422 even when the invalid input was NaN/inf."""
     detail = _sanitize_json(jsonable_encoder(exc.errors()))
     return JSONResponse(status_code=422, content={"detail": detail})
+
 
 def _check_db_ready() -> list[str]:
     """Return readiness problems; an empty list means the DB is usable.
@@ -193,8 +196,8 @@ def readiness_check() -> dict:
         )
     return {"status": "ready"}
 
+
 @app.get("/world", response_class=HTMLResponse, tags=["Virtual Facility"])
 def serve_world(request: Request) -> HTMLResponse:
     """Serve the Virtual Facility visualization."""
     return templates.TemplateResponse(request=request, name="world.html")
-

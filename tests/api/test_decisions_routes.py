@@ -25,9 +25,7 @@ def _req(
     mode="hypothetical",
     cap=1000.0,
 ):
-    it_uncertainty = (
-        {"absolute_tolerance": it_tol} if it_tol is not None else None
-    )
+    it_uncertainty = {"absolute_tolerance": it_tol} if it_tol is not None else None
     it_load: dict = {
         "name": "it_load",
         "value": it_value,
@@ -235,9 +233,7 @@ def test_verify_endpoint_404(client):
 
 def test_supersede_existing_decision(client):
     id_a = _evaluate(client).json()["decision_id"]
-    resp = _evaluate(
-        client, supersedes=id_a, supersession_reason="rebalance"
-    )
+    resp = _evaluate(client, supersedes=id_a, supersession_reason="rebalance")
     assert resp.status_code == 200
     id_b = resp.json()["decision_id"]
     chain = client.get(f"{BASE}/{id_b}/supersession-chain").json()
@@ -246,9 +242,7 @@ def test_supersede_existing_decision(client):
 
 
 def test_supersede_missing_decision_400(client):
-    resp = _evaluate(
-        client, supersedes="missing", supersession_reason="oops"
-    )
+    resp = _evaluate(client, supersedes="missing", supersession_reason="oops")
     assert resp.status_code == 400
 
 
@@ -259,9 +253,7 @@ def test_supersede_requires_reason(client):
 
 
 def test_supersession_chain_404(client):
-    assert (
-        client.get(f"{BASE}/missing/supersession-chain").status_code == 404
-    )
+    assert client.get(f"{BASE}/missing/supersession-chain").status_code == 404
 
 
 def test_decision_audit_events_present(client):
@@ -444,9 +436,7 @@ def test_list_decisions_x_total_count_respects_config_filter(client):
 # ---- is_superseded / superseded_by ----
 def test_list_decisions_is_superseded_and_superseded_by(client):
     id_a = _evaluate(client).json()["decision_id"]
-    id_b = _evaluate(
-        client, supersedes=id_a, supersession_reason="refresh"
-    ).json()["decision_id"]
+    id_b = _evaluate(client, supersedes=id_a, supersession_reason="refresh").json()["decision_id"]
     rows = client.get(f"{BASE}").json()
     by_id = {row["id"]: row for row in rows}
     assert by_id[id_a]["is_superseded"] is True
@@ -469,9 +459,7 @@ def test_verify_response_engine_version_fields(client):
 # ---- Chain extensions ----
 def test_supersession_chain_branches_empty_by_default(client):
     id_a = _evaluate(client).json()["decision_id"]
-    id_b = _evaluate(
-        client, supersedes=id_a, supersession_reason="refresh"
-    ).json()["decision_id"]
+    id_b = _evaluate(client, supersedes=id_a, supersession_reason="refresh").json()["decision_id"]
     body = client.get(f"{BASE}/{id_b}/supersession-chain").json()
     assert body["branches"] == []
     assert [item["id"] for item in body["chain"]] == [id_a, id_b]
@@ -489,9 +477,7 @@ def test_list_decisions_limit_validation(client):
 # ---- 404s still correct ----
 def test_verify_and_chain_return_404_for_missing(client):
     assert client.get(f"{BASE}/missing/verify").status_code == 404
-    assert (
-        client.get(f"{BASE}/missing/supersession-chain").status_code == 404
-    )
+    assert client.get(f"{BASE}/missing/supersession-chain").status_code == 404
 
 
 # ---- /stats endpoint ----

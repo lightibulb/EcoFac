@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """FastAPI dependencies."""
+
 import hmac
 import os
 import sqlite3
@@ -15,6 +16,7 @@ from ecofac.persistence.database import BUSY_TIMEOUT_SECONDS, ensure_initialized
 def get_db_path() -> str:
     """Return the database path, evaluated dynamically per call."""
     return os.environ.get("ECOFAC_DB_PATH", "ecofac_api.db")
+
 
 # Kept for backwards compatibility with tests that import DB_PATH
 DB_PATH = get_db_path()

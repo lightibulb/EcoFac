@@ -40,11 +40,15 @@ def _req(it=400.0, cool=100.0, pue=None, cap=500.0) -> TransparentDecisionReques
         config=_config(cap=cap),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=it, unit="kW",
+            name="it_load",
+            value=it,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=cool, unit="kW",
+            name="cooling_load",
+            value=cool,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         pue=pue,
@@ -88,29 +92,27 @@ def test_pue_recorded_in_evidence():
 
 def test_facility_power_used_for_constraint_not_it_load():
     """Same IT load, different PUE -> different outcome."""
-    ok = decide_transparently(
-        _req(it=400.0, pue=_pue(1.0, MeasurementSource.MEASURED), cap=500.0)
-    )
-    bad = decide_transparently(
-        _req(it=400.0, pue=_pue(1.4, MeasurementSource.MEASURED), cap=500.0)
-    )
+    ok = decide_transparently(_req(it=400.0, pue=_pue(1.0, MeasurementSource.MEASURED), cap=500.0))
+    bad = decide_transparently(_req(it=400.0, pue=_pue(1.4, MeasurementSource.MEASURED), cap=500.0))
     assert ok.status == "APPROVE"
     assert bad.status == "REJECT"
 
 
 def test_pue_wrong_unit_rejected():
-    bad_pue = RichMeasurement(
-        name="pue", value=1.4, unit="kW", source=MeasurementSource.MEASURED
-    )
+    bad_pue = RichMeasurement(name="pue", value=1.4, unit="kW", source=MeasurementSource.MEASURED)
     request = TransparentDecisionRequest(
         config=_config(cap=1000.0),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=400.0, unit="kW",
+            name="it_load",
+            value=400.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=100.0, unit="kW",
+            name="cooling_load",
+            value=100.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         pue=bad_pue,
@@ -121,16 +123,9 @@ def test_pue_wrong_unit_rejected():
 
 
 def test_pue_in_input_fingerprint():
-    r1 = decide_transparently(
-        _req(it=400.0, pue=_pue(1.0, MeasurementSource.MEASURED), cap=1000.0)
-    )
-    r2 = decide_transparently(
-        _req(it=400.0, pue=_pue(1.4, MeasurementSource.MEASURED), cap=1000.0)
-    )
-    assert (
-        r1.fingerprint.input_fingerprint
-        != r2.fingerprint.input_fingerprint
-    )
+    r1 = decide_transparently(_req(it=400.0, pue=_pue(1.0, MeasurementSource.MEASURED), cap=1000.0))
+    r2 = decide_transparently(_req(it=400.0, pue=_pue(1.4, MeasurementSource.MEASURED), cap=1000.0))
+    assert r1.fingerprint.input_fingerprint != r2.fingerprint.input_fingerprint
 
 
 def test_pue_uncertainty_changes_the_verdict_across_its_band():
@@ -141,7 +136,9 @@ def test_pue_uncertainty_changes_the_verdict_across_its_band():
     clamped to the physical PUE floor of 1.0 (1.3 - 0.4 = 0.9 is impossible).
     """
     pue = RichMeasurement(
-        name="pue", value=1.3, unit="dimensionless",
+        name="pue",
+        value=1.3,
+        unit="dimensionless",
         source=MeasurementSource.MEASURED,
         uncertainty=UncertaintyMetadata(absolute_tolerance=0.4),
     )
@@ -159,7 +156,9 @@ def test_pue_uncertainty_changes_the_verdict_across_its_band():
 
 def test_pue_uncertainty_with_headroom_preserves_the_verdict():
     pue = RichMeasurement(
-        name="pue", value=1.4, unit="dimensionless",
+        name="pue",
+        value=1.4,
+        unit="dimensionless",
         source=MeasurementSource.MEASURED,
         uncertainty=UncertaintyMetadata(absolute_tolerance=0.05),
     )

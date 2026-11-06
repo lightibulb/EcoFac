@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """Time helpers must reject naive input instead of guessing local time."""
+
 import datetime as dt
 
 import pytest

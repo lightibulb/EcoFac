@@ -42,9 +42,7 @@ def _log_audit(
     )
 
 
-def find_event_incident(
-    conn: sqlite3.Connection, meter_id: str, timestamp_utc: str
-) -> str | None:
+def find_event_incident(conn: sqlite3.Connection, meter_id: str, timestamp_utc: str) -> str | None:
     """Return the id of the incident already tracking this (meter, ts) event."""
     row = conn.execute(
         "SELECT incidents.id FROM incidents "
@@ -122,9 +120,7 @@ def transition_incident(
     reason = (reason or "").strip() or None
 
     def _do() -> None:
-        row = conn.execute(
-            "SELECT status FROM incidents WHERE id = ?", (incident_id,)
-        ).fetchone()
+        row = conn.execute("SELECT status FROM incidents WHERE id = ?", (incident_id,)).fetchone()
         if not row:
             msg = f"Incident {incident_id} not found."
             raise IncidentNotFoundError(msg)

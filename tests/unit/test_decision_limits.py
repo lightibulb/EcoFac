@@ -33,6 +33,7 @@ def _config(
 # Schema validation
 # ---------------------------------------------------------------------------
 
+
 def test_severity_enum_values():
     assert ConstraintSeverity.OK.value == "OK"
     assert ConstraintSeverity.WARNING.value == "WARNING"
@@ -75,16 +76,12 @@ def test_electrical_limits_accepts_zero_reserve():
 
 def test_electrical_limits_rejects_negative_min_headroom():
     with pytest.raises(pydantic.ValidationError):
-        ElectricalLimits(
-            capacity=1000.0, reserve_pct=0.10, min_headroom=-10.0
-        )
+        ElectricalLimits(capacity=1000.0, reserve_pct=0.10, min_headroom=-10.0)
 
 
 def test_electrical_limits_rejects_warning_threshold_at_one():
     with pytest.raises(pydantic.ValidationError):
-        ElectricalLimits(
-            capacity=1000.0, reserve_pct=0.10, warning_threshold_pct=1.0
-        )
+        ElectricalLimits(capacity=1000.0, reserve_pct=0.10, warning_threshold_pct=1.0)
 
 
 def test_electrical_limits_frozen():
@@ -96,6 +93,7 @@ def test_electrical_limits_frozen():
 # ---------------------------------------------------------------------------
 # evaluate_load severity branches
 # ---------------------------------------------------------------------------
+
 
 def test_evaluate_load_ok():
     config = ElectricalLimits(capacity=1000.0, reserve_pct=0.10)
@@ -109,18 +107,14 @@ def test_evaluate_load_ok():
 
 
 def test_evaluate_load_warning_margin():
-    config = ElectricalLimits(
-        capacity=1000.0, reserve_pct=0.10, warning_threshold_pct=0.10
-    )
+    config = ElectricalLimits(capacity=1000.0, reserve_pct=0.10, warning_threshold_pct=0.10)
     ev = evaluate_load(config, observed=850.0, name="elec")
     assert ev.severity == ConstraintSeverity.WARNING
     assert ev.headroom_to_permitted == 50.0
 
 
 def test_evaluate_load_warning_min_headroom():
-    config = ElectricalLimits(
-        capacity=1000.0, reserve_pct=0.10, min_headroom=200.0
-    )
+    config = ElectricalLimits(capacity=1000.0, reserve_pct=0.10, min_headroom=200.0)
     ok = evaluate_load(config, observed=500.0, name="elec")
     assert ok.severity == ConstraintSeverity.OK
     warn = evaluate_load(config, observed=750.0, name="elec")
@@ -184,11 +178,10 @@ def test_evaluate_load_rejects_inf():
 # evaluate_all aggregation
 # ---------------------------------------------------------------------------
 
+
 def test_evaluate_all_ok():
     cfg = _config()
-    summary = evaluate_all(
-        cfg, observed_electrical=500.0, observed_cooling=400.0
-    )
+    summary = evaluate_all(cfg, observed_electrical=500.0, observed_cooling=400.0)
     assert summary.overall_severity == ConstraintSeverity.OK
     assert summary.violations == []
     assert summary.warnings == []
@@ -198,18 +191,14 @@ def test_evaluate_all_ok():
 
 def test_evaluate_all_exactly_one_limiting():
     cfg = _config()
-    summary = evaluate_all(
-        cfg, observed_electrical=500.0, observed_cooling=400.0
-    )
+    summary = evaluate_all(cfg, observed_electrical=500.0, observed_cooling=400.0)
     limitings = [e for e in summary.evaluations if e.is_limiting]
     assert len(limitings) == 1
 
 
 def test_evaluate_all_electrical_violation():
     cfg = _config()
-    summary = evaluate_all(
-        cfg, observed_electrical=950.0, observed_cooling=400.0
-    )
+    summary = evaluate_all(cfg, observed_electrical=950.0, observed_cooling=400.0)
     assert summary.overall_severity == ConstraintSeverity.RESERVE_VIOLATION
     assert "electrical" in summary.violations
     assert summary.limiting_factor == "electrical"
@@ -217,9 +206,7 @@ def test_evaluate_all_electrical_violation():
 
 def test_evaluate_all_cooling_physical_violation():
     cfg = _config()
-    summary = evaluate_all(
-        cfg, observed_electrical=500.0, observed_cooling=850.0
-    )
+    summary = evaluate_all(cfg, observed_electrical=500.0, observed_cooling=850.0)
     assert summary.overall_severity == ConstraintSeverity.PHYSICAL_VIOLATION
     assert "cooling" in summary.violations
     assert summary.limiting_factor == "cooling"
@@ -227,9 +214,7 @@ def test_evaluate_all_cooling_physical_violation():
 
 def test_evaluate_all_multiple_violations():
     cfg = _config()
-    summary = evaluate_all(
-        cfg, observed_electrical=1050.0, observed_cooling=900.0
-    )
+    summary = evaluate_all(cfg, observed_electrical=1050.0, observed_cooling=900.0)
     assert "electrical" in summary.violations
     assert "cooling" in summary.violations
     # Electrical headroom -50, cooling headroom -100 -> cooling is worse
@@ -238,9 +223,7 @@ def test_evaluate_all_multiple_violations():
 
 def test_evaluate_all_warnings_both():
     cfg = _config()
-    summary = evaluate_all(
-        cfg, observed_electrical=850.0, observed_cooling=700.0
-    )
+    summary = evaluate_all(cfg, observed_electrical=850.0, observed_cooling=700.0)
     assert summary.overall_severity == ConstraintSeverity.WARNING
     assert "electrical" in summary.warnings
     assert "cooling" in summary.warnings
@@ -252,9 +235,7 @@ def test_evaluate_all_warnings_both():
 def test_evaluate_all_worst_wins():
     """When one passes and the other violates, the violation is the severity."""
     cfg = _config()
-    summary = evaluate_all(
-        cfg, observed_electrical=200.0, observed_cooling=950.0
-    )
+    summary = evaluate_all(cfg, observed_electrical=200.0, observed_cooling=950.0)
     assert summary.overall_severity == ConstraintSeverity.PHYSICAL_VIOLATION
     assert summary.violations == ["cooling"]
     assert summary.warnings == []
@@ -263,6 +244,7 @@ def test_evaluate_all_worst_wins():
 # ---------------------------------------------------------------------------
 # Configuration helpers
 # ---------------------------------------------------------------------------
+
 
 def test_config_snapshot():
     cfg = _config()
@@ -303,6 +285,7 @@ def test_config_diff_no_duplicate_entries():
 # ---------------------------------------------------------------------------
 # Extensibility
 # ---------------------------------------------------------------------------
+
 
 def test_future_constraint_subclass():
     """Any ReserveConfig subclass works with evaluate_load."""

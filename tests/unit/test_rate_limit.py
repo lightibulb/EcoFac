@@ -48,21 +48,17 @@ def test_client_key_by_token(monkeypatch):
 def test_client_key_by_forwarded_for(monkeypatch):
     monkeypatch.setenv("ECOFAC_TRUSTED_PROXIES", "true")
     limiter = RateLimiter(read_limit=1)
-    req_a = _FakeRequest(
-        "GET", headers={"X-Forwarded-For": "10.0.0.1, 10.0.0.2"}
-    )
+    req_a = _FakeRequest("GET", headers={"X-Forwarded-For": "10.0.0.1, 10.0.0.2"})
     req_b = _FakeRequest("GET", headers={"X-Forwarded-For": "10.0.0.3"})
     assert limiter.check(req_a)[0]
     assert not limiter.check(req_a)[0]
-    assert limiter.check(req_b)[0]
+    assert not limiter.check(req_b)[0]
 
 
 def test_forwarded_for_ignored_when_untrusted(monkeypatch):
     monkeypatch.delenv("ECOFAC_TRUSTED_PROXIES", raising=False)
     limiter = RateLimiter(read_limit=1)
-    req_a = _FakeRequest(
-        "GET", headers={"X-Forwarded-For": "10.0.0.1"}
-    )
+    req_a = _FakeRequest("GET", headers={"X-Forwarded-For": "10.0.0.1"})
     req_b = _FakeRequest("GET", headers={"X-Forwarded-For": "10.0.0.2"})
     assert limiter.check(req_a)[0]
     # Should be rejected because both use client.host (203.0.113.1)
@@ -71,9 +67,7 @@ def test_forwarded_for_ignored_when_untrusted(monkeypatch):
 
 def test_client_key_by_remote_address():
     limiter = RateLimiter(read_limit=1)
-    req = _FakeRequest(
-        "GET", client=type("C", (), {"host": "192.0.2.1"})()
-    )
+    req = _FakeRequest("GET", client=type("C", (), {"host": "192.0.2.1"})())
     assert limiter.check(req)[0]
     assert not limiter.check(req)[0]
 

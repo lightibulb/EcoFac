@@ -32,16 +32,23 @@ def config(cap=1000.0):
 
 def load(name, value, *, tol=0.02, source=MeasurementSource.MEASURED, ts=TS):
     return RichMeasurement(
-        name=name, value=value, unit="kW", source=source,
+        name=name,
+        value=value,
+        unit="kW",
+        source=source,
         uncertainty=UncertaintyMetadata(relative_tolerance=tol) if tol else None,
-        measurement_timestamp=ts, reference_id=f"ref-{name}",
+        measurement_timestamp=ts,
+        reference_id=f"ref-{name}",
     )
 
 
 def configured_pue(value=1.4, **kw):
     return RichMeasurement(
-        name="pue", value=value, unit="dimensionless",
-        source=MeasurementSource.CONFIGURED, **kw,
+        name="pue",
+        value=value,
+        unit="dimensionless",
+        source=MeasurementSource.CONFIGURED,
+        **kw,
     )
 
 
@@ -68,6 +75,7 @@ def reasons(result):
 
 # ---- positive control ------------------------------------------------------
 
+
 def test_fully_trusted_inputs_approve():
     result = decide_transparently(request())
     assert result.status == "APPROVE"
@@ -75,6 +83,7 @@ def test_fully_trusted_inputs_approve():
 
 
 # ---- PUE: assumed / configured / trusted -----------------------------------
+
 
 def test_missing_pue_is_review_not_unconditional_approve():
     result = decide_transparently(request(pue=None))
@@ -115,8 +124,11 @@ def test_measured_pue_without_trusted_reference_is_flagged():
 
 def test_measured_pue_with_trusted_reference_is_trusted():
     pue = RichMeasurement(
-        name="pue", value=1.4, unit="dimensionless",
-        source=MeasurementSource.MEASURED, reference_id="pue-ref-1",
+        name="pue",
+        value=1.4,
+        unit="dimensionless",
+        source=MeasurementSource.MEASURED,
+        reference_id="pue-ref-1",
     )
     result = decide_transparently(request(pue=pue))
     assert result.status == "APPROVE"
@@ -127,16 +139,24 @@ def test_measured_pue_with_trusted_reference_is_trusted():
 def test_non_physical_pue_is_rejected_by_the_engine(bad):
     # Bypass model-level checks so the engine's own validation is exercised.
     pue = RichMeasurement.model_construct(
-        name="pue", value=bad, unit="dimensionless",
-        source=MeasurementSource.CONFIGURED, uncertainty=None,
-        measurement_timestamp=None, reference_id=None, meter_id=None,
-        raw_value=None, raw_unit=None, interval_minutes=None,
+        name="pue",
+        value=bad,
+        unit="dimensionless",
+        source=MeasurementSource.CONFIGURED,
+        uncertainty=None,
+        measurement_timestamp=None,
+        reference_id=None,
+        meter_id=None,
+        raw_value=None,
+        raw_unit=None,
+        interval_minutes=None,
     )
     with pytest.raises(ValueError, match="pue"):
         decide_transparently(request(pue=pue))
 
 
 # ---- unknown uncertainty ---------------------------------------------------
+
 
 def test_unknown_uncertainty_is_review_with_reasons_in_evidence():
     result = decide_transparently(
@@ -156,9 +176,7 @@ def test_unknown_uncertainty_is_review_with_reasons_in_evidence():
 
 def test_missing_tolerance_on_one_measurement_is_review():
     """Mixed-confidence inputs: one bounded, one unbounded -> REVIEW."""
-    result = decide_transparently(
-        request(cooling_load=load("cooling_load", 300.0, tol=None))
-    )
+    result = decide_transparently(request(cooling_load=load("cooling_load", 300.0, tol=None)))
     assert result.status == "REVIEW"
     text = reasons(result)
     assert "missing_tolerance: 'cooling_load'" in text
@@ -168,9 +186,7 @@ def test_missing_tolerance_on_one_measurement_is_review():
 def test_estimated_load_in_operational_mode_is_review():
     result = decide_transparently(
         request(
-            cooling_load=load(
-                "cooling_load", 300.0, tol=0.03, source=MeasurementSource.ESTIMATED
-            )
+            cooling_load=load("cooling_load", 300.0, tol=0.03, source=MeasurementSource.ESTIMATED)
         )
     )
     assert result.status == "REVIEW"
@@ -178,9 +194,7 @@ def test_estimated_load_in_operational_mode_is_review():
 
 
 def test_invalid_quality_is_review():
-    result = decide_transparently(
-        request(quality_eligible=False, quality_flags=["missing_data"])
-    )
+    result = decide_transparently(request(quality_eligible=False, quality_flags=["missing_data"]))
     assert result.status == "REVIEW"
 
 
@@ -203,9 +217,7 @@ def test_unclassified_meter_role_caveat_forces_review():
 
 
 def test_missing_timestamp_or_freshness_policy_is_review():
-    no_ts = decide_transparently(
-        request(it_load=load("it_load", 400.0, ts=None))
-    )
+    no_ts = decide_transparently(request(it_load=load("it_load", 400.0, ts=None)))
     assert no_ts.status == "REVIEW"
     assert "missing_timestamp: 'it_load'" in reasons(no_ts)
     no_policy = decide_transparently(request(max_measurement_age_seconds=None))
@@ -214,6 +226,7 @@ def test_missing_timestamp_or_freshness_policy_is_review():
 
 
 # ---- hypothetical behaviour is preserved -----------------------------------
+
 
 def test_hypothetical_missing_pue_still_approves_but_assumption_is_visible():
     result = decide_transparently(
@@ -245,6 +258,7 @@ def test_hypothetical_unknown_uncertainty_does_not_block():
 
 # ---- sensitivity feeds the operational verdict ------------------------------
 
+
 def wide_pue_request(mode):
     """Baseline APPROVE, but PUE 1.3 +/- 0.3 reaches 1.6 -> 640 kW > permitted 630."""
     return request(
@@ -262,22 +276,18 @@ def test_operational_sensitivity_flip_downgrades_approve_to_review():
     assert pue_sens.could_change_verdict is True
     assert result.status == "REVIEW"
     assert "sensitivity_changes_verdict" in reasons(result)
-    assert (
-        result.evidence.calculation_outputs["physical_status_before_uncertainty"]
-        == "APPROVE"
-    )
+    assert result.evidence.calculation_outputs["physical_status_before_uncertainty"] == "APPROVE"
 
 
 def test_hypothetical_sensitivity_flip_is_recorded_but_not_applied():
     result = decide_transparently(wide_pue_request(DecisionMode.HYPOTHETICAL))
     assert result.status == "APPROVE"
     assert any(s.could_change_verdict for s in result.sensitivity)
-    assert any(
-        "sensitivity_changes_verdict" in a for a in result.evidence.assumptions
-    )
+    assert any("sensitivity_changes_verdict" in a for a in result.evidence.assumptions)
 
 
 # ---- cooling basis is explicit ----------------------------------------------
+
 
 def test_cooling_basis_is_measured_not_modelled():
     inputs = decide_transparently(request()).evidence.calculation_inputs

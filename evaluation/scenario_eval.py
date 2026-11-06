@@ -31,8 +31,7 @@ def _make_db() -> sqlite3.Connection:
     )
     for b in range(1, 6):
         conn.execute(
-            "INSERT INTO buildings (id, org_id, name, created_at) "
-            "VALUES (?, 'o1', 'Bldg', ?)",
+            "INSERT INTO buildings (id, org_id, name, created_at) VALUES (?, 'o1', 'Bldg', ?)",
             (f"b{b}", now),
         )
         for m in range(1, 3):

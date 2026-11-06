@@ -92,7 +92,9 @@ def test_pue_result_rejects_non_physical_values(bad):
 def test_pue_measurement_non_finite_rejected(bad):
     with pytest.raises(pydantic.ValidationError):
         RichMeasurement(
-            name="pue", value=bad, unit="dimensionless",
+            name="pue",
+            value=bad,
+            unit="dimensionless",
             source=MeasurementSource.CONFIGURED,
         )
 
@@ -114,9 +116,7 @@ def test_wide_tolerance_never_implies_a_negative_load():
 def test_wide_tolerance_decision_has_non_negative_bounds_and_clamp_note():
     result = decide_transparently(
         request(
-            it_load=measurement(
-                100.0, uncertainty=UncertaintyMetadata(absolute_tolerance=500.0)
-            )
+            it_load=measurement(100.0, uncertainty=UncertaintyMetadata(absolute_tolerance=500.0))
         )
     )
     sens = next(s for s in result.sensitivity if s.measurement_name == "m")
@@ -131,9 +131,7 @@ def test_results_are_strict_json_serialisable():
         tol = rng.uniform(0, 2000)
         result = decide_transparently(
             request(
-                it_load=measurement(
-                    it, uncertainty=UncertaintyMetadata(absolute_tolerance=tol)
-                ),
+                it_load=measurement(it, uncertainty=UncertaintyMetadata(absolute_tolerance=tol)),
                 proposed_it_delta=rng.uniform(-3000, 3000),
             )
         )

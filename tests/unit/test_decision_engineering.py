@@ -29,8 +29,9 @@ def db_conn():
     conn.close()
 
 
-def _persisted_record(conn, *, it=400.0, pue=1.4, elec_cap=1000.0,
-                      cool_cap=800.0, elec_res=0.10, cool_res=0.10):
+def _persisted_record(
+    conn, *, it=400.0, pue=1.4, elec_cap=1000.0, cool_cap=800.0, elec_res=0.10, cool_res=0.10
+):
     req = TransparentDecisionRequest(
         config=ConstraintConfig(
             electrical=ElectricalLimits(capacity=elec_cap, reserve_pct=elec_res),
@@ -38,15 +39,21 @@ def _persisted_record(conn, *, it=400.0, pue=1.4, elec_cap=1000.0,
         ),
         config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=it, unit="kW",
+            name="it_load",
+            value=it,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
+            name="cooling_load",
+            value=300.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         pue=RichMeasurement(
-            name="pue", value=pue, unit="dimensionless",
+            name="pue",
+            value=pue,
+            unit="dimensionless",
             source=MeasurementSource.MEASURED,
         ),
         quality_eligible=True,

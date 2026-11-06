@@ -41,11 +41,15 @@ def _req(it=400.0, cv="cfg-1") -> TransparentDecisionRequest:
         config=_config(),
         config_version=cv,
         it_load=RichMeasurement(
-            name="it_load", value=it, unit="kW",
+            name="it_load",
+            value=it,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
+            name="cooling_load",
+            value=300.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         quality_eligible=True,
@@ -69,9 +73,9 @@ def test_empty_table(db_conn):
 
 
 def test_counts_by_status(db_conn):
-    _persist(db_conn, it=400.0)       # APPROVE
-    _persist(db_conn, it=400.0)       # APPROVE
-    _persist(db_conn, it=1100.0)      # REJECT
+    _persist(db_conn, it=400.0)  # APPROVE
+    _persist(db_conn, it=400.0)  # APPROVE
+    _persist(db_conn, it=1100.0)  # REJECT
     stats = aggregate_decisions(db_conn)
     assert stats["total"] == 3
     assert stats["approved"] == 2
@@ -81,13 +85,18 @@ def test_counts_by_status(db_conn):
 
 def test_review_counted(db_conn):
     req = TransparentDecisionRequest(
-        config=_config(), config_version="cfg-1",
+        config=_config(),
+        config_version="cfg-1",
         it_load=RichMeasurement(
-            name="it_load", value=400.0, unit="kW",
+            name="it_load",
+            value=400.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
+            name="cooling_load",
+            value=300.0,
+            unit="kW",
             source=MeasurementSource.MEASURED,
         ),
         quality_eligible=False,
