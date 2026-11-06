@@ -118,13 +118,15 @@ class BodySizeLimitMiddleware:
                 return
 
         received = 0
+        limit_exceeded = False
 
         async def limited_receive() -> dict:
-            nonlocal received
+            nonlocal received, limit_exceeded
             message = await receive()
             if message["type"] == "http.request":
                 received += len(message.get("body", b""))
                 if received > limit:
+                    limit_exceeded = True
                     detail = _too_large_detail(limit)
                     raise api_error(
                         413,
@@ -134,4 +136,18 @@ class BodySizeLimitMiddleware:
                     )
             return message
 
-        await self.app(scope, limited_receive, send)
+        async def intercepted_send(message: dict) -> None:
+            if not limit_exceeded:
+                await send(message)
+
+        try:
+            await self.app(scope, limited_receive, intercepted_send)
+        except Exception:
+            if limit_exceeded:
+                response = JSONResponse(
+                    status_code=413,
+                    content={"detail": _too_large_detail(limit)},
+                )
+                await response(scope, receive, send)
+                return
+            raise

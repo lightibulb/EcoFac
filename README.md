@@ -48,9 +48,6 @@ python -m pip install -e ".[dev]"
 ```
 
 ## Test Instructions
-
-`ruff` is part of the `dev` extras: `pip install -e ".[dev]"` installs it.
-
 ```bash
 # Run linting
 ruff check src tests simulator evaluation scripts

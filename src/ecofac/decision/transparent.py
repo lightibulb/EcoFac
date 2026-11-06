@@ -121,10 +121,6 @@ class TransparentDecisionRequest(pydantic.BaseModel):
     inputs_resolved_by_server: bool = False
     # Server-detected caveats about trusted inputs (e.g. unclassified meter role).
     trust_caveats: list[str] = pydantic.Field(default_factory=list)
-    # When True, only the PREDICTED state is judged. A proposal that
-    # repairs an existing overload is accepted. Default False preserves
-    # the conservative behaviour: current-state violations still block.
-    corrective_action_mode: bool = False
 
     @pydantic.field_validator("evaluation_time")
     @classmethod
@@ -473,8 +469,6 @@ def build_input_payload(request: TransparentDecisionRequest) -> dict:
         payload["inputs_resolved_by_server"] = True
     if request.trust_caveats:
         payload["trust_caveats"] = list(request.trust_caveats)
-    if request.corrective_action_mode:
-        payload["corrective_action_mode"] = True
     return payload
 
 
@@ -685,7 +679,7 @@ def decide_transparently(
             uncertainty_flags=[*request.uncertainty_flags, *extra_flags],
             conflicting_inputs=list(request.conflicting_inputs),
             invalid_proposal_reasons=invalid_reasons,
-            corrective_action_mode=request.corrective_action_mode,
+            corrective_action_mode=False,
         )
 
     # Pass 1: physical / quality verdict with only the caller's own flags.

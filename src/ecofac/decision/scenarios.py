@@ -33,7 +33,7 @@ from ecofac.decision.reproducibility import compute_fingerprint
 from ecofac.decision.state_machine import (
     ENGINE_VERSION as CURRENT_ENGINE_VERSION,
 )
-from ecofac.decision.store import _compare_evidence, persist_decision
+from ecofac.decision.store import persist_decision
 from ecofac.decision.transparent import (
     DecisionMode,
     TransparentDecisionRequest,
@@ -41,7 +41,6 @@ from ecofac.decision.transparent import (
     build_config_payload,
     build_input_payload,
     decide_transparently,
-    pinned_request,
 )
 from ecofac.persistence.tx import persist_atomically
 from ecofac.timeutil import now_z
@@ -110,7 +109,6 @@ def build_transparent_request(
     it_source: MeasurementSource = MeasurementSource.ASSUMED,
     cooling_source: MeasurementSource = MeasurementSource.ASSUMED,
     pue_source: MeasurementSource = MeasurementSource.ASSUMED,
-    corrective_action_mode: bool = False,
 ) -> TransparentDecisionRequest:
     """Build the canonical engine request from scenario inputs."""
     return TransparentDecisionRequest(
@@ -139,7 +137,6 @@ def build_transparent_request(
         quality_eligible=True,
         quality_stale=False,
         mode=DecisionMode.HYPOTHETICAL,
-        corrective_action_mode=corrective_action_mode,
     )
 
 
@@ -173,17 +170,10 @@ def persist_scenario(
     result: TransparentDecisionResult,
     decision_id: str | None,
 ) -> str:
-    """Persist one scenario atomically. Returns the new scenario id.
-
-    The evaluation time is pinned into the persisted request when the verdict
-    is time-dependent (mirrors ``persist_decision``). This keeps a later
-    ``verify_scenario`` replay honest: the replay re-judges freshness at the
-    ORIGINAL instant, not at "now".
-    """
+    """Persist one scenario atomically. Returns the new scenario id."""
     scenario_id = str(uuid.uuid4())
-    pinned = pinned_request(transparent_request, result)
-    input_payload = build_input_payload(pinned)
-    config_payload = build_config_payload(pinned)
+    input_payload = build_input_payload(transparent_request)
+    config_payload = build_config_payload(transparent_request)
     input_json = json.dumps(input_payload, sort_keys=True)
     config_json = json.dumps(config_payload, sort_keys=True)
     result_json = json.dumps(result.model_dump(mode="json"), sort_keys=True)
@@ -328,8 +318,7 @@ def verify_scenario(
     """Recompute fingerprints and re-run the engine on stored inputs."""
     row = conn.execute(
         "SELECT input_json, config_json, result_json, "
-        "input_fingerprint, config_fingerprint, engine_version, "
-        "config_version "
+        "input_fingerprint, config_fingerprint, engine_version "
         "FROM scenarios WHERE id = ?",
         (scenario_id,),
     ).fetchone()
@@ -340,10 +329,7 @@ def verify_scenario(
         {
             **json.loads(row["input_json"]),
             "config": json.loads(row["config_json"]),
-            # Preserve the stored version so evidence comparison is meaningful.
-            # config_version is NOT part of the fingerprint payload, so this
-            # does not affect input_verified / config_verified.
-            "config_version": row["config_version"],
+            "config_version": "verify-tmp",
         }
     )
     computed_input = compute_fingerprint(
@@ -367,12 +353,6 @@ def verify_scenario(
         row["engine_version"] == CURRENT_ENGINE_VERSION
     )
 
-    stored_evidence = stored_result.get("evidence") or {}
-    recomputed_evidence = recomputed.evidence.model_dump(mode="json")
-    evidence_ok, evidence_diff = _compare_evidence(
-        stored_evidence, recomputed_evidence
-    )
-
     return {
         "verified": (
             input_verified and config_verified and output_verified
@@ -387,6 +367,4 @@ def verify_scenario(
         "current_engine_version": CURRENT_ENGINE_VERSION,
         "verification_scope": "input_config_output_status",
         "full_bundle_reproduced": False,
-        "evidence_bundle_verified": evidence_ok,
-        "evidence_bundle_diff": evidence_diff or None,
     }

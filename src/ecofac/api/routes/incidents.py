@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ecofac.api.dependencies import get_db
+from ecofac.api.dependencies import get_db, require_write_access
 from ecofac.api.schemas import EvidenceResponse, IncidentActionRequest, IncidentResponse
 from ecofac.incidents.lifecycle import (
     IncidentNotFoundError,
@@ -71,6 +71,7 @@ def get_incident(
 def review_incident(
     incident_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
     payload: IncidentActionRequest | None = None,
 ) -> IncidentResponse:
     """Transition an incident to UNDER_REVIEW."""
@@ -81,6 +82,7 @@ def review_incident(
 def acknowledge_incident(
     incident_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
     payload: IncidentActionRequest | None = None,
 ) -> IncidentResponse:
     """Transition an incident to ACKNOWLEDGED."""
@@ -91,6 +93,7 @@ def acknowledge_incident(
 def dismiss_incident(
     incident_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
     payload: IncidentActionRequest | None = None,
 ) -> IncidentResponse:
     """Transition an incident to DISMISSED (reason required)."""
@@ -101,6 +104,7 @@ def dismiss_incident(
 def resolve_incident(
     incident_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
     payload: IncidentActionRequest | None = None,
 ) -> IncidentResponse:
     """Transition an incident to RESOLVED (reason required)."""
@@ -111,6 +115,7 @@ def resolve_incident(
 def unresolve_incident(
     incident_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
     payload: IncidentActionRequest | None = None,
 ) -> IncidentResponse:
     """Transition an incident to UNRESOLVED (reason required)."""

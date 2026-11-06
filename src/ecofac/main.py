@@ -40,6 +40,7 @@ from ecofac.persistence.database import check_schema, ensure_initialized
 
 logger = logging.getLogger(__name__)
 
+
 def ephemeral_storage_warning(
     getenv: Callable[[str, str], str] = os.environ.get,
 ) -> str | None:
@@ -64,6 +65,7 @@ def ephemeral_storage_warning(
 _ephemeral_warning = ephemeral_storage_warning()
 if _ephemeral_warning:
     logger.warning(_ephemeral_warning)
+
 
 BASE_DIR = pathlib.Path(__file__).parent
 TEMPLATES_DIR = BASE_DIR / "templates"

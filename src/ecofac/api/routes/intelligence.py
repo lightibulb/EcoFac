@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ecofac.api.dependencies import get_db
+from ecofac.api.dependencies import get_db, require_write_access
 from ecofac.api.schemas import QualityResponse
 from ecofac.detection.service import analyze_at
 from ecofac.quality.assessment import assess_quality
@@ -71,6 +71,7 @@ def analyze_meter(
     meter_id: str,
     timestamp: Annotated[str, Query()],
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
 ) -> dict:
     """Run anomaly detection for one timestamp.
 

@@ -4,9 +4,6 @@
 
 import asyncio
 
-import pytest
-from fastapi import HTTPException
-
 from ecofac.api.middleware import BodySizeLimitMiddleware
 
 LIMIT = 100
@@ -64,18 +61,16 @@ def test_declared_length_over_limit_gets_413_without_reading_the_body():
 
 def test_streamed_body_over_limit_raises_413_even_without_content_length():
     sink = _Sink()
-    with pytest.raises(HTTPException) as exc:
-        _drive(sink, _scope(), [b"x" * 60, b"x" * 60])
-    assert exc.value.status_code == 413
-    assert exc.value.detail["code"] == "request_too_large"
-    assert exc.value.detail["details"]["limit_bytes"] == LIMIT
+    sent = _drive(sink, _scope(), [b"x" * 60, b"x" * 60])
+    assert sent[0]["status"] == 413
+    assert b"request_too_large" in sent[1]["body"]
 
 
 def test_lying_content_length_is_caught_by_the_byte_count():
     sink = _Sink()
-    with pytest.raises(HTTPException) as exc:
-        _drive(sink, _scope(headers=[(b"content-length", b"10")]), [b"x" * 150])
-    assert exc.value.status_code == 413
+    sent = _drive(sink, _scope(headers=[(b"content-length", b"10")]), [b"x" * 150])
+    assert sent[0]["status"] == 413
+    assert b"request_too_large" in sent[1]["body"]
 
 
 def test_body_exactly_at_the_limit_passes():

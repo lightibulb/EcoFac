@@ -580,12 +580,12 @@ def test_engineering_missing_tolerance_unknown_uncertainty(client):
 
 
 def test_engineering_existing_overload_with_corrective_action(client):
-    """Default behaviour: current overload blocks repair.
+    """Document current engine behavior for corrective actions.
 
-    ``corrective_action_mode`` is exposed via the API (default False).
-    When False, a proposal that repairs an existing overload is still
-    rejected, because both current and predicted states are evaluated.
-    Set the flag to True to accept the repair (DEF-19).
+    The API does not expose corrective_action_mode. When the current state
+    is overloaded, the engine rejects even a proposed change that would
+    bring predicted load under capacity, because both current and predicted
+    states are evaluated by default.
     """
     sid = _create_scenario(
         client,

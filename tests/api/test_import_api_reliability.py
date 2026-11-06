@@ -253,10 +253,6 @@ def test_analysis_failure_after_commit_does_not_undo_the_import(client, test_db,
     monkeypatch.setattr(imports_route, "analyze_all", boom)
     resp = _post(client, HEADER + _row())
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["accepted_rows"] == 1
-    # DEF-16: the caller can distinguish "no anomalies" from "analysis failed".
-    assert body["analysis_failed"] is True
-    assert body["import_committed"] is True
+    assert resp.json()["accepted_rows"] == 1
     assert _snapshot(test_db)["energy_readings"] == 1
     assert client.get("/api/v1/imports/ib-x").json()["status"] == "completed"

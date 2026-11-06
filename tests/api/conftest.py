@@ -9,21 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from ecofac.api.dependencies import get_db
-from ecofac.api.rate_limit import reset_rate_limiter
 from ecofac.main import app
 from ecofac.persistence.database import init_db
-
-
-@pytest.fixture(autouse=True)
-def _reset_rate_limiter_between_tests() -> Generator[None, None, None]:
-    """Clear the rate-limiter buckets so tests do not bleed state.
-
-    Rate limiting is on by default (DEF-20); without this reset the 600
-    reads/min default would accumulate across the whole session.
-    """
-    reset_rate_limiter()
-    yield
-    reset_rate_limiter()
 
 
 @pytest.fixture

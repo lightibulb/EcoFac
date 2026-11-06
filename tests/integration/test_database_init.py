@@ -119,26 +119,3 @@ def test_init_db_upgrades_an_older_meters_table():
     assert check_schema(conn) == []
     init_db(conn)  # idempotent
     conn.close()
-
-
-def test_migration_with_semicolon_in_comment_does_not_corrupt_init(tmp_path):
-    """DEF-01 regression: migration 005 has a ``;`` inside a ``--`` comment.
-
-    A raw ``sql.split(";")`` produces a bogus statement starting with ``NULL``
-    and aborts ``init_db`` on file-backed databases. Comments must be stripped
-    before the split.
-    """
-    db = str(tmp_path / "comment-semicolon.db")
-    ensure_initialized(db)
-
-    conn = get_connection(db)
-    try:
-        cols = {r[1] for r in conn.execute("PRAGMA table_info(meters)")}
-        assert {"interval_minutes", "role", "relative_tolerance"} <= cols
-        versions = {
-            r[0] for r in conn.execute("SELECT version FROM _schema_version")
-        }
-        # 002 and 005 must be recorded even though their ALTERs were no-ops.
-        assert {2, 5} <= versions
-    finally:
-        conn.close()

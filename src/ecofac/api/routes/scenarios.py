@@ -91,7 +91,6 @@ def evaluate_scenario(
             it_source=payload.it_source,
             cooling_source=payload.cooling_source,
             pue_source=payload.pue_source,
-            corrective_action_mode=payload.corrective_action_mode,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e

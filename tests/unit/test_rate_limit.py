@@ -32,16 +32,21 @@ def test_read_and_write_buckets_independent():
     assert limiter.check(_FakeRequest("POST"))[0]
 
 
-def test_client_key_by_token():
+def test_client_key_by_token(monkeypatch):
+    monkeypatch.setenv("ECOFAC_WRITE_TOKEN", "alpha")
     limiter = RateLimiter(read_limit=1)
     req_a = _FakeRequest("GET", headers={"X-EcoFac-Token": "alpha"})
     req_b = _FakeRequest("GET", headers={"X-EcoFac-Token": "beta"})
     assert limiter.check(req_a)[0]
     assert not limiter.check(req_a)[0]
+    # req_b has an invalid token, so it falls back to IP (client.host 203.0.113.1)
+    # Since IP bucket is fresh, it's allowed once:
     assert limiter.check(req_b)[0]
+    assert not limiter.check(req_b)[0]
 
 
-def test_client_key_by_forwarded_for():
+def test_client_key_by_forwarded_for(monkeypatch):
+    monkeypatch.setenv("ECOFAC_TRUSTED_PROXIES", "true")
     limiter = RateLimiter(read_limit=1)
     req_a = _FakeRequest(
         "GET", headers={"X-Forwarded-For": "10.0.0.1, 10.0.0.2"}
@@ -50,6 +55,18 @@ def test_client_key_by_forwarded_for():
     assert limiter.check(req_a)[0]
     assert not limiter.check(req_a)[0]
     assert limiter.check(req_b)[0]
+
+
+def test_forwarded_for_ignored_when_untrusted(monkeypatch):
+    monkeypatch.delenv("ECOFAC_TRUSTED_PROXIES", raising=False)
+    limiter = RateLimiter(read_limit=1)
+    req_a = _FakeRequest(
+        "GET", headers={"X-Forwarded-For": "10.0.0.1"}
+    )
+    req_b = _FakeRequest("GET", headers={"X-Forwarded-For": "10.0.0.2"})
+    assert limiter.check(req_a)[0]
+    # Should be rejected because both use client.host (203.0.113.1)
+    assert not limiter.check(req_b)[0]
 
 
 def test_client_key_by_remote_address():

@@ -10,7 +10,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 
-from ecofac.api.dependencies import get_db
+from ecofac.api.dependencies import get_db, require_write_access
 from ecofac.api.errors import api_error
 from ecofac.api.schemas import ImportBatchResponse, ImportSummaryResponse
 from ecofac.constants import MAX_UPLOAD_BYTES
@@ -114,6 +114,7 @@ def upload_csv(
     source_id: IdField,
     batch_id: IdField,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
     *,
     analyze: Annotated[bool, Query()] = True,
 ) -> ImportSummaryResponse:
@@ -177,7 +178,6 @@ def upload_csv(
         ) from e
 
     analysis = AnalysisSummary()
-    analysis_failed = False
     if analyze and summary.accepted_rows:
         meters = [
             row["meter_id"]
@@ -191,14 +191,11 @@ def upload_csv(
             analysis = analyze_all(conn, meter_ids=meters)
         except sqlite3.Error:
             logger.exception("Post-import analysis failed; the import itself succeeded")
-            analysis_failed = True
 
     return ImportSummaryResponse(
         **dataclasses.asdict(summary),
         anomalies_detected=analysis.anomalies_detected,
         incidents_created=analysis.incidents_created,
-        analysis_failed=analysis_failed,
-        import_committed=True,
     )
 
 

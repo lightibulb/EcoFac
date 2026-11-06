@@ -121,8 +121,7 @@ def transition_incident(
     """Advance the incident state, enforcing rules and logging audit events."""
     reason = (reason or "").strip() or None
 
-    conn.execute("BEGIN IMMEDIATE")
-    try:
+    def _do() -> None:
         row = conn.execute(
             "SELECT status FROM incidents WHERE id = ?", (incident_id,)
         ).fetchone()
@@ -170,7 +169,5 @@ def transition_incident(
             f"TRANSITION_{new_status}",
             f"Status changed to {new_status}. Reason: {reason or 'None'}",
         )
-        conn.execute("COMMIT")
-    except Exception:
-        conn.execute("ROLLBACK")
-        raise
+
+    persist_atomically(conn, _do)

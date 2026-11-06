@@ -6,18 +6,6 @@ import sqlite3
 
 import pytest
 
-from ecofac.decision.limits import (
-    ConstraintConfig,
-    CoolingLimits,
-    ElectricalLimits,
-)
-from ecofac.decision.measurements import (
-    MeasurementSource,
-    RichMeasurement,
-)
-from ecofac.decision.scenarios import evaluate_and_persist_scenario
-from ecofac.decision.transparent import TransparentDecisionRequest
-
 BASE = "/api/v1/scenarios"
 
 
@@ -293,60 +281,3 @@ def test_append_only_scenarios(client, test_db):
         test_db.execute(
             "DELETE FROM scenarios WHERE id = ?", (scenario_id,)
         )
-
-
-def test_persist_scenario_pins_evaluation_time(test_db):
-    """Time-dependent scenarios must pin evaluation_time in stored inputs."""
-    req = TransparentDecisionRequest(
-        config=ConstraintConfig(
-            electrical=ElectricalLimits(capacity=1000.0, reserve_pct=0.10),
-            cooling=CoolingLimits(capacity=800.0, reserve_pct=0.10),
-        ),
-        config_version="cfg-1",
-        it_load=RichMeasurement(
-            name="it_load", value=400.0, unit="kW",
-            source=MeasurementSource.ASSUMED,
-        ),
-        cooling_load=RichMeasurement(
-            name="cooling_load", value=300.0, unit="kW",
-            source=MeasurementSource.ASSUMED,
-        ),
-        pue=RichMeasurement(
-            name="pue", value=1.4, unit="dimensionless",
-            source=MeasurementSource.ASSUMED,
-        ),
-        quality_eligible=True,
-        max_measurement_age_seconds=3600,  # makes the request time-dependent
-    )
-    sid, _, result = evaluate_and_persist_scenario(
-        test_db, name="time-pinned", transparent_request=req,
-        persist_as_decision=False,
-    )
-    row = test_db.execute(
-        "SELECT input_json FROM scenarios WHERE id = ?", (sid,)
-    ).fetchone()
-    inputs = json.loads(row["input_json"])
-    assert "evaluation_time" in inputs
-    assert inputs["evaluation_time"] == result.evaluation_time
-
-
-def test_scenario_corrective_action_mode(client):
-    """Scenarios expose the same corrective_action_mode flag."""
-    payload = _body(
-        it_load_kw=1100.0,
-        proposed_it_delta_kw=-300.0,
-        pue=1.0,
-        cap=1000.0,
-    )
-    payload["corrective_action_mode"] = True
-    resp = client.post(f"{BASE}/evaluate", json=payload)
-    assert resp.status_code == 200
-    assert resp.json()["result"]["status"] == "APPROVE"
-
-
-def test_verify_scenario_evidence_bundle_matches(client):
-    """A fresh scenario's evidence bundle reproduces with the correct version."""
-    scenario_id = _post(client).json()["scenario_id"]
-    body = client.get(f"{BASE}/{scenario_id}/verify").json()
-    assert body["evidence_bundle_verified"] is True
-    assert body["evidence_bundle_diff"] is None

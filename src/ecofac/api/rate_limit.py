@@ -9,6 +9,8 @@ single-process deployment this project targets. Multi-process
 deployments would need shared state; see docs/limitations.md.
 """
 
+import hashlib
+import hmac
 import os
 import threading
 import time
@@ -27,6 +29,7 @@ WRITE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 DEFAULT_READ_LIMIT = 600
 DEFAULT_WRITE_LIMIT = 60
 DEFAULT_WINDOW_SECONDS = 60
+MAX_RATE_LIMIT_BUCKETS = 10_000
 
 
 @dataclass
@@ -46,14 +49,19 @@ class RateLimiter:
     _lock: threading.Lock = field(default_factory=threading.Lock)
 
     def _client_key(self, request: Request) -> str:
+        configured_token = os.environ.get("ECOFAC_WRITE_TOKEN", "").strip()
         token = request.headers.get("X-EcoFac-Token")
-        if token:
-            return f"token:{token}"
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            first = forwarded.split(",", 1)[0].strip()
-            if first:
-                return f"ip:{first}"
+        if configured_token and token and hmac.compare_digest(token, configured_token):
+            return f"token:{hashlib.sha256(token.encode()).hexdigest()[:16]}"
+
+        trusted_proxies = os.environ.get("ECOFAC_TRUSTED_PROXIES", "").strip()
+        if trusted_proxies:
+            forwarded = request.headers.get("X-Forwarded-For")
+            if forwarded:
+                first = forwarded.split(",", 1)[0].strip()
+                if first:
+                    return f"ip:{first}"
+
         client = getattr(request, "client", None)
         if client is not None and client.host:
             return f"ip:{client.host}"
@@ -74,6 +82,11 @@ class RateLimiter:
         key = f"{self._client_key(request)}:{group}"
         now = time.monotonic()
         with self._lock:
+            if len(self._buckets) > MAX_RATE_LIMIT_BUCKETS:
+                cutoff = now - (self.window_seconds * 2)
+                self._buckets = {
+                    k: b for k, b in self._buckets.items() if b.window_start > cutoff
+                }
             bucket = self._buckets.get(key)
             if bucket is None or (now - bucket.window_start) >= self.window_seconds:
                 self._buckets[key] = _Bucket(count=1, window_start=now)
@@ -101,16 +114,12 @@ def reset_rate_limiter() -> None:
 
 
 def is_rate_limit_enabled() -> bool:
-    """Rate limiting is ON by default. Explicitly disable to turn it off.
-
-    Default limits (600 reads/min, 60 writes/min) are generous enough for
-    any human demo. An explicit ``ECOFAC_RATE_LIMIT_ENABLED`` of one of
-    ``0/false/no/off`` disables the middleware; any other value (including
-    unset) keeps it on. If a caller relied on the previous off-by-default
-    behaviour for a public demo, set the env var to ``false``.
-    """
-    raw = os.environ.get("ECOFAC_RATE_LIMIT_ENABLED", "").strip().lower()
-    return raw not in ("0", "false", "no", "off")
+    return os.environ.get("ECOFAC_RATE_LIMIT_ENABLED", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):

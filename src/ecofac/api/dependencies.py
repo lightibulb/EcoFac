@@ -1,5 +1,6 @@
 # Copyright 2026 Lightibulb
 """FastAPI dependencies."""
+import hmac
 import os
 import sqlite3
 from collections.abc import Generator
@@ -7,11 +8,20 @@ from typing import Annotated
 
 from fastapi import Header, HTTPException
 
+from ecofac.persistence import database
 from ecofac.persistence.database import BUSY_TIMEOUT_SECONDS, ensure_initialized
 
-# On Render, set ECOFAC_DB_PATH to a file on the mounted persistent disk
-# (e.g. /opt/render/data/ecofac_api.db) so data survives redeploys.
-DB_PATH = os.environ.get("ECOFAC_DB_PATH", "ecofac_api.db")
+
+def get_db_path() -> str:
+    """Return the database path, evaluated dynamically per call."""
+    return os.environ.get("ECOFAC_DB_PATH", "ecofac_api.db")
+
+# Kept for backwards compatibility with tests that import DB_PATH
+DB_PATH = get_db_path()
+
+# Kept for backwards compatibility with tests that reset it; the authoritative
+# cache lives in ``persistence.database`` behind a lock.
+_initialized: set[str] = database._INITIALIZED  # noqa: SLF001
 
 
 def get_db() -> Generator[sqlite3.Connection, None, None]:
@@ -22,9 +32,10 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
     initialisation closes its own connection and surfaces as an error; the
     request connection below is only opened after initialisation succeeded.
     """
-    ensure_initialized(DB_PATH)
+    db_path = get_db_path()
+    ensure_initialized(db_path)
     conn = sqlite3.connect(
-        DB_PATH,
+        db_path,
         isolation_level=None,
         check_same_thread=False,
         timeout=BUSY_TIMEOUT_SECONDS,
@@ -44,7 +55,7 @@ def require_write_access(
     token = os.environ.get("ECOFAC_WRITE_TOKEN", "").strip()
     if not token:
         return
-    if not x_ecofac_token or x_ecofac_token != token:
+    if not x_ecofac_token or not hmac.compare_digest(x_ecofac_token, token):
         raise HTTPException(
             status_code=401,
             detail="Missing or invalid X-EcoFac-Token header",

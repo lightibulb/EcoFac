@@ -11,7 +11,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ecofac.api.dependencies import get_db
+from ecofac.api.dependencies import get_db, require_write_access
 from ecofac.detection.batch import analyze_all
 from ecofac.ingestion.pipeline import ingest_csv
 from ecofac.timeutil import now_z
@@ -99,11 +99,13 @@ def _seed_demo_metadata(conn: sqlite3.Connection, now: str) -> None:
             (f"b{b}", now),
         )
         for m in range(1, DEMO_METERS_PER_BUILDING + 1):
+            role = "IT_LOAD" if m == 1 else ("COOLING" if m == 2 else "HVAC")
+            tol = 0.02 if m == 1 else (0.03 if m == 2 else 0.05)
             conn.execute(
                 "INSERT OR IGNORE INTO meters "
-                "(id, building_id, fuel_type, unit, created_at) "
-                "VALUES (?, ?, 'elec', 'kWh', ?)",
-                (f"m{b}-{m}", f"b{b}", now),
+                "(id, building_id, fuel_type, unit, role, relative_tolerance, created_at) "
+                "VALUES (?, ?, 'elec', 'kWh', ?, ?, ?)",
+                (f"m{b}-{m}", f"b{b}", role, tol, now),
             )
     conn.execute(
         "INSERT OR IGNORE INTO data_sources (id, name, source_type, created_at) "
@@ -120,6 +122,7 @@ def _seed_demo_metadata(conn: sqlite3.Connection, now: str) -> None:
 @router.post("/dashboard/generate-demo")
 def generate_demo_data(
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
+    _auth: Annotated[None, Depends(require_write_access)],
     seed: Annotated[int | None, Query()] = None,
 ) -> dict:
     """Load the synthetic demo data once, then run anomaly analysis on it.

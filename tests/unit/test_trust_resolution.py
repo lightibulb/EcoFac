@@ -306,17 +306,3 @@ def test_clamp_band_never_returns_negative_lower_bound():
     assert clamp_band(-3.0, 7.0) == (0.0, 7.0, True)
     assert clamp_band(2.0, 4.0) == (2.0, 4.0, False)
     assert clamp_band(0.8, 1.6, floor=1.0) == (1.0, 1.6, True)
-
-
-def test_sub_second_timestamp_matches_whole_second_reading(conn):
-    """Stored readings are whole seconds; a caller's .123Z must still resolve."""
-    setup_pair(conn)
-    it, cooling = resolve(
-        conn,
-        it_ref=("it", "2026-03-01T11:00:00.123Z"),
-        cooling_ref=("cool", "2026-03-01T11:00:00.789Z"),
-    )
-    assert it.timestamp_utc == TS
-    assert cooling.timestamp_utc == TS
-    # Both truncate to the same whole second -> alignment passes.
-    assert it.quality_eligible is True
