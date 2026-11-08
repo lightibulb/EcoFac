@@ -1,0 +1,20 @@
+........................................................................ [  7%]
+.............................
+=============================== warnings summary ===============================
+../../../../../data/data/com.termux/files/usr/lib/python3.14/site-packages/fastapi/testclient.py:1
+  /data/data/com.termux/files/usr/lib/python3.14/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+src/ecofac/decision/engine.py:14
+  /storage/emulated/0/sec/EcoFac/src/ecofac/decision/engine.py:14: DeprecationWarning: decision.constraints is deprecated; use decision.transparent
+    from ecofac.decision.constraints import (
+
+tests/integration/test_decision_engine.py:5
+  /storage/emulated/0/sec/EcoFac/tests/integration/test_decision_engine.py:5: DeprecationWarning: decision.engine is deprecated; use decision.transparent
+    from ecofac.decision.engine import decide
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+/data/data/com.termux/files/usr/lib/python3.14/threading.py:369: KeyboardInterrupt
+(to show a full traceback on KeyboardInterrupt use --full-trace)
+101 passed, 3 warnings in 51.92s

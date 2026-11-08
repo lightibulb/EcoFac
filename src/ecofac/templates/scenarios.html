@@ -176,15 +176,160 @@ details.inspector-section > .body { padding:0 .9rem .9rem; }
   *,*::before,*::after { animation-duration:.01ms !important; transition:none !important; }
 }
 </style>
+<style id="ecofac-ui">
+/* ===== EcoFac shared UI layer ===== */
+:root {
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow-sm:0 1px 2px rgba(60,35,10,.06),0 4px 12px -8px rgba(60,35,10,.12);
+  --shadow-md:0 14px 34px -14px rgba(60,35,10,.35);
+}
+@media (prefers-color-scheme:dark) {
+  :root { --shadow-sm:0 1px 2px rgba(0,0,0,.35),0 4px 12px -8px rgba(0,0,0,.5); --shadow-md:0 14px 34px -14px rgba(0,0,0,.7); }
+}
+body {
+  background-color:var(--paper);
+  background-image:radial-gradient(900px 380px at 88% -8%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 70%);
+  background-repeat:no-repeat; background-attachment:fixed;
+}
+::selection { background:var(--accent); color:var(--accent-ink); }
+[hidden] { display:none !important; }
+a { color:var(--accent); }
+.muted { color:var(--muted); }
+.sub { color:var(--muted); font-size:.875rem; margin-top:.15rem; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+main > .panel + .panel, .layout + .panel, main > .layout ~ .panel { margin-top:1.25rem; }
+
+/* ---- Site bar ---- */
+.sitebar { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem 1.5rem; margin:0 0 1.5rem; padding:.25rem 0 .9rem; border-bottom:1px solid var(--line); }
+.brand { display:inline-flex; align-items:center; gap:.6rem; font:600 1.25rem/1 var(--serif); letter-spacing:-.01em; color:var(--ink); text-decoration:none; }
+.brand-mark { width:32px; height:32px; padding:6px; border-radius:10px; background:var(--accent); color:var(--accent-ink); fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; box-shadow:0 4px 10px -4px color-mix(in oklab, var(--accent) 70%, transparent); }
+.sitebar .topnav { margin:0; padding:0; border:0; flex:1 1 auto; display:flex; flex-wrap:nowrap; gap:.15rem; overflow-x:auto; scrollbar-width:none; }
+.sitebar .topnav::-webkit-scrollbar { display:none; }
+.topnav a { white-space:nowrap; font-size:.92rem; padding:.45rem .9rem; }
+.topnav a.active { background:var(--accent-soft); color:var(--ink); font-weight:600; }
+
+/* ---- Surfaces ---- */
+.panel { border-radius:14px; box-shadow:var(--shadow-sm); }
+.disclaimer { border:1px solid color-mix(in oklab, var(--warn) 25%, transparent); }
+.top h1 { letter-spacing:-.02em; }
+.top-status { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+
+/* ---- Controls ---- */
+:where(select, textarea, input:not([type=range],[type=checkbox],[type=radio],[type=file])) {
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+  padding:.4rem .65rem; min-height:38px; transition:border-color .15s, box-shadow .15s;
+}
+:where(select, textarea, input):focus { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); outline:none; }
+input[type=checkbox], input[type=radio], input[type=range] { accent-color:var(--accent); }
+input:disabled, select:disabled, textarea:disabled { opacity:.55; cursor:not-allowed; }
+.btn.small { min-height:34px; padding:.25rem .75rem; font-size:.82rem; }
+.btn.danger { background:var(--alert); border-color:var(--alert); color:#fff; }
+.btn:focus-visible { outline-offset:3px; }
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; }
+.toolbar label { display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--muted); }
+.check { display:flex; align-items:center; gap:.55rem; font-size:.88rem; margin:.1rem 0 .6rem; cursor:pointer; }
+.pager { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.75rem; font-size:.85rem; color:var(--muted); }
+.pager .btns { display:flex; gap:.4rem; }
+
+/* ---- Pills, badges ---- */
+.pill { display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap; }
+.pill::before { content:""; width:.42rem; height:.42rem; border-radius:50%; background:currentColor; opacity:.9; }
+.badge, .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.15rem .65rem; border-radius:99px; font:600 .75rem/1.5 var(--sans); letter-spacing:.03em; background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); vertical-align:middle; }
+.badge.sev-0 { background:var(--ok-soft); color:var(--ok); }
+.badge.sev-1 { background:color-mix(in oklab, var(--muted) 18%, transparent); color:var(--muted); }
+.badge.sev-2 { background:var(--warn-soft); color:var(--warn); }
+.badge.sev-3 { background:var(--alert-soft); color:var(--alert); }
+.chip { background:var(--surface); border:1px solid var(--line); color:var(--ink); font-weight:500; text-decoration:none; }
+a.chip:hover { border-color:var(--accent); }
+
+/* ---- Tables ---- */
+.tbl-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.tbl { width:100%; border-collapse:collapse; font-size:.875rem; font-variant-numeric:tabular-nums; }
+.tbl th { text-align:left; padding:.6rem .85rem; font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); background:color-mix(in oklab, var(--line) 35%, transparent); border-bottom:1px solid var(--line); white-space:nowrap; }
+.tbl td { padding:.6rem .85rem; border-bottom:1px solid var(--line); vertical-align:middle; }
+.tbl tbody tr:last-child td { border-bottom:0; }
+.tbl tbody tr:hover td { background:color-mix(in oklab, var(--accent) 5%, transparent); }
+.tbl .r { text-align:right; }
+.tbl .empty-row { text-align:center; color:var(--muted); padding:1.75rem; }
+.tbl code { font-size:.8rem; color:var(--muted); }
+.tbl .trunc { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+pre.manifest { background:color-mix(in oklab, var(--muted) 10%, transparent); padding:.8rem; border-radius:8px; overflow:auto; max-height:260px; font-size:.78rem; margin-top:.6rem; }
+
+/* ---- Details / disclosure ---- */
+details.inspector-section { box-shadow:none; }
+details.inspector-section > summary::after { content:"▾"; color:var(--muted); font-size:.85rem; transition:transform .2s; }
+details.inspector-section[open] > summary::after { content:"▾"; transform:rotate(180deg); }
+details.inspector-section > summary:hover { background:color-mix(in oklab, var(--accent) 5%, transparent); border-radius:10px; }
+
+/* ---- Dialog ---- */
+dialog { border:1px solid var(--line); border-radius:14px; background:var(--surface); color:var(--ink); padding:1.25rem; width:min(92vw,440px); box-shadow:var(--shadow-md); }
+dialog::backdrop { background:rgba(20,12,4,.5); backdrop-filter:blur(2px); }
+dialog h3 { font-size:1.1rem; }
+dialog textarea { width:100%; min-height:96px; resize:vertical; margin:.75rem 0 .25rem; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.75rem; }
+
+/* ---- Toasts ---- */
+.toasts { position:fixed; left:50%; bottom:max(1rem,env(safe-area-inset-bottom)); transform:translateX(-50%); display:grid; gap:.5rem; width:min(92vw,26rem); z-index:50; pointer-events:none; }
+.toast { background:var(--ink); color:var(--paper); padding:.7rem 1rem; border-radius:10px; font-size:.925rem; box-shadow:var(--shadow-md); animation:rise .2s ease-out; }
+.toast.bad { background:var(--alert); color:#fff; }
+@keyframes rise { from { opacity:0; transform:translateY(6px); } }
+
+/* ---- Scenario workbench ---- */
+.policy-bar { display:grid; gap:.5rem; padding:.85rem 1rem; margin-bottom:1rem; border:1px solid var(--line); border-radius:10px; background:color-mix(in oklab, var(--accent) 6%, transparent); }
+.policy-bar label { font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.policy-bar select { width:100%; }
+.policy-info { font-size:.82rem; color:var(--muted); }
+.form-group-title { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:1.25rem 0 .75rem; padding-top:1rem; border-top:1px solid var(--line); display:flex; align-items:center; gap:.5rem; }
+.form-group-title:first-of-type { border-top:0; padding-top:0; margin-top:.25rem; }
+.lock-note { display:none; align-items:center; gap:.4rem; font-size:.8rem; color:var(--muted); margin-bottom:.75rem; }
+#constraint-fields.locked .lock-note { display:flex; }
+#constraint-fields.locked .field { opacity:.75; }
+.form-actions { position:sticky; bottom:-1px; padding:.75rem 0 .15rem; background:linear-gradient(to top, var(--surface) 75%, transparent); z-index:2; }
+
+/* ---- World ---- */
+.preset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:.4rem; }
+.preset-grid .btn.active { background:var(--accent); color:var(--accent-ink); }
+.td-actions { display:grid; gap:.4rem; margin-top:.5rem; }
+.td-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.75rem; }
+.td-head h3 { font-size:1.05rem; }
+.td-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.75rem; margin-bottom:.75rem; }
+.td-card { border:1px solid var(--line); border-radius:10px; padding:.75rem .9rem; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.td-card h4 { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.5rem; }
+.td-row { display:flex; justify-content:space-between; gap:1rem; padding:.3rem 0; font-size:.88rem; border-bottom:1px dashed var(--line); }
+.td-row:last-child { border-bottom:0; }
+.td-row b { font-weight:600; font-variant-numeric:tabular-nums; }
+.legend .sw { box-shadow:0 0 0 3px color-mix(in oklab, currentColor 0%, transparent); }
+
+@media (max-width:720px) {
+  .sitebar { gap:.75rem; }
+  .sitebar .topnav { flex-basis:100%; }
+}
+
+/* ---- consistency fixes ---- */
+.wrap { max-width:1240px; }
+.pill.neutral { background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); }
+.events li { align-items:center; }
+.events li .ev-main { min-width:0; }
+.events { overflow-x:hidden; }
+.events { grid-template-columns:minmax(0,1fr); }
+.rack { background:linear-gradient(to bottom,#3A3027,#2A221A); }
+.bld-floor { background:#2E261E; }
+.bld-floor[data-status="alert"] { background:color-mix(in oklab, var(--alert) 55%, #2E261E); }
+.bld-floor[data-status="warn"] { background:color-mix(in oklab, var(--warn) 50%, #2E261E); }
+</style>
 </head>
 <body>
 <div class="wrap">
-  <nav class="topnav" aria-label="Primary">
-    <a href="/">Dashboard</a>
-    <a href="/decisions">Decision Center</a>
-    <a href="/scenarios" class="active" aria-current="page">Scenario Workbench</a>
-    <a href="/world">Virtual Facility</a>
-  </nav>
+  <div class="sitebar">
+    <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-14 14-14 0 9-6 14-14 14z"/><path d="M5 19c3-5 6-8 10-10"/></svg><span>EcoFac</span></a>
+    <nav class="topnav" aria-label="Primary">
+      <a href="/">Dashboard</a>
+      <a href="/decisions">Decision Center</a>
+      <a href="/scenarios" class="active" aria-current="page">Scenario Workbench</a>
+      <a href="/policies">Operating Policies</a>
+      <a href="/world">Virtual Facility</a>
+    </nav>
+  </div>
 
   <header class="top">
     <h1>Scenario Workbench</h1>
@@ -204,6 +349,17 @@ details.inspector-section > .body { padding:0 .9rem .9rem; }
         <h2 id="input-heading">Scenario inputs</h2>
         <p class="sub">All values are backend-validated on submit.</p>
         <form id="scenario-form" novalidate>
+<!-- Policy selector -->
+          <div class="policy-bar">
+            <label for="policy-mode">Constraint source</label>
+            <select id="policy-mode" name="policy-mode">
+              <option value="active" selected>Use active policy</option>
+              <option value="override">Override for this scenario</option>
+            </select>
+            <p id="lmf-policy-info" class="policy-info">Loading active policy…</p>
+          </div>
+          <h3 class="form-group-title">Scenario</h3>
+
           <div class="field">
             <div class="field-head">
               <label for="in-name">Scenario name</label>
@@ -212,6 +368,7 @@ details.inspector-section > .body { padding:0 .9rem .9rem; }
                    style="width:100%;padding:.4rem .6rem;border:1px solid var(--line);border-radius:6px;min-height:36px;background:var(--surface)">
           </div>
 
+          <h3 class="form-group-title">Current state</h3>
           <div class="field">
             <div class="field-head">
               <label for="in-it">IT load</label>
@@ -239,6 +396,7 @@ details.inspector-section > .body { padding:0 .9rem .9rem; }
             <div class="err">Cooling load must be at least 0 kW.</div>
           </div>
 
+          <h3 class="form-group-title">Proposed change</h3>
           <div class="field">
             <div class="field-head">
               <label for="in-it-delta">Proposed IT change</label>
@@ -256,6 +414,9 @@ details.inspector-section > .body { padding:0 .9rem .9rem; }
             <input type="range" data-target="in-cool-delta" min="-1000" max="1000" step="10" value="0" aria-label="Proposed cooling change slider">
           </div>
 
+          <h3 class="form-group-title">Constraints</h3>
+          <div id="constraint-fields">
+          <p class="lock-note">🔒 Locked to the active policy. Switch to “Override” to edit.</p>
           <div class="field">
             <div class="field-head">
               <label for="in-elec-cap">Electrical capacity</label>
@@ -294,11 +455,22 @@ details.inspector-section > .body { padding:0 .9rem .9rem; }
 
           <div class="field">
             <div class="field-head">
-              <label for="in-warn">Warning threshold</label>
-              <div class="field-value"><input type="number" id="in-warn" min="0" max="99" step="1" value="10" required><span class="unit">%</span></div>
+              <label for="in-elec-warn">Electrical warning threshold</label>
+              <div class="field-value"><input type="number" id="in-elec-warn" min="0" max="99" step="1" value="10" required><span class="unit">%</span></div>
             </div>
-            <input type="range" data-target="in-warn" min="0" max="50" step="1" value="10" aria-label="Warning threshold slider">
+            <input type="range" data-target="in-elec-warn" min="0" max="50" step="1" value="10" aria-label="Electrical warning threshold slider">
             <div class="err">Warning threshold must be between 0% and 99%.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-head">
+              <label for="in-cool-warn">Cooling warning threshold</label>
+              <div class="field-value"><input type="number" id="in-cool-warn" min="0" max="99" step="1" value="10" required><span class="unit">%</span></div>
+            </div>
+            <input type="range" data-target="in-cool-warn" min="0" max="50" step="1" value="10" aria-label="Cooling warning threshold slider">
+            <div class="err">Warning threshold must be between 0% and 99%.</div>
+          </div>
+
           </div>
 
           <details class="advanced">
@@ -422,12 +594,12 @@ function readForm() {
       electrical: {
         capacity: num("in-elec-cap"),
         reserve_pct: num("in-elec-res") / 100,
-        warning_threshold_pct: num("in-warn") / 100,
+        warning_threshold_pct: num("in-elec-warn") / 100,
       },
       cooling: {
         capacity: num("in-cool-cap"),
         reserve_pct: num("in-cool-res") / 100,
-        warning_threshold_pct: num("in-warn") / 100,
+        warning_threshold_pct: num("in-cool-warn") / 100,
       },
     },
     config_version: $("#in-cv").value || "",
@@ -461,7 +633,8 @@ function validateForm() {
   check("in-cool-cap", n("in-cool-cap") > 0);
   check("in-elec-res", n("in-elec-res") >= 0 && n("in-elec-res") < 100);
   check("in-cool-res", n("in-cool-res") >= 0 && n("in-cool-res") < 100);
-  check("in-warn", n("in-warn") >= 0 && n("in-warn") < 100);
+  check("in-elec-warn", n("in-elec-warn") >= 0 && n("in-elec-warn") < 100);
+  check("in-cool-warn", n("in-cool-warn") >= 0 && n("in-cool-warn") < 100);
   return ok;
 }
 
@@ -824,8 +997,12 @@ async function openHistoryRecord(id) {
     setVal("in-cool-cap", config.cooling?.capacity);
     setVal("in-elec-res", (config.electrical?.reserve_pct ?? 0.1) * 100);
     setVal("in-cool-res", (config.cooling?.reserve_pct ?? 0.1) * 100);
-    setVal("in-warn", (config.electrical?.warning_threshold_pct ?? 0.1) * 100);
+    setVal("in-elec-warn", (config.electrical?.warning_threshold_pct ?? 0.1) * 100);
+    setVal("in-cool-warn", (config.cooling?.warning_threshold_pct ?? config.electrical?.warning_threshold_pct ?? 0.1) * 100);
     $("#in-cv").value = record.config_version || "";
+    syncSliders();
+    if (window.ecoPolicy) window.ecoPolicy.setMode("override");
+    updatePreview();
 
     // Synthesise a result payload compatible with renderResult
     const fakePayload = {
@@ -865,12 +1042,17 @@ async function submitEvaluation(ev) {
   }
 }
 
-function resetForm() {
-  $("#scenario-form").reset();
+function syncSliders() {
   $$('input[type="range"][data-target]').forEach((slider) => {
     const target = document.getElementById(slider.dataset.target);
-    if (target) target.value = slider.value;
+    if (target) slider.value = target.value;
   });
+}
+
+function resetForm() {
+  $("#scenario-form").reset();
+  syncSliders();
+  if (window.ecoPolicy) window.ecoPolicy.reapply();
   updatePreview();
 }
 
@@ -959,5 +1141,98 @@ $("#next-btn").addEventListener("click", () => {
   }
 })();
 </script>
+
+
+<script id="lmf-p2-policy-integration-v2">
+(function () {
+  "use strict";
+  var activePolicy = null;
+  var modeEl = document.getElementById("policy-mode");
+  var info = document.getElementById("lmf-policy-info");
+  var group = document.getElementById("constraint-fields");
+
+  function setField(id, value) {
+    var inp = document.getElementById(id);
+    if (!inp || value === undefined || value === null || isNaN(value)) { return; }
+    var v = Math.round(Number(value) * 100) / 100;
+    inp.value = v;
+    var slider = document.querySelector('input[type="range"][data-target="' + id + '"]');
+    if (slider) { slider.value = v; }
+  }
+
+  function applyPolicy(p) {
+    if (!p) { return; }
+    setField("in-elec-cap", p.electrical_capacity_kw);
+    setField("in-cool-cap", p.cooling_capacity_kw);
+    setField("in-elec-res", p.electrical_reserve_pct * 100);
+    setField("in-cool-res", p.cooling_reserve_pct * 100);
+    setField("in-elec-warn", p.electrical_warning_threshold_pct * 100);
+    setField("in-cool-warn", p.cooling_warning_threshold_pct * 100);
+    if (typeof updatePreview === "function") { updatePreview(); }
+  }
+
+  function setLocked(locked) {
+    if (!group) { return; }
+    group.classList.toggle("locked", locked);
+    group.querySelectorAll("input").forEach(function (i) { i.disabled = locked; });
+  }
+
+  function describe() {
+    if (!info) { return; }
+    if (!activePolicy) {
+      info.textContent = "No active policy found. Constraints below are manual.";
+      return;
+    }
+    var fp = String(activePolicy.fingerprint || "?").slice(0, 12);
+    info.innerHTML = modeEl.value === "active"
+      ? "Using <strong></strong> <span class='muted'>(" + fp + ")</span>. Constraints are locked to the policy. <a href='/policies'>Manage policies</a>"
+      : "Editing constraints for this scenario only. Active policy is <strong></strong>.";
+    info.querySelector("strong").textContent = activePolicy.version;
+  }
+
+  function setMode(mode) {
+    if (mode === "active" && !activePolicy) { mode = "override"; }
+    modeEl.value = mode;
+    if (mode === "active") { applyPolicy(activePolicy); }
+    setLocked(mode === "active");
+    describe();
+  }
+
+  modeEl.addEventListener("change", function () { setMode(modeEl.value); });
+
+  window.ecoPolicy = {
+    setMode: setMode,
+    reapply: function () { setMode(activePolicy ? "active" : "override"); }
+  };
+
+  // Keep the policy version on saved scenarios (config_version) next to the engine's config fingerprint.
+  var origFetch = window.fetch;
+  window.fetch = function (url, opts) {
+    try {
+      if (typeof url === "string" && url.indexOf("/api/v1/scenarios/evaluate") !== -1 &&
+          opts && typeof opts.body === "string" && modeEl.value === "active" &&
+          activePolicy && activePolicy.version) {
+        var body = JSON.parse(opts.body);
+        if (!body.config_version) {
+          body.config_version = "policy:" + activePolicy.version;
+          opts = Object.assign({}, opts, { body: JSON.stringify(body) });
+        }
+      }
+    } catch (err) { /* never break submission */ }
+    return origFetch.apply(this, arguments);
+  };
+
+  (async function init() {
+    try {
+      var resp = await origFetch("/api/v1/policies/active");
+      if (resp.ok) { activePolicy = await resp.json(); }
+    } catch (err) { /* policy service unavailable */ }
+    var activeOpt = modeEl.querySelector('option[value="active"]');
+    if (!activePolicy && activeOpt) { activeOpt.disabled = true; }
+    setMode(activePolicy ? "active" : "override");
+  })();
+})();
+</script>
+
 </body>
 </html>

@@ -36,6 +36,7 @@ from ecofac.api.routes import (
     imports,
     incidents,
     intelligence,
+    policies,
     scenarios,
     world,
 )
@@ -130,6 +131,7 @@ app.include_router(dashboard.router, prefix="/api/v1")
 app.include_router(decisions.router, prefix="/api/v1")
 app.include_router(scenarios.router, prefix="/api/v1")
 app.include_router(world.router, prefix="/api/v1")
+app.include_router(policies.router, prefix="/api/v1")
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Dashboard"])
@@ -148,6 +150,12 @@ def serve_decisions(request: Request) -> HTMLResponse:
 def serve_scenarios(request: Request) -> HTMLResponse:
     """Serve the Scenario Workbench UI."""
     return templates.TemplateResponse(request=request, name="scenarios.html")
+
+
+@app.get("/policies", response_class=HTMLResponse, tags=["Scenario Workbench"])
+def serve_policies(request: Request) -> HTMLResponse:
+    """Serve the Scenario Workbench UI."""
+    return templates.TemplateResponse(request=request, name="policies.html")
 
 
 def _sanitize_json(obj: Any) -> Any:

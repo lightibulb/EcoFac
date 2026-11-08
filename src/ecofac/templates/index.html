@@ -177,6 +177,147 @@ html { scroll-behavior:smooth; }
 .ico-lg { width:1.6rem; height:1.6rem; }
 .lbl .ico { margin-right:.3rem; color:var(--accent); }
 </style>
+<style id="ecofac-ui">
+/* ===== EcoFac shared UI layer ===== */
+:root {
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow-sm:0 1px 2px rgba(60,35,10,.06),0 4px 12px -8px rgba(60,35,10,.12);
+  --shadow-md:0 14px 34px -14px rgba(60,35,10,.35);
+}
+@media (prefers-color-scheme:dark) {
+  :root { --shadow-sm:0 1px 2px rgba(0,0,0,.35),0 4px 12px -8px rgba(0,0,0,.5); --shadow-md:0 14px 34px -14px rgba(0,0,0,.7); }
+}
+body {
+  background-color:var(--paper);
+  background-image:radial-gradient(900px 380px at 88% -8%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 70%);
+  background-repeat:no-repeat; background-attachment:fixed;
+}
+::selection { background:var(--accent); color:var(--accent-ink); }
+[hidden] { display:none !important; }
+a { color:var(--accent); }
+.muted { color:var(--muted); }
+.sub { color:var(--muted); font-size:.875rem; margin-top:.15rem; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+main > .panel + .panel, .layout + .panel, main > .layout ~ .panel { margin-top:1.25rem; }
+
+/* ---- Site bar ---- */
+.sitebar { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem 1.5rem; margin:0 0 1.5rem; padding:.25rem 0 .9rem; border-bottom:1px solid var(--line); }
+.brand { display:inline-flex; align-items:center; gap:.6rem; font:600 1.25rem/1 var(--serif); letter-spacing:-.01em; color:var(--ink); text-decoration:none; }
+.brand-mark { width:32px; height:32px; padding:6px; border-radius:10px; background:var(--accent); color:var(--accent-ink); fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; box-shadow:0 4px 10px -4px color-mix(in oklab, var(--accent) 70%, transparent); }
+.sitebar .topnav { margin:0; padding:0; border:0; flex:1 1 auto; display:flex; flex-wrap:nowrap; gap:.15rem; overflow-x:auto; scrollbar-width:none; }
+.sitebar .topnav::-webkit-scrollbar { display:none; }
+.topnav a { white-space:nowrap; font-size:.92rem; padding:.45rem .9rem; }
+.topnav a.active { background:var(--accent-soft); color:var(--ink); font-weight:600; }
+
+/* ---- Surfaces ---- */
+.panel { border-radius:14px; box-shadow:var(--shadow-sm); }
+.disclaimer { border:1px solid color-mix(in oklab, var(--warn) 25%, transparent); }
+.top h1 { letter-spacing:-.02em; }
+.top-status { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+
+/* ---- Controls ---- */
+:where(select, textarea, input:not([type=range],[type=checkbox],[type=radio],[type=file])) {
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+  padding:.4rem .65rem; min-height:38px; transition:border-color .15s, box-shadow .15s;
+}
+:where(select, textarea, input):focus { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); outline:none; }
+input[type=checkbox], input[type=radio], input[type=range] { accent-color:var(--accent); }
+input:disabled, select:disabled, textarea:disabled { opacity:.55; cursor:not-allowed; }
+.btn.small { min-height:34px; padding:.25rem .75rem; font-size:.82rem; }
+.btn.danger { background:var(--alert); border-color:var(--alert); color:#fff; }
+.btn:focus-visible { outline-offset:3px; }
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; }
+.toolbar label { display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--muted); }
+.check { display:flex; align-items:center; gap:.55rem; font-size:.88rem; margin:.1rem 0 .6rem; cursor:pointer; }
+.pager { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.75rem; font-size:.85rem; color:var(--muted); }
+.pager .btns { display:flex; gap:.4rem; }
+
+/* ---- Pills, badges ---- */
+.pill { display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap; }
+.pill::before { content:""; width:.42rem; height:.42rem; border-radius:50%; background:currentColor; opacity:.9; }
+.badge, .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.15rem .65rem; border-radius:99px; font:600 .75rem/1.5 var(--sans); letter-spacing:.03em; background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); vertical-align:middle; }
+.badge.sev-0 { background:var(--ok-soft); color:var(--ok); }
+.badge.sev-1 { background:color-mix(in oklab, var(--muted) 18%, transparent); color:var(--muted); }
+.badge.sev-2 { background:var(--warn-soft); color:var(--warn); }
+.badge.sev-3 { background:var(--alert-soft); color:var(--alert); }
+.chip { background:var(--surface); border:1px solid var(--line); color:var(--ink); font-weight:500; text-decoration:none; }
+a.chip:hover { border-color:var(--accent); }
+
+/* ---- Tables ---- */
+.tbl-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.tbl { width:100%; border-collapse:collapse; font-size:.875rem; font-variant-numeric:tabular-nums; }
+.tbl th { text-align:left; padding:.6rem .85rem; font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); background:color-mix(in oklab, var(--line) 35%, transparent); border-bottom:1px solid var(--line); white-space:nowrap; }
+.tbl td { padding:.6rem .85rem; border-bottom:1px solid var(--line); vertical-align:middle; }
+.tbl tbody tr:last-child td { border-bottom:0; }
+.tbl tbody tr:hover td { background:color-mix(in oklab, var(--accent) 5%, transparent); }
+.tbl .r { text-align:right; }
+.tbl .empty-row { text-align:center; color:var(--muted); padding:1.75rem; }
+.tbl code { font-size:.8rem; color:var(--muted); }
+.tbl .trunc { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+pre.manifest { background:color-mix(in oklab, var(--muted) 10%, transparent); padding:.8rem; border-radius:8px; overflow:auto; max-height:260px; font-size:.78rem; margin-top:.6rem; }
+
+/* ---- Details / disclosure ---- */
+details.inspector-section { box-shadow:none; }
+details.inspector-section > summary::after { content:"▾"; color:var(--muted); font-size:.85rem; transition:transform .2s; }
+details.inspector-section[open] > summary::after { content:"▾"; transform:rotate(180deg); }
+details.inspector-section > summary:hover { background:color-mix(in oklab, var(--accent) 5%, transparent); border-radius:10px; }
+
+/* ---- Dialog ---- */
+dialog { border:1px solid var(--line); border-radius:14px; background:var(--surface); color:var(--ink); padding:1.25rem; width:min(92vw,440px); box-shadow:var(--shadow-md); }
+dialog::backdrop { background:rgba(20,12,4,.5); backdrop-filter:blur(2px); }
+dialog h3 { font-size:1.1rem; }
+dialog textarea { width:100%; min-height:96px; resize:vertical; margin:.75rem 0 .25rem; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.75rem; }
+
+/* ---- Toasts ---- */
+.toasts { position:fixed; left:50%; bottom:max(1rem,env(safe-area-inset-bottom)); transform:translateX(-50%); display:grid; gap:.5rem; width:min(92vw,26rem); z-index:50; pointer-events:none; }
+.toast { background:var(--ink); color:var(--paper); padding:.7rem 1rem; border-radius:10px; font-size:.925rem; box-shadow:var(--shadow-md); animation:rise .2s ease-out; }
+.toast.bad { background:var(--alert); color:#fff; }
+@keyframes rise { from { opacity:0; transform:translateY(6px); } }
+
+/* ---- Scenario workbench ---- */
+.policy-bar { display:grid; gap:.5rem; padding:.85rem 1rem; margin-bottom:1rem; border:1px solid var(--line); border-radius:10px; background:color-mix(in oklab, var(--accent) 6%, transparent); }
+.policy-bar label { font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.policy-bar select { width:100%; }
+.policy-info { font-size:.82rem; color:var(--muted); }
+.form-group-title { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:1.25rem 0 .75rem; padding-top:1rem; border-top:1px solid var(--line); display:flex; align-items:center; gap:.5rem; }
+.form-group-title:first-of-type { border-top:0; padding-top:0; margin-top:.25rem; }
+.lock-note { display:none; align-items:center; gap:.4rem; font-size:.8rem; color:var(--muted); margin-bottom:.75rem; }
+#constraint-fields.locked .lock-note { display:flex; }
+#constraint-fields.locked .field { opacity:.75; }
+.form-actions { position:sticky; bottom:-1px; padding:.75rem 0 .15rem; background:linear-gradient(to top, var(--surface) 75%, transparent); z-index:2; }
+
+/* ---- World ---- */
+.preset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:.4rem; }
+.preset-grid .btn.active { background:var(--accent); color:var(--accent-ink); }
+.td-actions { display:grid; gap:.4rem; margin-top:.5rem; }
+.td-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.75rem; }
+.td-head h3 { font-size:1.05rem; }
+.td-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.75rem; margin-bottom:.75rem; }
+.td-card { border:1px solid var(--line); border-radius:10px; padding:.75rem .9rem; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.td-card h4 { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.5rem; }
+.td-row { display:flex; justify-content:space-between; gap:1rem; padding:.3rem 0; font-size:.88rem; border-bottom:1px dashed var(--line); }
+.td-row:last-child { border-bottom:0; }
+.td-row b { font-weight:600; font-variant-numeric:tabular-nums; }
+.legend .sw { box-shadow:0 0 0 3px color-mix(in oklab, currentColor 0%, transparent); }
+
+@media (max-width:720px) {
+  .sitebar { gap:.75rem; }
+  .sitebar .topnav { flex-basis:100%; }
+}
+
+/* ---- consistency fixes ---- */
+.wrap { max-width:1240px; }
+.pill.neutral { background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); }
+.events li { align-items:center; }
+.events li .ev-main { min-width:0; }
+.events { overflow-x:hidden; }
+.events { grid-template-columns:minmax(0,1fr); }
+.rack { background:linear-gradient(to bottom,#3A3027,#2A221A); }
+.bld-floor { background:#2E261E; }
+.bld-floor[data-status="alert"] { background:color-mix(in oklab, var(--alert) 55%, #2E261E); }
+.bld-floor[data-status="warn"] { background:color-mix(in oklab, var(--warn) 50%, #2E261E); }
+</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -185,24 +326,31 @@ html { scroll-behavior:smooth; }
 </svg>
 
 <div class="wrap">
-  <nav class="topnav" aria-label="Primary">
-    <a href="/" class="active" aria-current="page">Dashboard</a>
-    <a href="/decisions">Decision Center</a>
-    <a href="/scenarios">Scenario Workbench</a>
-    <a href="/world">Virtual Facility</a>
-  </nav>
+  <div class="sitebar">
+    <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-14 14-14 0 9-6 14-14 14z"/><path d="M5 19c3-5 6-8 10-10"/></svg><span>EcoFac</span></a>
+    <nav class="topnav" aria-label="Primary">
+      <a href="/" class="active" aria-current="page">Dashboard</a>
+      <a href="/decisions">Decision Center</a>
+      <a href="/scenarios">Scenario Workbench</a>
+      <a href="/policies">Operating Policies</a>
+      <a href="/world">Virtual Facility</a>
+    </nav>
+  </div>
   <header class="top">
     <div>
       <h1>EcoFac</h1>
       <p>Energy use and incidents across your facilities.</p>
     </div>
-    <div class="live" id="live" role="status"><span class="dot"></span><span id="live-text">Connecting</span></div>
+    <div class="top-status">
+      <span id="overview-severity" class="badge" title="Highest incident severity across all meters" hidden></span>
+      <div class="live" id="live" role="status"><span class="dot"></span><span id="live-text">Connecting</span></div>
+    </div>
   </header>
 
   <main>
     <section class="strip" aria-label="Overview">
       <div class="stat"><span class="num" id="stat-buildings">&ndash;</span><span class="lbl"><svg class="ico" aria-hidden="true"><use href="#i-building"/></svg>Buildings</span></div>
-      <div class="stat"><span class="num" id="stat-meters">&ndash;</span><span class="lbl">Meters</span></div>
+      <div class="stat"><span class="num" id="stat-meters">&ndash;</span><span class="lbl"><svg class="ico" aria-hidden="true"><use href="#i-datacenter"/></svg>Meters</span></div>
       <div class="stat"><span class="num" id="stat-open">&ndash;</span><span class="lbl">Open incidents</span></div>
       <div class="stat"><span class="num" id="stat-total">&ndash;</span><span class="lbl">All incidents</span></div>
     </section>
@@ -249,93 +397,114 @@ html { scroll-behavior:smooth; }
       </aside>
     </div>
   
-<!-- LMF-INDEX-ADDITIONS -->
-<!-- LMF-03/06: facility severity from API max_severity + label map -->
-<script id="lmf-severity-labels">
-(function () {
-  "use strict";
-  var SEV_LABELS = ["OK", "LOW", "MEDIUM", "HIGH"];
-  window.lmfLabel = window.lmfLabel || function (key) {
-    var map = {
-      it_load: "IT Load", cooling_load: "Cooling Load", pue: "PUE",
-      electrical: "Electrical", cooling: "Cooling",
-      facility_power_kw: "Facility Power",
-      predicted_it_load_kw: "Predicted IT Load",
-      hard_limit_violation: "Hard limit violated",
-      reserve_violation: "Reserve margin violated",
-      data_quality_ineligible: "Data quality gate",
-      rolling_baseline: "Rolling baseline", robust_mad: "Robust MAD",
-      APPROVE: "Approved", REJECT: "Rejected", REVIEW: "Needs review",
-      DETECTED: "Detected", UNDER_REVIEW: "Under review",
-      ACKNOWLEDGED: "Acknowledged", DISMISSED: "Dismissed",
-      RESOLVED: "Resolved", UNRESOLVED: "Unresolved",
-      low: "Low", medium: "Medium", high: "High"
-    };
-    return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : key;
-  };
-  fetch("/api/v1/world/state")
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (world) {
-      if (!world) { return; }
-      var maxSev = 0;
-      (world.buildings || []).forEach(function (b) {
-        (b.meters || []).forEach(function (m) {
-          maxSev = Math.max(maxSev, m.max_severity || 0);
-        });
-      });
-      window.lmfFacilityMaxSeverity = maxSev;
-      var label = SEV_LABELS[maxSev] || "UNKNOWN";
-      ["facility-severity", "facilitySeverity", "severity-badge",
-       "overview-severity", "lmf-facility-severity"].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (!el) { return; }
-        try {
-          el.textContent = label;
-          el.setAttribute("data-severity", String(maxSev));
-          el.className = String(el.className || "")
-            .replace(/sev-\w+/g, "").trim() + " sev-" + maxSev;
-        } catch (e) { /* odd element types: ignore */ }
-      });
-    })
-    .catch(function () { /* keep existing rendering */ });
-})();
-</script>
-
-<!-- LMF-01/02: full incident history with pagination + status filter -->
-<section id="lmf-incident-history" aria-label="Incident history">
-  <h2>Incident History
-    <span id="lmf-facility-severity" class="badge" data-severity=""></span>
-  </h2>
-  <div class="lmf-toolbar">
-    <label>Status
-      <select id="lmf-inc-status">
-        <option value="">All</option>
-        <option>DETECTED</option><option>UNDER_REVIEW</option>
-        <option>ACKNOWLEDGED</option><option>DISMISSED</option>
-        <option>RESOLVED</option><option>UNRESOLVED</option>
-      </select>
-    </label>
-    <label>Page size
-      <select id="lmf-inc-limit">
-        <option>10</option><option selected>25</option>
-        <option>50</option><option>100</option>
-      </select>
-    </label>
-    <span id="lmf-inc-total" class="muted"></span>
+<!-- ===== Incident history, readings, demo controls ===== -->
+<section id="lmf-incident-history" class="panel" aria-labelledby="hist-title">
+  <div class="head">
+    <div>
+      <h2 id="hist-title">Incident history <span id="lmf-facility-severity" class="badge" hidden></span></h2>
+      <p class="sub" id="lmf-inc-total">Loading…</p>
+    </div>
+    <div class="toolbar">
+      <label>Status
+        <select id="lmf-inc-status">
+          <option value="">All</option>
+          <option value="DETECTED">Detected</option><option value="UNDER_REVIEW">Under review</option>
+          <option value="ACKNOWLEDGED">Acknowledged</option><option value="DISMISSED">Dismissed</option>
+          <option value="RESOLVED">Resolved</option><option value="UNRESOLVED">Unresolved</option>
+        </select>
+      </label>
+      <label>Rows
+        <select id="lmf-inc-limit">
+          <option>10</option><option selected>25</option><option>50</option><option>100</option>
+        </select>
+      </label>
+    </div>
   </div>
-  <table>
-    <thead><tr>
-      <th>Created</th><th>Incident</th><th>Meter</th><th>Detector</th>
-      <th>Severity</th><th>Status</th><th>Notes</th><th>Actions</th>
-    </tr></thead>
-    <tbody id="lmf-inc-body"><tr><td colspan="8">Loading…</td></tr></tbody>
-  </table>
-  <div class="lmf-pager">
-    <button id="lmf-inc-prev" type="button">Previous</button>
-    <span id="lmf-inc-page" class="muted"></span>
-    <button id="lmf-inc-next" type="button">Next</button>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>Created</th><th>Incident</th><th>Meter</th><th>Detector</th>
+        <th>Severity</th><th>Status</th><th>Notes</th><th>Action</th>
+      </tr></thead>
+      <tbody id="lmf-inc-body"><tr><td colspan="8" class="empty-row">Loading…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="pager">
+    <span id="lmf-inc-page"></span>
+    <div class="btns">
+      <button id="lmf-inc-prev" class="btn ghost small" type="button">← Prev</button>
+      <button id="lmf-inc-next" class="btn ghost small" type="button">Next →</button>
+    </div>
   </div>
 </section>
+
+<dialog id="resolve-dialog" aria-labelledby="resolve-title">
+  <form id="resolve-form" novalidate>
+    <h3 id="resolve-title">Resolve incident</h3>
+    <p class="sub">Add a short note on how this was resolved. It is saved with the incident.</p>
+    <label class="sr-only" for="resolve-reason">Resolution note</label>
+    <textarea id="resolve-reason" maxlength="500" placeholder="e.g. Replaced faulty current transformer"></textarea>
+    <p class="msg bad" id="resolve-err" hidden>A reason is required to resolve an incident.</p>
+    <div class="dialog-actions">
+      <button class="btn ghost" id="resolve-cancel" type="button">Cancel</button>
+      <button class="btn" type="submit">Resolve</button>
+    </div>
+  </form>
+</dialog>
+
+<section id="lmf-current-readings" class="panel" aria-labelledby="readings-title">
+  <div class="head">
+    <div>
+      <h2 id="readings-title">Current readings</h2>
+      <p class="sub">Latest reading per meter. kWh readings are converted to average kW over the meter interval.</p>
+    </div>
+  </div>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr>
+        <th>Meter</th><th>Building</th><th class="r">Reading</th>
+        <th>Timestamp</th><th class="r">Interval</th><th class="r">Average kW</th>
+      </tr></thead>
+      <tbody id="lmf-current-readings-body"><tr><td colspan="6" class="empty-row">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="lmf-demo-controls" class="panel" aria-labelledby="demo-title">
+  <div class="head">
+    <div>
+      <h2 id="demo-title">Demo data</h2>
+      <p class="sub" id="lmf-demo-status" role="status">Generate a fresh synthetic run, or re-run the detectors on existing data.</p>
+    </div>
+    <div class="toolbar">
+      <button id="lmf-btn-generate" class="btn" type="button">Generate new run</button>
+      <button id="lmf-btn-reanalyze" class="btn ghost" type="button">Re-analyse</button>
+    </div>
+  </div>
+  <details>
+    <summary class="muted" style="cursor:pointer;font-size:.875rem">Run manifest</summary>
+    <pre id="lmf-run-manifest" class="manifest">Manifest not loaded.</pre>
+  </details>
+</section>
+
+<script id="lmf-shared">
+window.lmfLabel = window.lmfLabel || function (key) {
+  var map = {
+    it_load: "IT Load", cooling_load: "Cooling Load", pue: "PUE",
+    electrical: "Electrical", cooling: "Cooling",
+    facility_power_kw: "Facility Power", predicted_it_load_kw: "Predicted IT Load",
+    hard_limit_violation: "Hard limit violated", reserve_violation: "Reserve margin violated",
+    data_quality_ineligible: "Data quality gate",
+    rolling_baseline: "Rolling baseline", robust_mad: "Robust MAD",
+    APPROVE: "Approved", REJECT: "Rejected", REVIEW: "Needs review",
+    DETECTED: "Detected", UNDER_REVIEW: "Under review", ACKNOWLEDGED: "Acknowledged",
+    DISMISSED: "Dismissed", RESOLVED: "Resolved", UNRESOLVED: "Unresolved",
+    low: "Low", medium: "Medium", high: "High", LOW: "Low", MEDIUM: "Medium", HIGH: "High"
+  };
+  return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : key;
+};
+</script>
+
 <script id="lmf-incident-history-js">
 (function () {
   "use strict";
@@ -343,11 +512,28 @@ html { scroll-behavior:smooth; }
   function el(id) { return document.getElementById(id); }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;",
-               '"': "&quot;", "'": "&#39;" }[c];
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
-  function label(k) { return window.lmfLabel ? window.lmfLabel(k) : k; }
+  function label(k) { return window.lmfLabel(k); }
+  function notify(msg, bad) {
+    if (typeof toast === "function") { toast(msg, bad ? "bad" : ""); } else { window.alert(msg); }
+  }
+  function sevPill(s) {
+    var k = String(s || "").toLowerCase();
+    var cls = k === "high" ? "alert" : k === "medium" ? "warn" : "neutral";
+    return "<span class='pill " + cls + "'>" + esc(label(s)) + "</span>";
+  }
+  function statusPill(s) {
+    var cls = s === "RESOLVED" ? "ok" : s === "DETECTED" || s === "UNRESOLVED" ? "alert"
+      : s === "UNDER_REVIEW" || s === "ACKNOWLEDGED" ? "warn" : "neutral";
+    return "<span class='pill " + cls + "'>" + esc(label(s)) + "</span>";
+  }
+  function fmtWhen(iso) {
+    var d = new Date(iso);
+    return isNaN(d) ? esc(iso || "—") : esc(d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }));
+  }
+
   async function load() {
     var limit = parseInt(el("lmf-inc-limit").value, 10) || 25;
     var status = el("lmf-inc-status").value;
@@ -356,183 +542,189 @@ html { scroll-behavior:smooth; }
     try {
       var r = await fetch(url);
       var data = await r.json();
-      if (!r.ok) { throw new Error(String(r.status)); }
-      var total = parseInt(
-        r.headers.get("X-Total-Count") || String(data.length), 10);
-      el("lmf-inc-total").textContent = total + " incident(s)";
-      el("lmf-inc-page").textContent = "Showing " +
-        (data.length ? offset + 1 : 0) + "–" + (offset + data.length) +
-        " of " + total;
+      if (!r.ok) { throw new Error("HTTP " + r.status); }
+      var total = parseInt(r.headers.get("X-Total-Count") || String(data.length), 10);
+      if (!data.length && offset > 0 && total > 0) { offset = Math.max(0, total - limit); return load(); }
+      el("lmf-inc-total").textContent = total + (total === 1 ? " incident" : " incidents") + (status ? " · " + label(status).toLowerCase() : "");
+      el("lmf-inc-page").textContent = data.length
+        ? "Showing " + (offset + 1) + "–" + (offset + data.length) + " of " + total : "";
       el("lmf-inc-prev").disabled = offset <= 0;
       el("lmf-inc-next").disabled = offset + data.length >= total;
       var body = el("lmf-inc-body");
       if (!data.length) {
-        body.innerHTML = "<tr><td colspan='8'>No incidents.</td></tr>";
+        body.innerHTML = "<tr><td colspan='8' class='empty-row'>No incidents" + (status ? " with this status" : " yet") + ".</td></tr>";
         return;
       }
       body.innerHTML = data.map(function (i) {
         var actions = "";
         if (i.status === "ACKNOWLEDGED") {
-          actions = "<button class='lmf-resolve' data-id='" + esc(i.id) +
-            "' type='button'>Resolve…</button>";
+          actions = "<button class='btn small lmf-resolve' data-id='" + esc(i.id) + "' type='button'>Resolve…</button>";
         } else if (i.status === "DETECTED") {
-          actions = "<button class='lmf-review' data-id='" + esc(i.id) +
-            "' type='button'>Review</button>";
+          actions = "<button class='btn small ghost lmf-review' data-id='" + esc(i.id) + "' type='button'>Start review</button>";
         } else if (i.status === "UNDER_REVIEW") {
-          actions = "<button class='lmf-ack' data-id='" + esc(i.id) +
-            "' type='button'>Acknowledge</button>";
+          actions = "<button class='btn small ghost lmf-ack' data-id='" + esc(i.id) + "' type='button'>Acknowledge</button>";
         }
-        return "<tr><td>" + esc(i.created_at) + "</td><td>" + esc(i.id) +
-          "</td><td>" + esc(i.meter_id) + "</td><td>" +
-          esc(label(i.detector_name)) + "</td><td>" + esc(label(i.severity)) +
-          "</td><td>" + esc(label(i.status)) + "</td><td>" +
-          esc(i.resolution_notes || i.dismissal_reason || "") +
-          "</td><td>" + actions + "</td></tr>";
+        var notes = i.resolution_notes || i.dismissal_reason || "";
+        return "<tr><td>" + fmtWhen(i.created_at) + "</td>" +
+          "<td><code title='" + esc(i.id) + "'>" + esc(String(i.id).slice(0, 8)) + "</code></td>" +
+          "<td>" + esc(i.meter_id) + "</td><td>" + esc(label(i.detector_name)) + "</td>" +
+          "<td>" + sevPill(i.severity) + "</td><td>" + statusPill(i.status) + "</td>" +
+          "<td class='trunc' title='" + esc(notes) + "'>" + esc(notes || "—") + "</td>" +
+          "<td>" + actions + "</td></tr>";
       }).join("");
     } catch (err) {
-      el("lmf-inc-body").innerHTML =
-        "<tr><td colspan='8'>Failed to load: " + esc(err.message) +
-        "</td></tr>";
+      el("lmf-inc-body").innerHTML = "<tr><td colspan='8' class='empty-row'>Failed to load: " + esc(err.message) + "</td></tr>";
     }
   }
-  async function act(id, verb, withReason) {
-    var payload = {};
-    if (withReason) {
-      var reason = window.prompt("Resolution reason (required):");
-      if (reason === null) { return; }
-      reason = reason.trim();
-      if (!reason) {
-        window.alert("A reason is required to resolve an incident.");
+
+  function askReason() {
+    return new Promise(function (resolve) {
+      var d = el("resolve-dialog"), f = el("resolve-form"), t = el("resolve-reason"), err = el("resolve-err"), cancel = el("resolve-cancel");
+      if (typeof d.showModal !== "function") {
+        var r = window.prompt("Resolution reason (required):");
+        resolve(r && r.trim() ? r.trim() : null);
         return;
       }
+      t.value = ""; err.hidden = true;
+      var finished = false;
+      function done(v) {
+        if (finished) { return; }
+        finished = true;
+        f.removeEventListener("submit", onSubmit);
+        cancel.removeEventListener("click", onCancel);
+        d.removeEventListener("close", onCancel);
+        if (d.open) { d.close(); }
+        resolve(v);
+      }
+      function onSubmit(e) {
+        e.preventDefault();
+        var v = t.value.trim();
+        if (!v) { err.hidden = false; t.focus(); return; }
+        done(v);
+      }
+      function onCancel() { done(null); }
+      f.addEventListener("submit", onSubmit);
+      cancel.addEventListener("click", onCancel);
+      d.addEventListener("close", onCancel);
+      d.showModal();
+      t.focus();
+    });
+  }
+
+  async function act(btn, verb, withReason) {
+    var id = btn.dataset.id, payload = {};
+    if (withReason) {
+      var reason = await askReason();
+      if (!reason) { return; }
       payload.reason = reason;
     }
+    btn.disabled = true; btn.setAttribute("aria-busy", "true");
     try {
-      var r = await fetch(
-        "/api/v1/incidents/" + encodeURIComponent(id) + "/" + verb, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+      var r = await fetch("/api/v1/incidents/" + encodeURIComponent(id) + "/" + verb, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+      });
       var data = await r.json().catch(function () { return {}; });
       if (!r.ok) {
-        window.alert(verb + " failed: " +
-          (data.detail ? JSON.stringify(data.detail) : String(r.status)));
-        return;
+        var d = data && data.detail;
+        throw new Error(d ? (typeof d === "string" ? d : JSON.stringify(d)) : "HTTP " + r.status);
       }
+      notify("Incident " + (verb === "review" ? "review started" : verb === "acknowledge" ? "acknowledged" : "resolved"));
       load();
+      if (typeof loadIncidents === "function") { loadIncidents().catch(function () {}); }
+      if (typeof loadStats === "function") { loadStats().catch(function () {}); }
     } catch (err) {
-      window.alert(verb + " failed: " + err.message);
+      notify(verb + " failed: " + err.message, true);
+      btn.disabled = false; btn.removeAttribute("aria-busy");
     }
   }
+
   el("lmf-inc-body").addEventListener("click", function (e) {
-    var t = e.target;
-    if (!t || !t.dataset) { return; }
-    if (t.classList.contains("lmf-resolve")) {
-      act(t.dataset.id, "resolve", true);
-    } else if (t.classList.contains("lmf-review")) {
-      act(t.dataset.id, "review", false);
-    } else if (t.classList.contains("lmf-ack")) {
-      act(t.dataset.id, "acknowledge", false);
-    }
+    var t = e.target.closest ? e.target.closest("button[data-id]") : null;
+    if (!t) { return; }
+    if (t.classList.contains("lmf-resolve")) { act(t, "resolve", true); }
+    else if (t.classList.contains("lmf-review")) { act(t, "review", false); }
+    else if (t.classList.contains("lmf-ack")) { act(t, "acknowledge", false); }
   });
   el("lmf-inc-prev").addEventListener("click", function () {
-    var limit = parseInt(el("lmf-inc-limit").value, 10) || 25;
-    offset = Math.max(0, offset - limit);
-    load();
+    offset = Math.max(0, offset - (parseInt(el("lmf-inc-limit").value, 10) || 25)); load();
   });
   el("lmf-inc-next").addEventListener("click", function () {
-    var limit = parseInt(el("lmf-inc-limit").value, 10) || 25;
-    offset += limit;
-    load();
+    offset += parseInt(el("lmf-inc-limit").value, 10) || 25; load();
   });
-  el("lmf-inc-status").addEventListener("change",
-    function () { offset = 0; load(); });
-  el("lmf-inc-limit").addEventListener("change",
-    function () { offset = 0; load(); });
+  el("lmf-inc-status").addEventListener("change", function () { offset = 0; load(); });
+  el("lmf-inc-limit").addEventListener("change", function () { offset = 0; load(); });
   window.lmfRefreshIncidents = load;
   load();
 })();
 </script>
 
-<!-- LMF-07: Current Readings panel -->
-<section id="lmf-current-readings" aria-label="Current readings">
-  <h2>Current Readings</h2>
-  <p class="muted">Latest reading per meter. kWh readings are converted to
-    average kW over the meter interval.</p>
-  <table>
-    <thead><tr>
-      <th>Meter</th><th>Building</th><th>Reading</th>
-      <th>Timestamp</th><th>Interval</th><th>Average kW</th>
-    </tr></thead>
-    <tbody id="lmf-current-readings-body">
-      <tr><td colspan="6">Loading…</td></tr>
-    </tbody>
-  </table>
-</section>
-<script id="lmf-current-readings-js">
+<script id="lmf-readings-js">
 (function () {
   "use strict";
+  var SEV_LABELS = ["OK", "LOW", "MEDIUM", "HIGH"];
+  function el(id) { return document.getElementById(id); }
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;",
-               '"': "&quot;", "'": "&#39;" }[c];
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
   }
-  function fmt(n, d) { return Number(n).toFixed(d === undefined ? 1 : d); }
-  fetch("/api/v1/world/state")
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (world) {
-      var tbody = document.getElementById("lmf-current-readings-body");
-      if (!tbody) { return; }
-      if (!world) {
-        tbody.innerHTML = "<tr><td colspan='6'>Unavailable</td></tr>";
-        return;
-      }
-      var rows = [];
-      (world.buildings || []).forEach(function (b) {
-        (b.meters || []).forEach(function (m) {
-          var lr = m.latest_reading;
-          var reading = "No reading", ts = "—", avg = "—";
-          if (lr && lr.value !== null && lr.value !== undefined) {
-            reading = fmt(lr.value) + " " + esc(m.unit || "");
-            if (lr.is_valid === 0) { reading += " (invalid)"; }
-            ts = esc(lr.timestamp_utc || "—");
-            var unit = String(m.unit || "").toLowerCase();
-            if (unit === "kwh" && m.interval_minutes > 0) {
-              avg = fmt(lr.value / (m.interval_minutes / 60.0), 2) + " kW";
-            } else if (unit === "kw") {
-              avg = fmt(lr.value, 2) + " kW";
-            }
-          }
-          rows.push("<tr><td>" + esc(m.id) + "</td><td>" +
-            esc(b.name || b.id) + "</td><td>" + reading + "</td><td>" +
-            ts + "</td><td>" +
-            (m.interval_minutes != null
-              ? esc(m.interval_minutes) + " min" : "—") +
-            "</td><td>" + avg + "</td></tr>");
-        });
-      });
-      tbody.innerHTML = rows.length ? rows.join("") :
-        "<tr><td colspan='6'>No meters</td></tr>";
-    })
-    .catch(function () {
-      var tbody = document.getElementById("lmf-current-readings-body");
-      if (tbody) {
-        tbody.innerHTML = "<tr><td colspan='6'>Unavailable</td></tr>";
-      }
+  function fmt(n, d) { return Number(n).toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d }); }
+
+  function setSeverity(maxSev) {
+    window.lmfFacilityMaxSeverity = maxSev;
+    var label = SEV_LABELS[maxSev] || "UNKNOWN";
+    var pairs = [["lmf-facility-severity", label], ["overview-severity", "Max severity · " + label]];
+    pairs.forEach(function (p) {
+      var b = el(p[0]);
+      if (!b) { return; }
+      b.textContent = p[1];
+      b.hidden = false;
+      b.setAttribute("data-severity", String(maxSev));
+      b.className = "badge sev-" + maxSev;
     });
+  }
+
+  function render(world) {
+    var tbody = el("lmf-current-readings-body");
+    if (!world) { tbody.innerHTML = "<tr><td colspan='6' class='empty-row'>Unavailable</td></tr>"; return; }
+    var rows = [], maxSev = 0;
+    (world.buildings || []).forEach(function (b) {
+      (b.meters || []).forEach(function (m) {
+        maxSev = Math.max(maxSev, m.max_severity || 0);
+        var lr = m.latest_reading;
+        var reading = "<span class='muted'>No reading</span>", ts = "—", avg = "—";
+        if (lr && lr.value !== null && lr.value !== undefined) {
+          reading = fmt(lr.value, 1) + " " + esc(m.unit || "");
+          if (lr.is_valid === 0) { reading += " <span class='pill alert'>invalid</span>"; }
+          ts = esc(lr.timestamp_utc || "—");
+          var unit = String(m.unit || "").toLowerCase();
+          if (unit === "kwh" && m.interval_minutes > 0) {
+            avg = fmt(lr.value / (m.interval_minutes / 60.0), 2) + " kW";
+          } else if (unit === "kw") {
+            avg = fmt(lr.value, 2) + " kW";
+          }
+        }
+        rows.push("<tr><td><code>" + esc(m.id) + "</code></td><td>" + esc(b.name || b.id) +
+          "</td><td class='r'>" + reading + "</td><td>" + ts + "</td><td class='r'>" +
+          (m.interval_minutes != null ? esc(m.interval_minutes) + " min" : "—") +
+          "</td><td class='r'>" + avg + "</td></tr>");
+      });
+    });
+    tbody.innerHTML = rows.length ? rows.join("") : "<tr><td colspan='6' class='empty-row'>No meters</td></tr>";
+    setSeverity(maxSev);
+  }
+
+  function load() {
+    return fetch("/api/v1/world/state")
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(render)
+      .catch(function () { render(null); });
+  }
+  window.lmfRefreshReadings = load;
+  load();
 })();
 </script>
 
-<!-- LMF-08: separate Generate New Run / Re-analyse + run manifest -->
-<section id="lmf-demo-controls" aria-label="Demo data controls">
-  <h2>Demo Data</h2>
-  <button id="lmf-btn-generate" type="button">Generate New Run</button>
-  <button id="lmf-btn-reanalyze" type="button">Re-analyse</button>
-  <span id="lmf-demo-status" class="muted" role="status"></span>
-  <pre id="lmf-run-manifest" class="muted">Manifest not loaded.</pre>
-</section>
 <script id="lmf-demo-controls-js">
 (function () {
   "use strict";
@@ -541,44 +733,31 @@ html { scroll-behavior:smooth; }
   async function loadManifest() {
     try {
       var r = await fetch("/api/v1/dashboard/run-manifest");
-      if (!r.ok) { throw new Error(String(r.status)); }
-      var m = await r.json();
-      el("lmf-run-manifest").textContent = JSON.stringify(m, null, 2);
+      if (!r.ok) { throw new Error("HTTP " + r.status); }
+      el("lmf-run-manifest").textContent = JSON.stringify(await r.json(), null, 2);
     } catch (err) {
-      el("lmf-run-manifest").textContent =
-        "Manifest unavailable: " + err.message;
+      el("lmf-run-manifest").textContent = "Manifest unavailable: " + err.message;
     }
   }
   async function run(kind, url) {
-    var btn = el(kind === "generate"
-      ? "lmf-btn-generate" : "lmf-btn-reanalyze");
-    var original = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = "Running…";
-    say("Running " + kind + "…");
+    var btn = el(kind === "generate" ? "lmf-btn-generate" : "lmf-btn-reanalyze");
+    btn.disabled = true; btn.setAttribute("aria-busy", "true");
+    say(kind === "generate" ? "Generating a new run…" : "Re-analysing…");
     try {
       var r = await fetch(url, { method: "POST" });
       var data = await r.json().catch(function () { return {}; });
-      if (!r.ok) {
-        throw new Error(data.detail ? JSON.stringify(data.detail)
-                                    : String(r.status));
-      }
-      say(kind + " finished.");
+      if (!r.ok) { throw new Error(data.detail ? JSON.stringify(data.detail) : "HTTP " + r.status); }
+      say(kind === "generate" ? "New run generated." : "Re-analysis finished.");
       await loadManifest();
-      if (window.lmfRefreshIncidents) { window.lmfRefreshIncidents(); }
+      if (typeof refreshAll === "function") { refreshAll(); }
     } catch (err) {
       say(kind + " failed: " + err.message);
     } finally {
-      btn.disabled = false;
-      btn.textContent = original;
+      btn.disabled = false; btn.removeAttribute("aria-busy");
     }
   }
-  el("lmf-btn-generate").addEventListener("click", function () {
-    run("generate", "/api/v1/dashboard/generate-demo");
-  });
-  el("lmf-btn-reanalyze").addEventListener("click", function () {
-    run("reanalyze", "/api/v1/dashboard/reanalyze");
-  });
+  el("lmf-btn-generate").addEventListener("click", function () { run("generate", "/api/v1/dashboard/generate-demo"); });
+  el("lmf-btn-reanalyze").addEventListener("click", function () { run("reanalyze", "/api/v1/dashboard/reanalyze"); });
   loadManifest();
 })();
 </script>
@@ -852,6 +1031,7 @@ $("#incidents").addEventListener("click", async (e) => {
     });
     toast(btn.dataset.done);
     await Promise.allSettled([loadIncidents(), loadStats()]);
+    if (window.lmfRefreshIncidents) window.lmfRefreshIncidents();
   } catch (err) {
     toast(err.message, "bad");
     btn.disabled = false; btn.removeAttribute("aria-busy");
@@ -861,6 +1041,11 @@ $("#incidents").addEventListener("click", async (e) => {
 /* ---------- refresh ---------- */
 async function refreshAll() {
   const results = await Promise.allSettled([loadStats(), loadChart(), loadIncidents()]);
+  if (refreshAll.ran) {
+    if (window.lmfRefreshIncidents) window.lmfRefreshIncidents();
+    if (window.lmfRefreshReadings) window.lmfRefreshReadings();
+  }
+  refreshAll.ran = true;
   const failed = results.filter((r) => r.status === "rejected");
   setLive(failed.length === 0);
   if (failed.length === results.length) {

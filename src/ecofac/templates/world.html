@@ -166,6 +166,149 @@ code { font-family:var(--mono); font-size:.85em; }
   *, *::before, *::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; transition:none !important; }
 }
 </style>
+
+
+<style id="ecofac-ui">
+/* ===== EcoFac shared UI layer ===== */
+:root {
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow-sm:0 1px 2px rgba(60,35,10,.06),0 4px 12px -8px rgba(60,35,10,.12);
+  --shadow-md:0 14px 34px -14px rgba(60,35,10,.35);
+}
+@media (prefers-color-scheme:dark) {
+  :root { --shadow-sm:0 1px 2px rgba(0,0,0,.35),0 4px 12px -8px rgba(0,0,0,.5); --shadow-md:0 14px 34px -14px rgba(0,0,0,.7); }
+}
+body {
+  background-color:var(--paper);
+  background-image:radial-gradient(900px 380px at 88% -8%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 70%);
+  background-repeat:no-repeat; background-attachment:fixed;
+}
+::selection { background:var(--accent); color:var(--accent-ink); }
+[hidden] { display:none !important; }
+a { color:var(--accent); }
+.muted { color:var(--muted); }
+.sub { color:var(--muted); font-size:.875rem; margin-top:.15rem; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+main > .panel + .panel, .layout + .panel, main > .layout ~ .panel { margin-top:1.25rem; }
+
+/* ---- Site bar ---- */
+.sitebar { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem 1.5rem; margin:0 0 1.5rem; padding:.25rem 0 .9rem; border-bottom:1px solid var(--line); }
+.brand { display:inline-flex; align-items:center; gap:.6rem; font:600 1.25rem/1 var(--serif); letter-spacing:-.01em; color:var(--ink); text-decoration:none; }
+.brand-mark { width:32px; height:32px; padding:6px; border-radius:10px; background:var(--accent); color:var(--accent-ink); fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; box-shadow:0 4px 10px -4px color-mix(in oklab, var(--accent) 70%, transparent); }
+.sitebar .topnav { margin:0; padding:0; border:0; flex:1 1 auto; display:flex; flex-wrap:nowrap; gap:.15rem; overflow-x:auto; scrollbar-width:none; }
+.sitebar .topnav::-webkit-scrollbar { display:none; }
+.topnav a { white-space:nowrap; font-size:.92rem; padding:.45rem .9rem; }
+.topnav a.active { background:var(--accent-soft); color:var(--ink); font-weight:600; }
+
+/* ---- Surfaces ---- */
+.panel { border-radius:14px; box-shadow:var(--shadow-sm); }
+.disclaimer { border:1px solid color-mix(in oklab, var(--warn) 25%, transparent); }
+.top h1 { letter-spacing:-.02em; }
+.top-status { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+
+/* ---- Controls ---- */
+:where(select, textarea, input:not([type=range],[type=checkbox],[type=radio],[type=file])) {
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+  padding:.4rem .65rem; min-height:38px; transition:border-color .15s, box-shadow .15s;
+}
+:where(select, textarea, input):focus { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); outline:none; }
+input[type=checkbox], input[type=radio], input[type=range] { accent-color:var(--accent); }
+input:disabled, select:disabled, textarea:disabled { opacity:.55; cursor:not-allowed; }
+.btn.small { min-height:34px; padding:.25rem .75rem; font-size:.82rem; }
+.btn.danger { background:var(--alert); border-color:var(--alert); color:#fff; }
+.btn:focus-visible { outline-offset:3px; }
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; }
+.toolbar label { display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--muted); }
+.check { display:flex; align-items:center; gap:.55rem; font-size:.88rem; margin:.1rem 0 .6rem; cursor:pointer; }
+.pager { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.75rem; font-size:.85rem; color:var(--muted); }
+.pager .btns { display:flex; gap:.4rem; }
+
+/* ---- Pills, badges ---- */
+.pill { display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap; }
+.pill::before { content:""; width:.42rem; height:.42rem; border-radius:50%; background:currentColor; opacity:.9; }
+.badge, .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.15rem .65rem; border-radius:99px; font:600 .75rem/1.5 var(--sans); letter-spacing:.03em; background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); vertical-align:middle; }
+.badge.sev-0 { background:var(--ok-soft); color:var(--ok); }
+.badge.sev-1 { background:color-mix(in oklab, var(--muted) 18%, transparent); color:var(--muted); }
+.badge.sev-2 { background:var(--warn-soft); color:var(--warn); }
+.badge.sev-3 { background:var(--alert-soft); color:var(--alert); }
+.chip { background:var(--surface); border:1px solid var(--line); color:var(--ink); font-weight:500; text-decoration:none; }
+a.chip:hover { border-color:var(--accent); }
+
+/* ---- Tables ---- */
+.tbl-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.tbl { width:100%; border-collapse:collapse; font-size:.875rem; font-variant-numeric:tabular-nums; }
+.tbl th { text-align:left; padding:.6rem .85rem; font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); background:color-mix(in oklab, var(--line) 35%, transparent); border-bottom:1px solid var(--line); white-space:nowrap; }
+.tbl td { padding:.6rem .85rem; border-bottom:1px solid var(--line); vertical-align:middle; }
+.tbl tbody tr:last-child td { border-bottom:0; }
+.tbl tbody tr:hover td { background:color-mix(in oklab, var(--accent) 5%, transparent); }
+.tbl .r { text-align:right; }
+.tbl .empty-row { text-align:center; color:var(--muted); padding:1.75rem; }
+.tbl code { font-size:.8rem; color:var(--muted); }
+.tbl .trunc { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+pre.manifest { background:color-mix(in oklab, var(--muted) 10%, transparent); padding:.8rem; border-radius:8px; overflow:auto; max-height:260px; font-size:.78rem; margin-top:.6rem; }
+
+/* ---- Details / disclosure ---- */
+details.inspector-section { box-shadow:none; }
+details.inspector-section > summary::after { content:"▾"; color:var(--muted); font-size:.85rem; transition:transform .2s; }
+details.inspector-section[open] > summary::after { content:"▾"; transform:rotate(180deg); }
+details.inspector-section > summary:hover { background:color-mix(in oklab, var(--accent) 5%, transparent); border-radius:10px; }
+
+/* ---- Dialog ---- */
+dialog { border:1px solid var(--line); border-radius:14px; background:var(--surface); color:var(--ink); padding:1.25rem; width:min(92vw,440px); box-shadow:var(--shadow-md); }
+dialog::backdrop { background:rgba(20,12,4,.5); backdrop-filter:blur(2px); }
+dialog h3 { font-size:1.1rem; }
+dialog textarea { width:100%; min-height:96px; resize:vertical; margin:.75rem 0 .25rem; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.75rem; }
+
+/* ---- Toasts ---- */
+.toasts { position:fixed; left:50%; bottom:max(1rem,env(safe-area-inset-bottom)); transform:translateX(-50%); display:grid; gap:.5rem; width:min(92vw,26rem); z-index:50; pointer-events:none; }
+.toast { background:var(--ink); color:var(--paper); padding:.7rem 1rem; border-radius:10px; font-size:.925rem; box-shadow:var(--shadow-md); animation:rise .2s ease-out; }
+.toast.bad { background:var(--alert); color:#fff; }
+@keyframes rise { from { opacity:0; transform:translateY(6px); } }
+
+/* ---- Scenario workbench ---- */
+.policy-bar { display:grid; gap:.5rem; padding:.85rem 1rem; margin-bottom:1rem; border:1px solid var(--line); border-radius:10px; background:color-mix(in oklab, var(--accent) 6%, transparent); }
+.policy-bar label { font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.policy-bar select { width:100%; }
+.policy-info { font-size:.82rem; color:var(--muted); }
+.form-group-title { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:1.25rem 0 .75rem; padding-top:1rem; border-top:1px solid var(--line); display:flex; align-items:center; gap:.5rem; }
+.form-group-title:first-of-type { border-top:0; padding-top:0; margin-top:.25rem; }
+.lock-note { display:none; align-items:center; gap:.4rem; font-size:.8rem; color:var(--muted); margin-bottom:.75rem; }
+#constraint-fields.locked .lock-note { display:flex; }
+#constraint-fields.locked .field { opacity:.75; }
+.form-actions { position:sticky; bottom:-1px; padding:.75rem 0 .15rem; background:linear-gradient(to top, var(--surface) 75%, transparent); z-index:2; }
+
+/* ---- World ---- */
+.preset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:.4rem; }
+.preset-grid .btn.active { background:var(--accent); color:var(--accent-ink); }
+.td-actions { display:grid; gap:.4rem; margin-top:.5rem; }
+.td-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.75rem; }
+.td-head h3 { font-size:1.05rem; }
+.td-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.75rem; margin-bottom:.75rem; }
+.td-card { border:1px solid var(--line); border-radius:10px; padding:.75rem .9rem; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.td-card h4 { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.5rem; }
+.td-row { display:flex; justify-content:space-between; gap:1rem; padding:.3rem 0; font-size:.88rem; border-bottom:1px dashed var(--line); }
+.td-row:last-child { border-bottom:0; }
+.td-row b { font-weight:600; font-variant-numeric:tabular-nums; }
+.legend .sw { box-shadow:0 0 0 3px color-mix(in oklab, currentColor 0%, transparent); }
+
+@media (max-width:720px) {
+  .sitebar { gap:.75rem; }
+  .sitebar .topnav { flex-basis:100%; }
+}
+
+/* ---- consistency fixes ---- */
+.wrap { max-width:1240px; }
+.pill.neutral { background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); }
+.events li { align-items:center; }
+.events li .ev-main { min-width:0; }
+.events { overflow-x:hidden; }
+.events { grid-template-columns:minmax(0,1fr); }
+.rack { background:linear-gradient(to bottom,#3A3027,#2A221A); }
+.bld-floor { background:#2E261E; }
+.bld-floor[data-status="alert"] { background:color-mix(in oklab, var(--alert) 55%, #2E261E); }
+.bld-floor[data-status="warn"] { background:color-mix(in oklab, var(--warn) 50%, #2E261E); }
+</style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
@@ -174,12 +317,16 @@ code { font-family:var(--mono); font-size:.85em; }
 </svg>
 
 <div class="wrap">
-  <nav class="topnav" aria-label="Primary">
-    <a href="/">Dashboard</a>
-    <a href="/decisions">Decision Center</a>
-    <a href="/scenarios">Scenario Workbench</a>
-    <a href="/world" class="active" aria-current="page">Virtual Facility</a>
-  </nav>
+  <div class="sitebar">
+    <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-14 14-14 0 9-6 14-14 14z"/><path d="M5 19c3-5 6-8 10-10"/></svg><span>EcoFac</span></a>
+    <nav class="topnav" aria-label="Primary">
+      <a href="/">Dashboard</a>
+      <a href="/decisions">Decision Center</a>
+      <a href="/scenarios">Scenario Workbench</a>
+      <a href="/policies">Operating Policies</a>
+      <a href="/world" class="active" aria-current="page">Virtual Facility</a>
+    </nav>
+  </div>
 
   <header class="top">
     <h1>Virtual Facility</h1>
@@ -200,10 +347,16 @@ code { font-family:var(--mono); font-size:.85em; }
           <button type="button" role="tab" data-view="datacenter" class="active" aria-selected="true"><svg class="ico" aria-hidden="true"><use href="#i-datacenter"/></svg>Data Center</button>
           <button type="button" role="tab" data-view="building" aria-selected="false"><svg class="ico" aria-hidden="true"><use href="#i-building"/></svg>Building</button>
         </div>
-        <h2 id="viz-heading" class="sr-only" style="position:absolute;left:-9999px">Facility visualization</h2>
+        <h2 id="viz-heading" class="sr-only">Facility visualization</h2>
         <div class="stage" id="viz-stage">
           <div class="sk" style="height:300px"></div>
         </div>
+      </section>
+    
+      <section id="testdrive-results" class="panel" aria-labelledby="td-title" aria-live="polite">
+        <h2 id="td-title">Test drive results</h2>
+        <p class="sub">Exact inputs, facility power, headroom, and expected vs actual outcome.</p>
+        <div id="lmf-td-output"><p class="msg empty">Pick a preset on the right to evaluate it.</p></div>
       </section>
     </main>
 
@@ -220,14 +373,21 @@ code { font-family:var(--mono); font-size:.85em; }
         <h2 id="testdrive-heading">Test drive</h2>
         <p class="sub">Run real logic against the current facility state.</p>
         <div class="testdrive">
-          <label for="lmf-record-decision" style="display:block;margin:0.5rem 0;">
-  <input type="checkbox" id="lmf-record-decision">
-  Also record in Decision Center
-</label>
-<button class="btn ghost" type="button" id="btn-eval-plus10">Evaluate +10% load</button>
-          <button class="btn ghost" type="button" id="btn-eval-plus40">Evaluate +40% load</button>
-          <button class="btn ghost" type="button" id="btn-verify-latest">Verify latest decision</button>
-          <button class="btn ghost" type="button" id="btn-inspect-incident">Inspect latest incident</button>
+          <label class="check" for="lmf-record-decision">
+            <input type="checkbox" id="lmf-record-decision">
+            Also record in Decision Center
+          </label>
+          <div class="preset-grid" role="group" aria-label="Load presets">
+            <button class="btn ghost preset" type="button" data-preset="baseline">Baseline</button>
+            <button class="btn ghost preset" type="button" data-preset="plus10">+10%</button>
+            <button class="btn ghost preset" type="button" data-preset="plus20">+20%</button>
+            <button class="btn ghost preset" type="button" data-preset="plus40">+40%</button>
+            <button class="btn ghost preset" type="button" data-preset="plus60">+60%</button>
+          </div>
+          <div class="td-actions">
+            <button class="btn ghost" type="button" id="btn-verify-latest">Verify latest decision</button>
+            <button class="btn ghost" type="button" id="btn-inspect-incident">Inspect latest incident</button>
+          </div>
         </div>
         <div id="action-msg" role="status" aria-live="polite"></div>
       </section>
@@ -259,8 +419,11 @@ const nf1 = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+const detailOf = (b, res) => { const d = b && b.detail; return d ? (typeof d === "string" ? d : JSON.stringify(d)) : `status ${res.status}`; };
+
 const state = {
   world: null,
+  stageKey: "",
   prevMeterState: {},
   view: "datacenter",
   selectedMeter: null,
@@ -287,9 +450,10 @@ function statusPill(status) {
 
 function meterStatus(meter) {
   if (!meter.latest_reading || !meter.latest_reading.is_valid) return "stale";
-  if (meter.open_incidents >= 3) return "alert";
-  if (meter.open_incidents >= 1) return "warn";
-  return "ok";
+  const open = meter.open_incidents || 0;
+  if (open < 1) return "ok";
+  if (typeof meter.max_severity === "number") return meter.max_severity >= 3 ? "alert" : "warn";
+  return open >= 3 ? "alert" : "warn";
 }
 
 function zoneStatus(meters) {
@@ -420,12 +584,17 @@ async function refresh() {
   try {
     const world = await fetchWorld();
     state.world = world;
-    if (state.view === "datacenter") renderDataCenter(world);
-    else renderBuilding(world);
+    const key = state.view + JSON.stringify(world.buildings);
+    if (key !== state.stageKey) {
+      if (state.view === "datacenter") renderDataCenter(world);
+      else renderBuilding(world);
+      state.stageKey = key;
+    }
     renderEvents(world);
     pulseChangedMeters(world);
-    if (state.selectedMeter) refreshDrawer();
+    if (state.selectedMeter) refreshDrawer(true);
   } catch (err) {
+    state.stageKey = "";
     $("#viz-stage").innerHTML = `<p class="msg bad">Failed to load facility state: ${esc(err.message)}</p>`;
   }
 }
@@ -440,6 +609,7 @@ function switchView(view) {
   if (state.world) {
     if (view === "datacenter") renderDataCenter(state.world);
     else renderBuilding(state.world);
+    state.stageKey = view + JSON.stringify(state.world.buildings);
   }
 }
 
@@ -449,11 +619,11 @@ function openMeterDrawer(meterId) {
   refreshDrawer();
 }
 
-async function refreshDrawer() {
+async function refreshDrawer(silent) {
   const meterId = state.selectedMeter;
   if (!meterId) return;
   const drawer = $("#drawer-content");
-  drawer.innerHTML = '<div class="sk" style="height:200px"></div>';
+  if (!silent) drawer.innerHTML = '<div class="sk" style="height:200px"></div>';
   try {
     const meter = await fetch(`/api/v1/meters/${encodeURIComponent(meterId)}`).then((r) => {
       if (!r.ok) throw new Error(`meter ${r.status}`);
@@ -502,60 +672,6 @@ function setActionMsg(text, kind) {
   box.innerHTML = text;
 }
 
-function averageLatestItLoad() {
-  const world = state.world;
-  if (!world) return 400;
-  const values = [];
-  for (const b of world.buildings) {
-    for (const m of b.meters) {
-      if (m.latest_reading && m.latest_reading.is_valid) values.push(m.latest_reading.value);
-    }
-  }
-  if (!values.length) return 400;
-  return values.reduce((a, b) => a + b, 0) / values.length;
-}
-
-async function testScenario(multiplier, label) {
-  const btn = $(`#${label}`);
-  btn.disabled = true; btn.setAttribute("aria-busy", "true");
-  setActionMsg(`Evaluating ${label}...`, "empty");
-  try {
-    const base = averageLatestItLoad();
-    const payload = {
-      name: `World demo: load x${multiplier}`,
-      config: {
-        electrical: { capacity: 1000.0, reserve_pct: 0.10 },
-        cooling: { capacity: 800.0, reserve_pct: 0.10 },
-      },
-      config_version: "world-demo",
-      it_load_kw: base,
-      cooling_load_kw: base * 0.75,
-      pue: 1.4,
-      proposed_it_delta_kw: base * (multiplier - 1),
-      proposed_cooling_delta_kw: base * 0.75 * (multiplier - 1),
-      persist_as_decision: true,
-    };
-    const res = await fetch("/api/v1/scenarios/evaluate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.detail || `status ${res.status}`);
-    const result = body.result;
-    setActionMsg(
-      `Scenario ${body.scenario_id.slice(0, 8)}... -> ${statusPill(result.status)} `
-      + `<code style="font-size:.78rem">${esc(result.precedence)}</code>`,
-      result.status === "APPROVE" ? "ok" : result.status === "REVIEW" ? "warn" : "bad"
-    );
-    await refresh();
-  } catch (err) {
-    setActionMsg(`Evaluation failed: ${esc(err.message)}`, "bad");
-  } finally {
-    btn.disabled = false; btn.removeAttribute("aria-busy");
-  }
-}
-
 async function verifyLatest() {
   const btn = $("#btn-verify-latest");
   btn.disabled = true; btn.setAttribute("aria-busy", "true");
@@ -564,7 +680,7 @@ async function verifyLatest() {
     if (!latest) { setActionMsg("No decisions to verify yet.", "empty"); return; }
     const res = await fetch(`/api/v1/decisions/${encodeURIComponent(latest.id)}/verify`);
     const body = await res.json();
-    if (!res.ok) throw new Error(body.detail || `status ${res.status}`);
+    if (!res.ok) throw new Error(detailOf(body, res));
     const msg = `Verified=${body.verified} output=${body.output_verified} engine_match=${body.engine_version_match} scope=${esc(body.verification_scope)}`;
     setActionMsg(msg, body.verified ? "ok" : "warn");
   } catch (err) {
@@ -582,7 +698,7 @@ async function inspectLatestIncident() {
     if (!latest) { setActionMsg("No incidents yet. Generate demo data first.", "empty"); return; }
     const res = await fetch(`/api/v1/incidents/${encodeURIComponent(latest.id)}/evidence`);
     const body = await res.json();
-    if (!res.ok) throw new Error(body.detail || `status ${res.status}`);
+    if (!res.ok) throw new Error(detailOf(body, res));
     const count = Array.isArray(body) ? body.length : 0;
     setActionMsg(`Incident ${latest.id.slice(0, 8)}... has ${count} evidence record(s). Open it in <a href="/decisions">Decision Center</a>.`, "ok");
   } catch (err) {
@@ -595,8 +711,6 @@ async function inspectLatestIncident() {
 // ---- wiring ----
 $$(".tabs button").forEach((b) => b.addEventListener("click", () => switchView(b.dataset.view)));
 $("#drawer-close").addEventListener("click", closeDrawer);
-$("#btn-eval-plus10").addEventListener("click", () => testScenario(1.1, "btn-eval-plus10"));
-$("#btn-eval-plus40").addEventListener("click", () => testScenario(1.4, "btn-eval-plus40"));
 $("#btn-verify-latest").addEventListener("click", verifyLatest);
 $("#btn-inspect-incident").addEventListener("click", inspectLatestIncident);
 
@@ -610,87 +724,163 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) refr
 </script>
 
 <!-- LMF-WORLD-ADDITIONS -->
-<script id="lmf-testdrive">
+
+
+<!-- LMF-P2-WORLD-CANONICAL -->
+<script id="lmf-td-canonical">
 (function () {
   "use strict";
-  var PRESETS = {
-    plus10: { it: 600, cool: 300, pue: 1.4, dit: 60, dcool: 30 },
-    plus40: { it: 600, cool: 300, pue: 1.4, dit: 240, dcool: 120 }
-  };
-  var CONSTRAINTS = {
-    electrical: { capacity: 1000, reserve_pct: 0.10 },
-    cooling: { capacity: 800, reserve_pct: 0.10 }
-  };
   function el(id) { return document.getElementById(id); }
-  function say(msg) {
-    var m = el("action-msg");
-    if (m) { m.textContent = msg; }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
   }
-  function scenarioBody(presetId) {
-    var p = PRESETS[presetId];
-    return {
-      name: "test-drive-" + presetId,
-      it_load_kw: p.it, cooling_load_kw: p.cool, pue: p.pue,
-      proposed_it_delta_kw: p.dit, proposed_cooling_delta_kw: p.dcool,
-      constraints: CONSTRAINTS,
-      config_version: "lmf-test-drive",
-      it_source: "ASSUMED", cooling_source: "ASSUMED", pue_source: "ASSUMED",
-      persist_as_decision: false
-    };
+  function fmt(n) { return Number(n).toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+  function say(msg, kind) { setActionMsg(esc(msg), kind || "empty"); }
+  function errText(data, status) {
+    var d = data && data.detail;
+    return d ? (typeof d === "string" ? d : JSON.stringify(d)) : "HTTP " + status;
   }
-  window.lmfRunTestDrive = async function (presetId) {
-    if (!PRESETS[presetId]) { say("Unknown preset " + presetId); return; }
-    say("Evaluating " + presetId + "…");
-    var record = el("lmf-record-decision");
-    try {
-      var resp, data;
-      if (record && record.checked) {
-        var body = scenarioBody(presetId);
-        body.persist_as_decision = true;
-        resp = await fetch("/api/v1/scenarios/evaluate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        data = await resp.json();
-        if (!resp.ok) {
-          throw new Error(data.detail ? JSON.stringify(data.detail)
-                                      : String(resp.status));
-        }
-        say("Recorded in Decision Center: " +
-            (data.decision_id || data.scenario_id || "ok"));
-      } else {
-        resp = await fetch(
-          "/api/v1/world/test-drive/" + encodeURIComponent(presetId));
-        data = await resp.json();
-        if (!resp.ok) {
-          throw new Error(data.detail ? JSON.stringify(data.detail)
-                                      : String(resp.status));
-        }
-        var r = data.result || data;
-        var status = r.final_status || r.status || "EVALUATED";
-        say(presetId + ": " + status + " (via server test-drive endpoint)");
+  function human(key) {
+    if (key === "pue") { return "PUE"; }
+    var k = key.replace(/_kw$/, "").replace(/_/g, " ");
+    return k.charAt(0).toUpperCase() + k.slice(1);
+  }
+  function unitOf(key) { return /_kw$/.test(key) ? " kW" : ""; }
+  function card(title, obj, keys) {
+    var rows = "";
+    keys.forEach(function (k) {
+      if (obj && obj[k] !== undefined && obj[k] !== null) {
+        rows += "<div class='td-row'><span>" + esc(human(k)) + "</span><b>" +
+          (typeof obj[k] === "number" ? fmt(obj[k]) + unitOf(k) : esc(obj[k])) + "</b></div>";
       }
-      if (window.lmfRefreshEvents) { window.lmfRefreshEvents(); }
-    } catch (err) {
-      say("Test drive failed: " + err.message);
-    }
-  };
-  // Replace buttons with clones: drops ALL previous listeners, including
-  // any legacy client-side meter-reading averaging logic.
-  function hijack(id, preset) {
-    var b = el(id);
-    if (!b) { return; }
-    var nb = b.cloneNode(true);
-    b.parentNode.replaceChild(nb, b);
-    nb.onclick = function (e) {
-      e.preventDefault();
-      window.lmfRunTestDrive(preset);
-    };
+    });
+    return "<div class='td-card'><h4>" + esc(title) + "</h4>" + (rows || "<p class='muted'>No data</p>") + "</div>";
   }
-  hijack("btn-eval-plus10", "plus10");
-  hijack("btn-eval-plus40", "plus40");
+  function sevPill(s) {
+    var cls = s === "OK" ? "ok" : s === "WARNING" ? "warn" : s ? "alert" : "neutral";
+    return "<span class='pill " + cls + "'>" + esc(s || "—") + "</span>";
+  }
+
+  function renderOutput(data) {
+    var out = el("lmf-td-output");
+    if (!data || typeof data !== "object") { out.innerHTML = "<p class='msg empty'>No result.</p>"; return; }
+    var preset = data.preset || {}, result = data.result || {}, expected = data.expected || {};
+    var status = result.final_status || result.status || "?";
+    var matches = data.matches_expected;
+    var matchPill = matches === true ? "<span class='pill ok'>Matches expectation</span>"
+      : matches === false ? "<span class='pill alert'>Mismatch</span>" : "";
+    var html = "<div class='td-head'><div><h3>" + esc(preset.label || preset.id || "Preset") + "</h3>" +
+      (preset.description ? "<p class='sub'>" + esc(preset.description) + "</p>" : "") +
+      "</div><div style='display:flex;gap:.5rem;flex-wrap:wrap'>" + statusPill(status) + matchPill + "</div></div>";
+
+    html += "<div class='td-cols'>" +
+      card("Exact inputs", data.inputs, ["it_load_kw", "cooling_load_kw", "pue", "proposed_it_delta_kw", "proposed_cooling_delta_kw"]) +
+      card("Facility power", data.derived, ["current_facility_power_kw", "predicted_facility_power_kw", "predicted_it_load_kw", "predicted_cooling_load_kw"]) +
+      "</div>";
+
+    var constraints = data.constraints;
+    if (Array.isArray(constraints) && constraints.length) {
+      html += "<div class='tbl-wrap'><table class='tbl'><thead><tr><th>Constraint</th><th class='r'>Observed</th>" +
+        "<th class='r'>Permitted</th><th class='r'>Headroom</th><th>Status</th></tr></thead><tbody>";
+      constraints.forEach(function (c) {
+        var observed = c.observed_kw !== undefined ? c.observed_kw : c.observed;
+        var permitted = c.permitted_kw !== undefined ? c.permitted_kw : c.permitted;
+        var headroom = c.headroom_to_permitted_kw !== undefined ? c.headroom_to_permitted_kw : c.headroom_kw;
+        var cell = function (v) { return v !== undefined && v !== null ? esc(fmt(v)) + " kW" : "—"; };
+        html += "<tr><td>" + esc(window.lmfLabel ? window.lmfLabel(c.name || c.constraint || "?") : (c.name || "?")) + "</td><td class='r'>" +
+          cell(observed) + "</td><td class='r'>" + cell(permitted) + "</td><td class='r'>" + cell(headroom) + "</td><td>" +
+          sevPill(c.severity || c.status) + "</td></tr>";
+      });
+      html += "</tbody></table></div>";
+    }
+
+    html += "<div class='td-cols' style='margin-top:.75rem'>" +
+      "<div class='td-card'><h4>Actual</h4>" +
+        "<div class='td-row'><span>Status</span><b>" + esc(status) + "</b></div>" +
+        "<div class='td-row'><span>Precedence</span><b>" + esc(result.precedence || "—") + "</b></div></div>" +
+      "<div class='td-card'><h4>Expected</h4>" +
+        "<div class='td-row'><span>Status</span><b>" + esc(expected.status || expected.final_status || "—") + "</b></div>" +
+        "<div class='td-row'><span>Precedence</span><b>" + esc(expected.precedence || "—") + "</b></div></div></div>";
+    out.innerHTML = html;
+  }
+
+  function statusPill(s) {
+    var cls = s === "APPROVE" ? "ok" : s === "REJECT" ? "alert" : s === "REVIEW" ? "warn" : "neutral";
+    return "<span class='pill " + cls + "'>" + esc(window.lmfLabel ? window.lmfLabel(s) : s) + "</span>";
+  }
+
+  async function activePolicyConfig() {
+    var fallback = {
+      version: null,
+      config: { electrical: { capacity: 1000, reserve_pct: 0.10 }, cooling: { capacity: 800, reserve_pct: 0.10 } }
+    };
+    try {
+      var resp = await fetch("/api/v1/policies/active");
+      if (!resp.ok) { return fallback; }
+      var p = await resp.json();
+      return {
+        version: p.version,
+        config: {
+          electrical: { capacity: p.electrical_capacity_kw, reserve_pct: p.electrical_reserve_pct, warning_threshold_pct: p.electrical_warning_threshold_pct },
+          cooling: { capacity: p.cooling_capacity_kw, reserve_pct: p.cooling_reserve_pct, warning_threshold_pct: p.cooling_warning_threshold_pct }
+        }
+      };
+    } catch (err) { return fallback; }
+  }
+
+  var running = false;
+  async function runPreset(presetId, btn) {
+    if (running) { return; }
+    running = true;
+    document.querySelectorAll(".preset").forEach(function (b) { b.classList.toggle("active", b === btn); b.disabled = true; });
+    btn.setAttribute("aria-busy", "true");
+    say("Evaluating " + presetId + "…");
+    try {
+      var resp = await fetch("/api/v1/world/test-drive/" + encodeURIComponent(presetId));
+      var data = await resp.json().catch(function () { return {}; });
+      if (!resp.ok) { throw new Error(errText(data, resp.status)); }
+      renderOutput(data);
+
+      var record = el("lmf-record-decision");
+      if (record && record.checked) {
+        var inp = data.inputs || {};
+        var pol = await activePolicyConfig();
+        var recResp = await fetch("/api/v1/scenarios/evaluate", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: "test-drive-" + presetId,
+            it_load_kw: inp.it_load_kw, cooling_load_kw: inp.cooling_load_kw, pue: inp.pue,
+            proposed_it_delta_kw: inp.proposed_it_delta_kw, proposed_cooling_delta_kw: inp.proposed_cooling_delta_kw,
+            config: pol.config,
+            config_version: pol.version ? "policy:" + pol.version : "lmf-test-drive",
+            it_source: "ASSUMED", cooling_source: "ASSUMED", pue_source: "ASSUMED",
+            persist_as_decision: true
+          })
+        });
+        var recData = await recResp.json().catch(function () { return {}; });
+        if (!recResp.ok) { throw new Error(errText(recData, recResp.status)); }
+        say(presetId + " recorded in Decision Center (" + String(recData.decision_id || recData.scenario_id || "ok").slice(0, 8) + ").", "ok");
+      } else {
+        say(presetId + " evaluated (not recorded).", "ok");
+      }
+      if (typeof refresh === "function") { refresh(); }
+    } catch (err) {
+      say("Test drive failed: " + err.message, "bad");
+    } finally {
+      running = false;
+      btn.removeAttribute("aria-busy");
+      document.querySelectorAll(".preset").forEach(function (b) { b.disabled = false; });
+    }
+  }
+
+  document.querySelectorAll(".preset").forEach(function (b) {
+    b.addEventListener("click", function () { runPreset(b.dataset.preset, b); });
+  });
 })();
 </script>
+<!-- /LMF-P2-WORLD-CANONICAL -->
+
 </body>
 </html>

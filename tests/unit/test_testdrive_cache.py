@@ -6,7 +6,9 @@ from ecofac.decision.testdrive import (
     UnknownPresetError,
     reset_test_drive_cache,
     run_test_drive,
-    test_drive_cache_info,
+)
+from ecofac.decision.testdrive import (
+    test_drive_cache_info as _testdrive_cache_info,
 )
 
 
@@ -19,7 +21,7 @@ def test_cache_hits_after_first_call() -> None:
     reset_test_drive_cache()
     a = run_test_drive("plus_40pct")
     b = run_test_drive("plus_40pct")
-    info = test_drive_cache_info()
+    info = _testdrive_cache_info()
     assert info["hits"] >= 1, f"expected >=1 cache hit, got {info}"
     assert _strip_ts(a) == _strip_ts(b)
 
@@ -28,7 +30,7 @@ def test_alias_shares_cache_entry() -> None:
     reset_test_drive_cache()
     a = run_test_drive("plus40")
     b = run_test_drive("plus_40pct")
-    info = test_drive_cache_info()
+    info = _testdrive_cache_info()
     assert info["hits"] >= 1, f"expected alias to share cache, got {info}"
     assert _strip_ts(a) == _strip_ts(b)
 

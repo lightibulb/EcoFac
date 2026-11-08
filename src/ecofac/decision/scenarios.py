@@ -42,6 +42,7 @@ from ecofac.decision.transparent import (
     build_config_payload,
     build_input_payload,
     decide_transparently,
+    pinned_request,
 )
 from ecofac.persistence.tx import persist_atomically
 from ecofac.timeutil import now_z
@@ -159,8 +160,9 @@ def persist_scenario(
 ) -> str:
     """Persist one scenario atomically. Returns the new scenario id."""
     scenario_id = str(uuid.uuid4())
-    input_payload = build_input_payload(transparent_request)
-    config_payload = build_config_payload(transparent_request)
+    pinned = pinned_request(transparent_request, result)
+    input_payload = build_input_payload(pinned)
+    config_payload = build_config_payload(pinned)
     input_json = json.dumps(input_payload, sort_keys=True)
     config_json = json.dumps(config_payload, sort_keys=True)
     result_json = json.dumps(result.model_dump(mode="json"), sort_keys=True)

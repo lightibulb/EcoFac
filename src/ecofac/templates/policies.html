@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>EcoFac — Operating Policies</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:#F6EFE4; --surface:#FFFBF5; --ink:#2B2218; --muted:#7A6B5A; --line:#E6DAC8;
+  --accent:#9C5E10; --accent-ink:#FFFBF5; --accent-soft:#F1E1C3;
+  --alert:#A8432B; --alert-soft:#F4DDD3; --warn:#85590C; --warn-soft:#F5E6BF;
+  --ok:#566B42; --ok-soft:#E3E9D3;
+  --sans:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:"Fraunces",Georgia,"Times New Roman",serif;
+}
+@media (prefers-color-scheme:dark) {
+  :root {
+    --paper:#1C1712; --surface:#252018; --ink:#F2E8DA; --muted:#A39382; --line:#3A3027;
+    --accent:#E0A34A; --accent-ink:#1C1712; --accent-soft:#3B2E1A;
+    --alert:#E58B6F; --alert-soft:#41241B; --warn:#E6BE63; --warn-soft:#3C2F14;
+    --ok:#A7BE8B; --ok-soft:#263020;
+  }
+}
+* { box-sizing:border-box; margin:0; }
+html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
+body { background:var(--paper); color:var(--ink); font:400 1rem/1.5 var(--sans); min-height:100vh; }
+h1,h2,h3,h4 { font-family:var(--serif); font-weight:600; letter-spacing:-.01em; }
+button,input,select,summary,textarea { font:inherit; color:inherit; }
+:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+code { font-family:var(--mono,ui-monospace,Menlo,Consolas,monospace); font-size:.85em; }
+[hidden] { display:none !important; }
+.wrap { max-width:1180px; margin:0 auto; padding:clamp(1rem,3vw,2rem); }
+
+.topnav { display:flex; gap:.25rem; flex-wrap:wrap; }
+.topnav a { color:var(--muted); text-decoration:none; font-weight:500; border-radius:6px; transition:background .2s, color .2s; }
+.topnav a:hover { color:var(--ink); background:color-mix(in oklab, var(--accent) 8%, transparent); }
+
+.top { margin-bottom:1.25rem; }
+.top h1 { font-size:clamp(1.6rem,4vw,2.2rem); line-height:1.1; }
+.top p { color:var(--muted); margin-top:.35rem; max-width:68ch; }
+
+.panel { background:var(--surface); border:1px solid var(--line); padding:1rem 1.15rem; margin-bottom:1.25rem; }
+.panel h2 { font-size:1.15rem; }
+
+/* create form */
+details.create > summary { list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:1rem; user-select:none; }
+details.create > summary::-webkit-details-marker { display:none; }
+details.create > summary h2 { margin:0; }
+details.create > summary .btn-like { font-size:.85rem; font-weight:600; color:var(--accent); }
+details.create[open] > summary { padding-bottom:.75rem; margin-bottom:.75rem; border-bottom:1px solid var(--line); }
+details.create[open] .btn-like::before { content:"Collapse"; }
+details.create:not([open]) .btn-like::before { content:"+ New policy"; }
+fieldset { border:1px solid var(--line); border-radius:10px; padding:.25rem .9rem .5rem; margin-bottom:1rem; min-width:0; }
+legend { font:600 .75rem/1 var(--sans); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); padding:0 .4rem; }
+.form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:.75rem; margin:.6rem 0; }
+.form-grid label { display:flex; flex-direction:column; gap:.3rem; font-size:.82rem; color:var(--muted); font-weight:500; }
+.form-grid label small { font-weight:400; }
+.form-grid input { width:100%; }
+.form-grid .inline { flex-direction:row; align-items:center; gap:.55rem; color:var(--ink); align-self:end; min-height:38px; }
+.form-actions-row { display:flex; align-items:center; gap:.9rem; flex-wrap:wrap; }
+.form-status { font-size:.88rem; }
+.form-status.bad { color:var(--alert); } .form-status.good { color:var(--ok); }
+
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; min-height:40px; padding:.5rem 1rem; border-radius:8px; border:1px solid var(--accent); background:var(--accent); color:var(--accent-ink); font-weight:600; font-size:.9rem; cursor:pointer; transition:filter .15s, transform .15s; }
+.btn:hover { filter:brightness(1.08); }
+.btn:active { transform:scale(.97); }
+.btn.ghost { background:transparent; color:var(--accent); }
+.btn:disabled { opacity:.6; cursor:progress; }
+.btn[aria-busy="true"]::after { content:""; width:.9rem; height:.9rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:spin .7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* policy cards */
+.list-head { display:flex; align-items:baseline; justify-content:space-between; gap:1rem; margin:1.75rem 0 .75rem; }
+.list-head h2 { font-size:1.25rem; }
+.policy-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:1rem; }
+.policy-card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:1.1rem 1.2rem; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; }
+.policy-card.active { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 20%, transparent), var(--shadow-sm); background:linear-gradient(to bottom, color-mix(in oklab, var(--accent) 7%, var(--surface)), var(--surface) 55%); }
+.pc-head { display:flex; justify-content:space-between; align-items:flex-start; gap:.75rem; }
+.pc-head h3 { font-size:1.1rem; overflow-wrap:anywhere; }
+.pc-meta { color:var(--muted); font-size:.8rem; margin-top:.2rem; }
+.pc-groups { display:grid; grid-template-columns:1fr 1fr; gap:.9rem 1.4rem; margin:1rem 0; }
+.pc-group h4 { font:600 .7rem/1 var(--sans); text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin-bottom:.5rem; }
+.pc-group.wide { grid-column:1 / -1; }
+.kv { display:flex; justify-content:space-between; gap:.75rem; border-bottom:1px dashed var(--line); padding:.28rem 0; font-size:.88rem; }
+.kv:last-child { border-bottom:0; }
+.kv span:first-child { color:var(--muted); }
+.kv span:last-child { font-variant-numeric:tabular-nums; font-weight:500; text-align:right; }
+.pc-notes { font-size:.85rem; color:var(--muted); font-style:italic; margin-bottom:.75rem; }
+.pc-foot { margin-top:auto; display:flex; gap:.5rem; }
+.pill { display:inline-flex; padding:.15rem .65rem; border-radius:99px; font-size:.72rem; font-weight:700; letter-spacing:.05em; }
+.pill.ok { background:var(--ok-soft); color:var(--ok); }
+.msg { font-size:.9rem; padding:.75rem 1rem; border-radius:8px; }
+.msg.empty { background:color-mix(in oklab, var(--muted) 10%, transparent); color:var(--muted); }
+.msg.bad { background:var(--alert-soft); color:var(--alert); }
+.sk { height:220px; border-radius:14px; background:linear-gradient(90deg,var(--line),transparent,var(--line)); background-size:200% 100%; animation:sh 1.4s linear infinite; }
+@keyframes sh { to { background-position:-200% 0; } }
+@media (max-width:420px) { .pc-groups { grid-template-columns:1fr; } .policy-grid { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms !important; transition:none !important; } }
+</style>
+<style id="ecofac-ui">
+/* ===== EcoFac shared UI layer ===== */
+:root {
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --shadow-sm:0 1px 2px rgba(60,35,10,.06),0 4px 12px -8px rgba(60,35,10,.12);
+  --shadow-md:0 14px 34px -14px rgba(60,35,10,.35);
+}
+@media (prefers-color-scheme:dark) {
+  :root { --shadow-sm:0 1px 2px rgba(0,0,0,.35),0 4px 12px -8px rgba(0,0,0,.5); --shadow-md:0 14px 34px -14px rgba(0,0,0,.7); }
+}
+body {
+  background-color:var(--paper);
+  background-image:radial-gradient(900px 380px at 88% -8%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 70%);
+  background-repeat:no-repeat; background-attachment:fixed;
+}
+::selection { background:var(--accent); color:var(--accent-ink); }
+[hidden] { display:none !important; }
+a { color:var(--accent); }
+.muted { color:var(--muted); }
+.sub { color:var(--muted); font-size:.875rem; margin-top:.15rem; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+main > .panel + .panel, .layout + .panel, main > .layout ~ .panel { margin-top:1.25rem; }
+
+/* ---- Site bar ---- */
+.sitebar { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem 1.5rem; margin:0 0 1.5rem; padding:.25rem 0 .9rem; border-bottom:1px solid var(--line); }
+.brand { display:inline-flex; align-items:center; gap:.6rem; font:600 1.25rem/1 var(--serif); letter-spacing:-.01em; color:var(--ink); text-decoration:none; }
+.brand-mark { width:32px; height:32px; padding:6px; border-radius:10px; background:var(--accent); color:var(--accent-ink); fill:none; stroke:currentColor; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; box-shadow:0 4px 10px -4px color-mix(in oklab, var(--accent) 70%, transparent); }
+.sitebar .topnav { margin:0; padding:0; border:0; flex:1 1 auto; display:flex; flex-wrap:nowrap; gap:.15rem; overflow-x:auto; scrollbar-width:none; }
+.sitebar .topnav::-webkit-scrollbar { display:none; }
+.topnav a { white-space:nowrap; font-size:.92rem; padding:.45rem .9rem; }
+.topnav a.active { background:var(--accent-soft); color:var(--ink); font-weight:600; }
+
+/* ---- Surfaces ---- */
+.panel { border-radius:14px; box-shadow:var(--shadow-sm); }
+.disclaimer { border:1px solid color-mix(in oklab, var(--warn) 25%, transparent); }
+.top h1 { letter-spacing:-.02em; }
+.top-status { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
+
+/* ---- Controls ---- */
+:where(select, textarea, input:not([type=range],[type=checkbox],[type=radio],[type=file])) {
+  background:var(--surface); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+  padding:.4rem .65rem; min-height:38px; transition:border-color .15s, box-shadow .15s;
+}
+:where(select, textarea, input):focus { border-color:var(--accent); box-shadow:0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); outline:none; }
+input[type=checkbox], input[type=radio], input[type=range] { accent-color:var(--accent); }
+input:disabled, select:disabled, textarea:disabled { opacity:.55; cursor:not-allowed; }
+.btn.small { min-height:34px; padding:.25rem .75rem; font-size:.82rem; }
+.btn.danger { background:var(--alert); border-color:var(--alert); color:#fff; }
+.btn:focus-visible { outline-offset:3px; }
+.toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem 1rem; }
+.toolbar label { display:flex; align-items:center; gap:.5rem; font-size:.85rem; color:var(--muted); }
+.check { display:flex; align-items:center; gap:.55rem; font-size:.88rem; margin:.1rem 0 .6rem; cursor:pointer; }
+.pager { display:flex; align-items:center; justify-content:space-between; gap:.5rem; margin-top:.75rem; font-size:.85rem; color:var(--muted); }
+.pager .btns { display:flex; gap:.4rem; }
+
+/* ---- Pills, badges ---- */
+.pill { display:inline-flex; align-items:center; gap:.4rem; white-space:nowrap; }
+.pill::before { content:""; width:.42rem; height:.42rem; border-radius:50%; background:currentColor; opacity:.9; }
+.badge, .chip { display:inline-flex; align-items:center; gap:.4rem; padding:.15rem .65rem; border-radius:99px; font:600 .75rem/1.5 var(--sans); letter-spacing:.03em; background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); vertical-align:middle; }
+.badge.sev-0 { background:var(--ok-soft); color:var(--ok); }
+.badge.sev-1 { background:color-mix(in oklab, var(--muted) 18%, transparent); color:var(--muted); }
+.badge.sev-2 { background:var(--warn-soft); color:var(--warn); }
+.badge.sev-3 { background:var(--alert-soft); color:var(--alert); }
+.chip { background:var(--surface); border:1px solid var(--line); color:var(--ink); font-weight:500; text-decoration:none; }
+a.chip:hover { border-color:var(--accent); }
+
+/* ---- Tables ---- */
+.tbl-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; background:var(--surface); }
+.tbl { width:100%; border-collapse:collapse; font-size:.875rem; font-variant-numeric:tabular-nums; }
+.tbl th { text-align:left; padding:.6rem .85rem; font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); background:color-mix(in oklab, var(--line) 35%, transparent); border-bottom:1px solid var(--line); white-space:nowrap; }
+.tbl td { padding:.6rem .85rem; border-bottom:1px solid var(--line); vertical-align:middle; }
+.tbl tbody tr:last-child td { border-bottom:0; }
+.tbl tbody tr:hover td { background:color-mix(in oklab, var(--accent) 5%, transparent); }
+.tbl .r { text-align:right; }
+.tbl .empty-row { text-align:center; color:var(--muted); padding:1.75rem; }
+.tbl code { font-size:.8rem; color:var(--muted); }
+.tbl .trunc { max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+pre.manifest { background:color-mix(in oklab, var(--muted) 10%, transparent); padding:.8rem; border-radius:8px; overflow:auto; max-height:260px; font-size:.78rem; margin-top:.6rem; }
+
+/* ---- Details / disclosure ---- */
+details.inspector-section { box-shadow:none; }
+details.inspector-section > summary::after { content:"▾"; color:var(--muted); font-size:.85rem; transition:transform .2s; }
+details.inspector-section[open] > summary::after { content:"▾"; transform:rotate(180deg); }
+details.inspector-section > summary:hover { background:color-mix(in oklab, var(--accent) 5%, transparent); border-radius:10px; }
+
+/* ---- Dialog ---- */
+dialog { border:1px solid var(--line); border-radius:14px; background:var(--surface); color:var(--ink); padding:1.25rem; width:min(92vw,440px); box-shadow:var(--shadow-md); }
+dialog::backdrop { background:rgba(20,12,4,.5); backdrop-filter:blur(2px); }
+dialog h3 { font-size:1.1rem; }
+dialog textarea { width:100%; min-height:96px; resize:vertical; margin:.75rem 0 .25rem; }
+.dialog-actions { display:flex; justify-content:flex-end; gap:.5rem; margin-top:.75rem; }
+
+/* ---- Toasts ---- */
+.toasts { position:fixed; left:50%; bottom:max(1rem,env(safe-area-inset-bottom)); transform:translateX(-50%); display:grid; gap:.5rem; width:min(92vw,26rem); z-index:50; pointer-events:none; }
+.toast { background:var(--ink); color:var(--paper); padding:.7rem 1rem; border-radius:10px; font-size:.925rem; box-shadow:var(--shadow-md); animation:rise .2s ease-out; }
+.toast.bad { background:var(--alert); color:#fff; }
+@keyframes rise { from { opacity:0; transform:translateY(6px); } }
+
+/* ---- Scenario workbench ---- */
+.policy-bar { display:grid; gap:.5rem; padding:.85rem 1rem; margin-bottom:1rem; border:1px solid var(--line); border-radius:10px; background:color-mix(in oklab, var(--accent) 6%, transparent); }
+.policy-bar label { font-size:.78rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); }
+.policy-bar select { width:100%; }
+.policy-info { font-size:.82rem; color:var(--muted); }
+.form-group-title { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:1.25rem 0 .75rem; padding-top:1rem; border-top:1px solid var(--line); display:flex; align-items:center; gap:.5rem; }
+.form-group-title:first-of-type { border-top:0; padding-top:0; margin-top:.25rem; }
+.lock-note { display:none; align-items:center; gap:.4rem; font-size:.8rem; color:var(--muted); margin-bottom:.75rem; }
+#constraint-fields.locked .lock-note { display:flex; }
+#constraint-fields.locked .field { opacity:.75; }
+.form-actions { position:sticky; bottom:-1px; padding:.75rem 0 .15rem; background:linear-gradient(to top, var(--surface) 75%, transparent); z-index:2; }
+
+/* ---- World ---- */
+.preset-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:.4rem; }
+.preset-grid .btn.active { background:var(--accent); color:var(--accent-ink); }
+.td-actions { display:grid; gap:.4rem; margin-top:.5rem; }
+.td-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:.5rem 1rem; margin-bottom:.75rem; }
+.td-head h3 { font-size:1.05rem; }
+.td-cols { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:.75rem; margin-bottom:.75rem; }
+.td-card { border:1px solid var(--line); border-radius:10px; padding:.75rem .9rem; background:color-mix(in oklab, var(--surface) 60%, transparent); }
+.td-card h4 { font:600 .72rem/1 var(--sans); text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:.5rem; }
+.td-row { display:flex; justify-content:space-between; gap:1rem; padding:.3rem 0; font-size:.88rem; border-bottom:1px dashed var(--line); }
+.td-row:last-child { border-bottom:0; }
+.td-row b { font-weight:600; font-variant-numeric:tabular-nums; }
+.legend .sw { box-shadow:0 0 0 3px color-mix(in oklab, currentColor 0%, transparent); }
+
+@media (max-width:720px) {
+  .sitebar { gap:.75rem; }
+  .sitebar .topnav { flex-basis:100%; }
+}
+
+/* ---- consistency fixes ---- */
+.wrap { max-width:1240px; }
+.pill.neutral { background:color-mix(in oklab, var(--muted) 15%, transparent); color:var(--muted); }
+.events li { align-items:center; }
+.events li .ev-main { min-width:0; }
+.events { overflow-x:hidden; }
+.events { grid-template-columns:minmax(0,1fr); }
+.rack { background:linear-gradient(to bottom,#3A3027,#2A221A); }
+.bld-floor { background:#2E261E; }
+.bld-floor[data-status="alert"] { background:color-mix(in oklab, var(--alert) 55%, #2E261E); }
+.bld-floor[data-status="warn"] { background:color-mix(in oklab, var(--warn) 50%, #2E261E); }
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="sitebar">
+    <a class="brand" href="/"><svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19c0-8 5-14 14-14 0 9-6 14-14 14z"/><path d="M5 19c3-5 6-8 10-10"/></svg><span>EcoFac</span></a>
+    <nav class="topnav" aria-label="Primary">
+      <a href="/">Dashboard</a>
+      <a href="/decisions">Decision Center</a>
+      <a href="/scenarios">Scenario Workbench</a>
+      <a href="/policies" class="active" aria-current="page">Operating Policies</a>
+      <a href="/world">Virtual Facility</a>
+    </nav>
+  </div>
+
+  <header class="top">
+    <h1>Operating Policies</h1>
+    <p>Versioned policy profiles. Scenario Workbench, Decision evaluations and the Virtual Facility use the <strong>active</strong> profile by default; saved results keep the policy version and configuration fingerprint.</p>
+  </header>
+
+  <main>
+    <details class="panel create" id="create-panel">
+      <summary>
+        <div>
+          <h2>Create policy version</h2>
+          <p class="sub">New versions are immutable. Activate one to make it the default everywhere.</p>
+        </div>
+        <span class="btn-like" aria-hidden="true"></span>
+      </summary>
+      <form id="policy-form" novalidate>
+        <fieldset>
+          <legend>Identity</legend>
+          <div class="form-grid">
+            <label>Version <input name="version" required maxlength="100" placeholder="e.g. 2026-11-baseline" autocomplete="off"></label>
+            <label>Notes <input name="notes" maxlength="500" placeholder="Optional"></label>
+            <label class="inline"><input type="checkbox" name="activate"> Activate immediately</label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Electrical</legend>
+          <div class="form-grid">
+            <label>Capacity (kW) <input type="number" name="electrical_capacity_kw" value="1000" min="1" step="1" required></label>
+            <label>Reserve (%) <input type="number" name="electrical_reserve_pct" value="10" min="0" max="99" step="0.5" required></label>
+            <label>Warning threshold (%) <input type="number" name="electrical_warning_threshold_pct" value="10" min="0" max="99" step="0.5" required></label>
+            <label>Minimum headroom (kW) <input type="number" name="electrical_min_headroom_kw" value="0" min="0" step="1" required></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Cooling</legend>
+          <div class="form-grid">
+            <label>Capacity (kW) <input type="number" name="cooling_capacity_kw" value="800" min="1" step="1" required></label>
+            <label>Reserve (%) <input type="number" name="cooling_reserve_pct" value="10" min="0" max="99" step="0.5" required></label>
+            <label>Warning threshold (%) <input type="number" name="cooling_warning_threshold_pct" value="10" min="0" max="99" step="0.5" required></label>
+            <label>Minimum headroom (kW) <input type="number" name="cooling_min_headroom_kw" value="0" min="0" step="1" required></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>Data quality (reserved)</legend>
+          <div class="form-grid">
+            <label>PUE min <input type="number" name="pue_min" value="1.0" min="0" step="0.05"></label>
+            <label>PUE max <input type="number" name="pue_max" value="10.0" min="0" step="0.05"></label>
+            <label>Freshness max age (s) <input type="number" name="freshness_max_age_seconds" value="7200" min="0" step="60"></label>
+          </div>
+        </fieldset>
+        <div class="form-actions-row">
+          <button class="btn" type="submit" id="create-btn">Create policy</button>
+          <span id="policy-form-status" class="form-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+    </details>
+
+    <div class="list-head">
+      <h2>Policies</h2>
+      <span class="muted" id="policy-count"></span>
+    </div>
+    <div id="policy-grid" class="policy-grid" aria-live="polite"><div class="sk"></div><div class="sk"></div></div>
+  </main>
+</div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  function el(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function pct(v) { var n = Number(v) * 100; return (Math.round(n * 10) / 10) + "%"; }
+  function num(v) { return Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+  function when(iso) { var d = new Date(iso); return isNaN(d) ? esc(iso || "—") : esc(d.toLocaleString()); }
+  function errText(data, status) {
+    var d = data && data.detail;
+    if (!d) { return "HTTP " + status; }
+    return typeof d === "string" ? d : JSON.stringify(d);
+  }
+  function toast(msg, bad) {
+    var t = document.createElement("div");
+    t.className = "toast" + (bad ? " bad" : "");
+    t.textContent = msg;
+    el("toasts").appendChild(t);
+    setTimeout(function () { t.remove(); }, bad ? 7000 : 3500);
+  }
+  function row(k, v) { return "<div class='kv'><span>" + k + "</span><span>" + v + "</span></div>"; }
+
+  function card(p) {
+    var badge = p.is_active ? "<span class='pill ok'>ACTIVE</span>" : "";
+    var btn = p.is_active ? "" :
+      "<button class='btn ghost lmf-activate' type='button' data-id='" + esc(p.id) + "'>Activate</button>";
+    return "<article class='policy-card" + (p.is_active ? " active" : "") + "'>" +
+      "<div class='pc-head'><div><h3>" + esc(p.version) + "</h3>" +
+      "<p class='pc-meta'>Created " + when(p.created_at) + " · fingerprint <code>" +
+      esc(String(p.fingerprint || "").slice(0, 12)) + "</code></p></div>" + badge + "</div>" +
+      "<div class='pc-groups'>" +
+      "<div class='pc-group'><h4>Electrical</h4>" +
+        row("Capacity", num(p.electrical_capacity_kw) + " kW") +
+        row("Reserve", pct(p.electrical_reserve_pct)) +
+        row("Warning", pct(p.electrical_warning_threshold_pct)) +
+        row("Min headroom", num(p.electrical_min_headroom_kw) + " kW") + "</div>" +
+      "<div class='pc-group'><h4>Cooling</h4>" +
+        row("Capacity", num(p.cooling_capacity_kw) + " kW") +
+        row("Reserve", pct(p.cooling_reserve_pct)) +
+        row("Warning", pct(p.cooling_warning_threshold_pct)) +
+        row("Min headroom", num(p.cooling_min_headroom_kw) + " kW") + "</div>" +
+      "<div class='pc-group wide'><h4>Data quality</h4>" +
+        row("PUE band", esc(p.pue_min) + " – " + esc(p.pue_max)) +
+        row("Freshness max age", num(p.freshness_max_age_seconds) + " s") + "</div>" +
+      "</div>" +
+      (p.notes ? "<p class='pc-notes'>" + esc(p.notes) + "</p>" : "") +
+      "<div class='pc-foot'>" + btn + "</div></article>";
+  }
+
+  async function load() {
+    var grid = el("policy-grid");
+    try {
+      var resp = await fetch("/api/v1/policies");
+      if (!resp.ok) { throw new Error("HTTP " + resp.status); }
+      var policies = await resp.json();
+      el("policy-count").textContent = policies.length + (policies.length === 1 ? " version" : " versions");
+      if (!policies.length) { grid.innerHTML = "<p class='msg empty'>No policies yet. Create the first one above.</p>"; return; }
+      policies.sort(function (a, b) {
+        if (!!b.is_active !== !!a.is_active) { return b.is_active ? 1 : -1; }
+        return String(b.created_at).localeCompare(String(a.created_at));
+      });
+      grid.innerHTML = policies.map(card).join("");
+    } catch (err) {
+      grid.innerHTML = "<p class='msg bad'>Failed to load policies: " + esc(err.message) + "</p>";
+    }
+  }
+
+  el("policy-grid").addEventListener("click", async function (e) {
+    var t = e.target.closest ? e.target.closest(".lmf-activate") : null;
+    if (!t) { return; }
+    t.disabled = true; t.setAttribute("aria-busy", "true");
+    try {
+      var resp = await fetch("/api/v1/policies/" + encodeURIComponent(t.dataset.id) + "/activate", { method: "POST" });
+      if (!resp.ok) {
+        var data = await resp.json().catch(function () { return {}; });
+        throw new Error(errText(data, resp.status));
+      }
+      toast("Policy activated");
+      load();
+    } catch (err) {
+      toast("Activation failed: " + err.message, true);
+      t.disabled = false; t.removeAttribute("aria-busy");
+    }
+  });
+
+  function validate(f) {
+    var n = function (name) { return Number(f[name].value); };
+    if (!f.version.value.trim()) { return "Version is required."; }
+    if (!(n("electrical_capacity_kw") > 0) || !(n("cooling_capacity_kw") > 0)) { return "Capacities must be greater than 0."; }
+    var pcts = ["electrical_reserve_pct", "electrical_warning_threshold_pct", "cooling_reserve_pct", "cooling_warning_threshold_pct"];
+    for (var i = 0; i < pcts.length; i++) {
+      var v = n(pcts[i]);
+      if (!(v >= 0 && v < 100)) { return "Reserve and warning percentages must be between 0 and 99."; }
+    }
+    if (n("electrical_min_headroom_kw") < 0 || n("cooling_min_headroom_kw") < 0) { return "Minimum headroom cannot be negative."; }
+    if (n("pue_min") > n("pue_max")) { return "PUE min cannot exceed PUE max."; }
+    return "";
+  }
+
+  el("policy-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var f = e.target;
+    var status = el("policy-form-status");
+    var problem = validate(f);
+    status.className = "form-status";
+    if (problem) { status.textContent = problem; status.classList.add("bad"); return; }
+    var body = {
+      version: f.version.value.trim(),
+      notes: f.notes.value,
+      activate: f.activate.checked,
+      electrical_capacity_kw: Number(f.electrical_capacity_kw.value),
+      electrical_reserve_pct: Number(f.electrical_reserve_pct.value) / 100,
+      electrical_warning_threshold_pct: Number(f.electrical_warning_threshold_pct.value) / 100,
+      electrical_min_headroom_kw: Number(f.electrical_min_headroom_kw.value),
+      cooling_capacity_kw: Number(f.cooling_capacity_kw.value),
+      cooling_reserve_pct: Number(f.cooling_reserve_pct.value) / 100,
+      cooling_warning_threshold_pct: Number(f.cooling_warning_threshold_pct.value) / 100,
+      cooling_min_headroom_kw: Number(f.cooling_min_headroom_kw.value),
+      pue_min: Number(f.pue_min.value),
+      pue_max: Number(f.pue_max.value),
+      freshness_max_age_seconds: Number(f.freshness_max_age_seconds.value)
+    };
+    var btn = el("create-btn");
+    btn.disabled = true; btn.setAttribute("aria-busy", "true");
+    status.textContent = "";
+    try {
+      var resp = await fetch("/api/v1/policies", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+      });
+      var data = await resp.json().catch(function () { return {}; });
+      if (!resp.ok) { throw new Error(errText(data, resp.status)); }
+      toast("Created " + body.version);
+      f.reset();
+      el("create-panel").open = false;
+      load();
+    } catch (err) {
+      status.textContent = "Create failed: " + err.message;
+      status.classList.add("bad");
+    } finally {
+      btn.disabled = false; btn.removeAttribute("aria-busy");
+    }
+  });
+
+  load();
+})();
+</script>
+</body>
+</html>

@@ -138,6 +138,15 @@ PRESETS: tuple[Preset, ...] = (
         expected_precedence="reserve_violation",
     ),
     Preset(
+        id="plus60",
+        label="+60% IT load",
+        description="Proposed +60% IT load with matching cooling.",
+        it_delta_kw=BASELINE_IT_LOAD_KW * 0.60,
+        expected_status="REJECT",
+        expected_precedence="hard_limit_violation",
+    ),
+# LMF-P2-PRESETS-APPLIED
+    Preset(
         id="plus_60pct",
         label="+60% IT load",
         description="Facility power exceeds the physical electrical capacity.",

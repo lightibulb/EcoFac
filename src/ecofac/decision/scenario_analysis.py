@@ -613,13 +613,6 @@ def _request_payload_from_record(record: dict) -> dict:
     payload = copy.deepcopy(record["inputs"])
     payload["config"] = copy.deepcopy(record["config"])
     payload["config_version"] = record["config_version"]
-    if payload.get("pue") is None:
-        payload["pue"] = {
-            "name": "pue",
-            "value": 1.0,
-            "unit": "dimensionless",
-            "source": "ASSUMED",
-        }
     return payload
 
 

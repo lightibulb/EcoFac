@@ -10,6 +10,7 @@ No decision-engine calls. No LLM. No fabricated confidence.
 """
 
 import json
+import logging
 import sqlite3
 from typing import Annotated
 
@@ -17,13 +18,17 @@ from fastapi import APIRouter, Depends
 
 from ecofac.api.dependencies import get_db
 from ecofac.api.errors import api_error
+from ecofac.decision import testdrive
 from ecofac.decision.testdrive import (
     TEST_DRIVE_VERSION,
     UnknownPresetError,
     list_presets,
     run_test_drive,
 )
+from ecofac.policy.manager import PolicyManager
 from ecofac.timeutil import now_z
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/world", tags=["Virtual Facility"])
 
@@ -45,7 +50,37 @@ def test_drive_presets() -> dict:
     }
 
 
-@router.get("/test-drive/{preset_id}")
+def _apply_active_policy(  # LMF-P2-TD-POLICY
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> None:
+    """Point the hypothetical test-drive config at the active operating policy.
+
+    The auto-created default profile is skipped so the canonical demo presets
+    keep their documented baseline until an operator activates a custom one.
+    The profile is only applied when it differs from the engine's current
+    configuration, so the test-drive cache survives repeated requests.
+    """
+    try:
+        policy = PolicyManager(conn).get_active_policy()
+        if policy is None or policy.version.startswith("default-"):
+            return
+        config = policy.to_constraint_config()
+        if config is None or not hasattr(testdrive, "FACILITY_CONFIG"):
+            return
+        if config == testdrive.FACILITY_CONFIG:
+            return
+        testdrive.FACILITY_CONFIG = config
+        compute = getattr(testdrive, "_compute_test_drive", None)
+        cache_clear = getattr(compute, "cache_clear", None)
+        if callable(cache_clear):
+            cache_clear()
+    except Exception:
+        # Policy integration must never break the hypothetical test-drive;
+        # fall back to the canonical demo configuration.
+        logger.debug("operating-policy integration skipped", exc_info=True)
+
+
+@router.get("/test-drive/{preset_id}", dependencies=[Depends(_apply_active_policy)])
 def test_drive(preset_id: str) -> dict:
     """Run one hypothetical test drive through the canonical decision engine.
 
@@ -110,7 +145,6 @@ def world_state(
     latest_by_meter = _latest_reading_per_meter(conn)
     open_inc = _count_per_meter(conn, "open_incidents")
     total_inc = _count_per_meter(conn, "total_incidents")
-    _max_severity_per_meter(conn)
     decision_counts = _decision_counts(conn)
     scenario_count = _scenario_count(conn)
     recent_events = _recent_events(conn)

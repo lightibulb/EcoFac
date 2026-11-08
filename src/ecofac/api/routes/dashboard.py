@@ -245,3 +245,4 @@ def run_manifest_endpoint(
         "latest_detection_timestamp": latest_detection,
         "latest_incident_at": latest_incident,
     }
+
