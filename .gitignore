@@ -21,6 +21,7 @@ htmlcov/
 .eco.bak/
 ecofac.egg-info/
 .ruff_cache/
+.ecofac_fix_logs
 .ecofac_fix_backups/
 # Generated Artifacts
 synthetic_data.csv
