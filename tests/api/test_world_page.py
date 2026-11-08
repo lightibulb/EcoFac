@@ -18,12 +18,15 @@ def test_world_page_has_all_containers(client):
         "events-list",
         "action-msg",
         "drawer",
-        "btn-eval-plus10",
-        "btn-eval-plus40",
         "btn-verify-latest",
         "btn-inspect-incident",
     ):
         assert f'id="{element_id}"' in html, f"missing id={element_id}"
+    # Test-drive buttons render as .preset with data-preset="<id>";
+    # the old fixed IDs btn-eval-plus10/40 were removed.
+    assert "data-preset" in html, (
+        "world.html should render test-drive buttons with data-preset"
+    )
 
 
 def test_world_page_has_nav(client):

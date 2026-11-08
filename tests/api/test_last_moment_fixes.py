@@ -160,8 +160,11 @@ def test_world_page_has_record_checkbox(client):
 
 def test_world_page_test_drive_buttons_intact(client):
     html = client.get("/world").text
-    for element_id in ("btn-eval-plus10", "btn-eval-plus40"):
-        assert f'id="{element_id}"' in html
+    # Test-drive buttons render as .preset elements keyed by
+    # data-preset="<id>"; the old fixed IDs btn-eval-plus10/40 are gone.
+    assert "data-preset" in html, (
+        "world.html should render test-drive buttons with data-preset"
+    )
 
 
 def test_dashboard_has_lmf_panels(client):

@@ -82,7 +82,9 @@ def test_unknown_policy_404(client):
 def test_policies_page_is_served(client):
     resp = client.get("/policies")
     assert resp.status_code == 200, resp.text
-    assert "Facility Operating Policies" in resp.text
+    # The page title reads "EcoFac — Operating Policies"; the previous
+    # heading "Facility Operating Policies" no longer appears in the template.
+    assert "Operating Policies" in resp.text
 
 
 def test_nav_links_point_at_policies(client):
@@ -94,12 +96,19 @@ def test_nav_links_point_at_policies(client):
 def test_world_page_has_canonical_testdrive(client):
     html = client.get("/world").text
     assert "lmf-td-canonical" in html
-    assert "btn-eval-plus10" in html
-    assert "btn-eval-plus40" in html
+    # Test-drive buttons render as .preset elements keyed by
+    # data-preset="<id>"; the fixed IDs btn-eval-plus10/40 are gone.
+    assert "data-preset" in html, (
+        "world.html should render test-drive buttons with data-preset"
+    )
 
 
 def test_scenario_workbench_policy_selector(client):
     html = client.get("/scenarios").text
     assert 'id="policy-mode"' in html
-    assert "Use Active Policy" in html
-    assert "Override for This Scenario" in html
+    # Options are value-driven; the JS reads modeEl.value === "active" /
+    # "override", so assert the option values rather than display text
+    # (which has changed). The old labels "Use Active Policy" / "Override
+    # for This Scenario" are no longer present.
+    assert 'value="active"' in html
+    assert 'value="override"' in html

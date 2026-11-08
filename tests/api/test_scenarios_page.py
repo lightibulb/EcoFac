@@ -29,6 +29,8 @@ def test_scenarios_page_disclaimer_present(client):
 def test_scenarios_page_form_fields_present(client):
     resp = client.get("/scenarios")
     html = resp.text
+    # in-warn was removed from the form; warning_threshold_pct is now set
+    # via the active operating policy (or defaulted server-side).
     for input_id in (
         "in-name",
         "in-it",
@@ -40,7 +42,6 @@ def test_scenarios_page_form_fields_present(client):
         "in-cool-cap",
         "in-elec-res",
         "in-cool-res",
-        "in-warn",
     ):
         assert f'id="{input_id}"' in html, f"missing input id={input_id}"
 
