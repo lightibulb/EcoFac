@@ -752,8 +752,16 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) refr
     var rows = "";
     keys.forEach(function (k) {
       if (obj && obj[k] !== undefined && obj[k] !== null) {
-        rows += "<div class='td-row'><span>" + esc(human(k)) + "</span><b>" +
-          (typeof obj[k] === "number" ? fmt(obj[k]) + unitOf(k) : esc(obj[k])) + "</b></div>";
+        var val = obj[k];
+        var display = "";
+        if (typeof val === "object" && val.value !== undefined) {
+          display = fmt(val.value) + (val.unit ? " " + esc(val.unit) : "");
+        } else if (typeof val === "number") {
+          display = fmt(val) + unitOf(k);
+        } else {
+          display = esc(val);
+        }
+        rows += "<div class='td-row'><span>" + esc(human(k)) + "</span><b>" + display + "</b></div>";
       }
     });
     return "<div class='td-card'><h4>" + esc(title) + "</h4>" + (rows || "<p class='muted'>No data</p>") + "</div>";
@@ -851,8 +859,11 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) refr
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: "test-drive-" + presetId,
-            it_load_kw: inp.it_load_kw, cooling_load_kw: inp.cooling_load_kw, pue: inp.pue,
-            proposed_it_delta_kw: inp.proposed_it_delta_kw, proposed_cooling_delta_kw: inp.proposed_cooling_delta_kw,
+            it_load_kw: (inp.it_load_kw && inp.it_load_kw.value) || inp.it_load_kw,
+            cooling_load_kw: (inp.cooling_load_kw && inp.cooling_load_kw.value) || inp.cooling_load_kw,
+            pue: (inp.pue && inp.pue.value) || inp.pue,
+            proposed_it_delta_kw: (inp.proposed_it_delta_kw && inp.proposed_it_delta_kw.value) || inp.proposed_it_delta_kw,
+            proposed_cooling_delta_kw: (inp.proposed_cooling_delta_kw && inp.proposed_cooling_delta_kw.value) || inp.proposed_cooling_delta_kw,
             config: pol.config,
             config_version: pol.version ? "policy:" + pol.version : "lmf-test-drive",
             it_source: "ASSUMED", cooling_source: "ASSUMED", pue_source: "ASSUMED",
