@@ -892,5 +892,72 @@ $("#next-btn").addEventListener("click", () => {
   loadHistory();
 })();
 </script>
+
+<!-- LMF-LABEL-OVERLAY -->
+<script id="lmf-label-overlay">
+(function () {
+  "use strict";
+  window.lmfLabel = window.lmfLabel || function (key) {
+    var map = {
+      it_load: "IT Load", cooling_load: "Cooling Load", pue: "PUE",
+      electrical: "Electrical", cooling: "Cooling",
+      facility_power_kw: "Facility Power",
+      current_it_load_kw: "Current IT Load",
+      predicted_it_load_kw: "Predicted IT Load",
+      current_facility_power_kw: "Current Facility Power",
+      predicted_facility_power_kw: "Predicted Facility Power",
+      headroom_to_permitted_kw: "Headroom to Permitted",
+      headroom_to_physical_kw: "Headroom to Physical",
+      hard_limit_violation: "Hard limit violated",
+      reserve_violation: "Reserve margin violated",
+      data_quality_ineligible: "Data quality gate",
+      APPROVE: "Approved", REJECT: "Rejected", REVIEW: "Needs review",
+      MEASURED: "Measured", ASSUMED: "Assumed", DERIVED: "Derived",
+      low: "Low", medium: "Medium", high: "High"
+    };
+    return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : key;
+  };
+  var SKIP = { SCRIPT: 1, STYLE: 1, TEXTAREA: 1, INPUT: 1, SELECT: 1,
+               OPTION: 1, CODE: 1, PRE: 1 };
+  function fixNode(node) {
+    var t = (node.nodeValue || "").trim();
+    if (!t) { return; }
+    var pretty = window.lmfLabel(t);
+    if (pretty !== t) { node.nodeValue = node.nodeValue.replace(t, pretty); }
+  }
+  function walk(root) {
+    var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        var p = n.parentElement;
+        if (!p || SKIP[p.tagName]) { return NodeFilter.FILTER_REJECT; }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    var n;
+    while ((n = walker.nextNode())) { fixNode(n); }
+  }
+  function start() {
+    walk(document.body);
+    var mo = new MutationObserver(function (muts) {
+      muts.forEach(function (m) {
+        if (m.type === "childList") {
+          m.addedNodes.forEach(function (added) {
+            if (added.nodeType === 1) { walk(added); }
+          });
+        } else if (m.type === "characterData") {
+          fixNode(m.target);
+        }
+      });
+    });
+    mo.observe(document.body, { childList: true, subtree: true,
+                                characterData: true });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", start);
+  } else {
+    start();
+  }
+})();
+</script>
 </body>
 </html>

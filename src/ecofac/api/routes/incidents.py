@@ -5,7 +5,8 @@
 import sqlite3
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from pydantic import BaseModel, Field
 
 from ecofac.api.dependencies import get_db, require_write_access
 from ecofac.api.schemas import EvidenceResponse, IncidentActionRequest, IncidentResponse
@@ -44,18 +45,40 @@ def _transition(
     return IncidentResponse(**dict(_get_incident_row(conn, incident_id)))
 
 
-@router.get("/incidents", tags=["Incidents"])
+@router.get("/incidents")  # LMF-01-APPLIED
 def list_incidents(
+    response: Response,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
     offset: Annotated[int, Query(ge=0)] = 0,
-) -> list[IncidentResponse]:
-    """List incidents, newest first."""
-    cursor = conn.execute(
-        "SELECT * FROM incidents ORDER BY created_at DESC, id LIMIT ? OFFSET ?",
-        (limit, offset),
-    )
-    return [IncidentResponse(**dict(row)) for row in cursor.fetchall()]
+    status: Annotated[
+        str | None, Query(description="Lifecycle status filter")
+    ] = None,
+) -> list[dict]:
+    """Paginated incident history with an optional status filter."""
+    where = ""
+    params: list[object] = []
+    if status is not None and status.strip():
+        where = " WHERE i.status = ?"
+        params.append(status.strip().upper())
+    total = conn.execute(
+        "SELECT COUNT(*) AS n FROM incidents i" + where, params
+    ).fetchone()["n"]
+    rows = conn.execute(
+        """
+        SELECT i.id, i.anomaly_id, i.status, i.resolution_notes,
+               i.dismissal_reason, i.created_at, i.updated_at,
+               a.building_id, a.meter_id, a.severity, a.detector_name,
+               a.timestamp_utc AS observation_timestamp
+          FROM incidents i
+          JOIN anomalies a ON a.id = i.anomaly_id
+        """
+        + where
+        + " ORDER BY i.created_at DESC, i.id DESC LIMIT ? OFFSET ?",
+        [*params, limit, offset],
+    ).fetchall()
+    response.headers["X-Total-Count"] = str(total)
+    return [dict(row) for row in rows]
 
 
 @router.get("/incidents/{incident_id}", tags=["Incidents"])
@@ -100,15 +123,37 @@ def dismiss_incident(
     return _transition(conn, incident_id, "DISMISSED", payload)
 
 
-@router.post("/incidents/{incident_id}/resolve", tags=["Incidents"])
+class LMFResolveBody(BaseModel):
+    """Payload for resolving an incident; the reason is mandatory."""
+
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+@router.post("/incidents/{incident_id}/resolve")  # LMF-02-APPLIED-V2
 def resolve_incident(
     incident_id: str,
     conn: Annotated[sqlite3.Connection, Depends(get_db)],
     _auth: Annotated[None, Depends(require_write_access)],
-    payload: IncidentActionRequest | None = None,
-) -> IncidentResponse:
-    """Transition an incident to RESOLVED (reason required)."""
-    return _transition(conn, incident_id, "RESOLVED", payload)
+    body: LMFResolveBody,
+) -> dict:
+    """Move an incident to RESOLVED; a non-empty reason is required."""
+    reason = body.reason.strip()
+    if not reason:
+        raise HTTPException(
+            status_code=422, detail="A non-blank reason is required"
+        )
+    try:
+        result = _transition(conn, incident_id, "RESOLVED", body)
+    except IncidentNotFoundError as exc:
+        raise HTTPException(
+            status_code=404, detail="Incident not found"
+        ) from exc
+    conn.execute(
+        "UPDATE incidents SET resolution_notes = ? WHERE id = ?",
+        (reason, incident_id),
+    )
+    conn.commit()
+    return result if isinstance(result, dict) else dict(result)
 
 
 @router.post("/incidents/{incident_id}/unresolve", tags=["Incidents"])

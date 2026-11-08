@@ -220,7 +220,11 @@ code { font-family:var(--mono); font-size:.85em; }
         <h2 id="testdrive-heading">Test drive</h2>
         <p class="sub">Run real logic against the current facility state.</p>
         <div class="testdrive">
-          <button class="btn ghost" type="button" id="btn-eval-plus10">Evaluate +10% load</button>
+          <label for="lmf-record-decision" style="display:block;margin:0.5rem 0;">
+  <input type="checkbox" id="lmf-record-decision">
+  Also record in Decision Center
+</label>
+<button class="btn ghost" type="button" id="btn-eval-plus10">Evaluate +10% load</button>
           <button class="btn ghost" type="button" id="btn-eval-plus40">Evaluate +40% load</button>
           <button class="btn ghost" type="button" id="btn-verify-latest">Verify latest decision</button>
           <button class="btn ghost" type="button" id="btn-inspect-incident">Inspect latest incident</button>
@@ -603,6 +607,90 @@ document.addEventListener("keydown", (e) => {
 refresh();
 setInterval(() => { if (!document.hidden) refresh(); }, 5000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+</script>
+
+<!-- LMF-WORLD-ADDITIONS -->
+<script id="lmf-testdrive">
+(function () {
+  "use strict";
+  var PRESETS = {
+    plus10: { it: 600, cool: 300, pue: 1.4, dit: 60, dcool: 30 },
+    plus40: { it: 600, cool: 300, pue: 1.4, dit: 240, dcool: 120 }
+  };
+  var CONSTRAINTS = {
+    electrical: { capacity: 1000, reserve_pct: 0.10 },
+    cooling: { capacity: 800, reserve_pct: 0.10 }
+  };
+  function el(id) { return document.getElementById(id); }
+  function say(msg) {
+    var m = el("action-msg");
+    if (m) { m.textContent = msg; }
+  }
+  function scenarioBody(presetId) {
+    var p = PRESETS[presetId];
+    return {
+      name: "test-drive-" + presetId,
+      it_load_kw: p.it, cooling_load_kw: p.cool, pue: p.pue,
+      proposed_it_delta_kw: p.dit, proposed_cooling_delta_kw: p.dcool,
+      constraints: CONSTRAINTS,
+      config_version: "lmf-test-drive",
+      it_source: "ASSUMED", cooling_source: "ASSUMED", pue_source: "ASSUMED",
+      persist_as_decision: false
+    };
+  }
+  window.lmfRunTestDrive = async function (presetId) {
+    if (!PRESETS[presetId]) { say("Unknown preset " + presetId); return; }
+    say("Evaluating " + presetId + "…");
+    var record = el("lmf-record-decision");
+    try {
+      var resp, data;
+      if (record && record.checked) {
+        var body = scenarioBody(presetId);
+        body.persist_as_decision = true;
+        resp = await fetch("/api/v1/scenarios/evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail ? JSON.stringify(data.detail)
+                                      : String(resp.status));
+        }
+        say("Recorded in Decision Center: " +
+            (data.decision_id || data.scenario_id || "ok"));
+      } else {
+        resp = await fetch(
+          "/api/v1/world/test-drive/" + encodeURIComponent(presetId));
+        data = await resp.json();
+        if (!resp.ok) {
+          throw new Error(data.detail ? JSON.stringify(data.detail)
+                                      : String(resp.status));
+        }
+        var r = data.result || data;
+        var status = r.final_status || r.status || "EVALUATED";
+        say(presetId + ": " + status + " (via server test-drive endpoint)");
+      }
+      if (window.lmfRefreshEvents) { window.lmfRefreshEvents(); }
+    } catch (err) {
+      say("Test drive failed: " + err.message);
+    }
+  };
+  // Replace buttons with clones: drops ALL previous listeners, including
+  // any legacy client-side meter-reading averaging logic.
+  function hijack(id, preset) {
+    var b = el(id);
+    if (!b) { return; }
+    var nb = b.cloneNode(true);
+    b.parentNode.replaceChild(nb, b);
+    nb.onclick = function (e) {
+      e.preventDefault();
+      window.lmfRunTestDrive(preset);
+    };
+  }
+  hijack("btn-eval-plus10", "plus10");
+  hijack("btn-eval-plus40", "plus40");
+})();
 </script>
 </body>
 </html>

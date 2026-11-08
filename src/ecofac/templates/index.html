@@ -248,7 +248,341 @@ html { scroll-behavior:smooth; }
         <p class="hint">Demo data is synthetic and safe to experiment with.</p>
       </aside>
     </div>
-  </main>
+  
+<!-- LMF-INDEX-ADDITIONS -->
+<!-- LMF-03/06: facility severity from API max_severity + label map -->
+<script id="lmf-severity-labels">
+(function () {
+  "use strict";
+  var SEV_LABELS = ["OK", "LOW", "MEDIUM", "HIGH"];
+  window.lmfLabel = window.lmfLabel || function (key) {
+    var map = {
+      it_load: "IT Load", cooling_load: "Cooling Load", pue: "PUE",
+      electrical: "Electrical", cooling: "Cooling",
+      facility_power_kw: "Facility Power",
+      predicted_it_load_kw: "Predicted IT Load",
+      hard_limit_violation: "Hard limit violated",
+      reserve_violation: "Reserve margin violated",
+      data_quality_ineligible: "Data quality gate",
+      rolling_baseline: "Rolling baseline", robust_mad: "Robust MAD",
+      APPROVE: "Approved", REJECT: "Rejected", REVIEW: "Needs review",
+      DETECTED: "Detected", UNDER_REVIEW: "Under review",
+      ACKNOWLEDGED: "Acknowledged", DISMISSED: "Dismissed",
+      RESOLVED: "Resolved", UNRESOLVED: "Unresolved",
+      low: "Low", medium: "Medium", high: "High"
+    };
+    return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : key;
+  };
+  fetch("/api/v1/world/state")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (world) {
+      if (!world) { return; }
+      var maxSev = 0;
+      (world.buildings || []).forEach(function (b) {
+        (b.meters || []).forEach(function (m) {
+          maxSev = Math.max(maxSev, m.max_severity || 0);
+        });
+      });
+      window.lmfFacilityMaxSeverity = maxSev;
+      var label = SEV_LABELS[maxSev] || "UNKNOWN";
+      ["facility-severity", "facilitySeverity", "severity-badge",
+       "overview-severity", "lmf-facility-severity"].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) { return; }
+        try {
+          el.textContent = label;
+          el.setAttribute("data-severity", String(maxSev));
+          el.className = String(el.className || "")
+            .replace(/sev-\w+/g, "").trim() + " sev-" + maxSev;
+        } catch (e) { /* odd element types: ignore */ }
+      });
+    })
+    .catch(function () { /* keep existing rendering */ });
+})();
+</script>
+
+<!-- LMF-01/02: full incident history with pagination + status filter -->
+<section id="lmf-incident-history" aria-label="Incident history">
+  <h2>Incident History
+    <span id="lmf-facility-severity" class="badge" data-severity=""></span>
+  </h2>
+  <div class="lmf-toolbar">
+    <label>Status
+      <select id="lmf-inc-status">
+        <option value="">All</option>
+        <option>DETECTED</option><option>UNDER_REVIEW</option>
+        <option>ACKNOWLEDGED</option><option>DISMISSED</option>
+        <option>RESOLVED</option><option>UNRESOLVED</option>
+      </select>
+    </label>
+    <label>Page size
+      <select id="lmf-inc-limit">
+        <option>10</option><option selected>25</option>
+        <option>50</option><option>100</option>
+      </select>
+    </label>
+    <span id="lmf-inc-total" class="muted"></span>
+  </div>
+  <table>
+    <thead><tr>
+      <th>Created</th><th>Incident</th><th>Meter</th><th>Detector</th>
+      <th>Severity</th><th>Status</th><th>Notes</th><th>Actions</th>
+    </tr></thead>
+    <tbody id="lmf-inc-body"><tr><td colspan="8">Loading…</td></tr></tbody>
+  </table>
+  <div class="lmf-pager">
+    <button id="lmf-inc-prev" type="button">Previous</button>
+    <span id="lmf-inc-page" class="muted"></span>
+    <button id="lmf-inc-next" type="button">Next</button>
+  </div>
+</section>
+<script id="lmf-incident-history-js">
+(function () {
+  "use strict";
+  var offset = 0;
+  function el(id) { return document.getElementById(id); }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;",
+               '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function label(k) { return window.lmfLabel ? window.lmfLabel(k) : k; }
+  async function load() {
+    var limit = parseInt(el("lmf-inc-limit").value, 10) || 25;
+    var status = el("lmf-inc-status").value;
+    var url = "/api/v1/incidents?limit=" + limit + "&offset=" + offset +
+      (status ? "&status=" + encodeURIComponent(status) : "");
+    try {
+      var r = await fetch(url);
+      var data = await r.json();
+      if (!r.ok) { throw new Error(String(r.status)); }
+      var total = parseInt(
+        r.headers.get("X-Total-Count") || String(data.length), 10);
+      el("lmf-inc-total").textContent = total + " incident(s)";
+      el("lmf-inc-page").textContent = "Showing " +
+        (data.length ? offset + 1 : 0) + "–" + (offset + data.length) +
+        " of " + total;
+      el("lmf-inc-prev").disabled = offset <= 0;
+      el("lmf-inc-next").disabled = offset + data.length >= total;
+      var body = el("lmf-inc-body");
+      if (!data.length) {
+        body.innerHTML = "<tr><td colspan='8'>No incidents.</td></tr>";
+        return;
+      }
+      body.innerHTML = data.map(function (i) {
+        var actions = "";
+        if (i.status === "ACKNOWLEDGED") {
+          actions = "<button class='lmf-resolve' data-id='" + esc(i.id) +
+            "' type='button'>Resolve…</button>";
+        } else if (i.status === "DETECTED") {
+          actions = "<button class='lmf-review' data-id='" + esc(i.id) +
+            "' type='button'>Review</button>";
+        } else if (i.status === "UNDER_REVIEW") {
+          actions = "<button class='lmf-ack' data-id='" + esc(i.id) +
+            "' type='button'>Acknowledge</button>";
+        }
+        return "<tr><td>" + esc(i.created_at) + "</td><td>" + esc(i.id) +
+          "</td><td>" + esc(i.meter_id) + "</td><td>" +
+          esc(label(i.detector_name)) + "</td><td>" + esc(label(i.severity)) +
+          "</td><td>" + esc(label(i.status)) + "</td><td>" +
+          esc(i.resolution_notes || i.dismissal_reason || "") +
+          "</td><td>" + actions + "</td></tr>";
+      }).join("");
+    } catch (err) {
+      el("lmf-inc-body").innerHTML =
+        "<tr><td colspan='8'>Failed to load: " + esc(err.message) +
+        "</td></tr>";
+    }
+  }
+  async function act(id, verb, withReason) {
+    var payload = {};
+    if (withReason) {
+      var reason = window.prompt("Resolution reason (required):");
+      if (reason === null) { return; }
+      reason = reason.trim();
+      if (!reason) {
+        window.alert("A reason is required to resolve an incident.");
+        return;
+      }
+      payload.reason = reason;
+    }
+    try {
+      var r = await fetch(
+        "/api/v1/incidents/" + encodeURIComponent(id) + "/" + verb, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      var data = await r.json().catch(function () { return {}; });
+      if (!r.ok) {
+        window.alert(verb + " failed: " +
+          (data.detail ? JSON.stringify(data.detail) : String(r.status)));
+        return;
+      }
+      load();
+    } catch (err) {
+      window.alert(verb + " failed: " + err.message);
+    }
+  }
+  el("lmf-inc-body").addEventListener("click", function (e) {
+    var t = e.target;
+    if (!t || !t.dataset) { return; }
+    if (t.classList.contains("lmf-resolve")) {
+      act(t.dataset.id, "resolve", true);
+    } else if (t.classList.contains("lmf-review")) {
+      act(t.dataset.id, "review", false);
+    } else if (t.classList.contains("lmf-ack")) {
+      act(t.dataset.id, "acknowledge", false);
+    }
+  });
+  el("lmf-inc-prev").addEventListener("click", function () {
+    var limit = parseInt(el("lmf-inc-limit").value, 10) || 25;
+    offset = Math.max(0, offset - limit);
+    load();
+  });
+  el("lmf-inc-next").addEventListener("click", function () {
+    var limit = parseInt(el("lmf-inc-limit").value, 10) || 25;
+    offset += limit;
+    load();
+  });
+  el("lmf-inc-status").addEventListener("change",
+    function () { offset = 0; load(); });
+  el("lmf-inc-limit").addEventListener("change",
+    function () { offset = 0; load(); });
+  window.lmfRefreshIncidents = load;
+  load();
+})();
+</script>
+
+<!-- LMF-07: Current Readings panel -->
+<section id="lmf-current-readings" aria-label="Current readings">
+  <h2>Current Readings</h2>
+  <p class="muted">Latest reading per meter. kWh readings are converted to
+    average kW over the meter interval.</p>
+  <table>
+    <thead><tr>
+      <th>Meter</th><th>Building</th><th>Reading</th>
+      <th>Timestamp</th><th>Interval</th><th>Average kW</th>
+    </tr></thead>
+    <tbody id="lmf-current-readings-body">
+      <tr><td colspan="6">Loading…</td></tr>
+    </tbody>
+  </table>
+</section>
+<script id="lmf-current-readings-js">
+(function () {
+  "use strict";
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;",
+               '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function fmt(n, d) { return Number(n).toFixed(d === undefined ? 1 : d); }
+  fetch("/api/v1/world/state")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (world) {
+      var tbody = document.getElementById("lmf-current-readings-body");
+      if (!tbody) { return; }
+      if (!world) {
+        tbody.innerHTML = "<tr><td colspan='6'>Unavailable</td></tr>";
+        return;
+      }
+      var rows = [];
+      (world.buildings || []).forEach(function (b) {
+        (b.meters || []).forEach(function (m) {
+          var lr = m.latest_reading;
+          var reading = "No reading", ts = "—", avg = "—";
+          if (lr && lr.value !== null && lr.value !== undefined) {
+            reading = fmt(lr.value) + " " + esc(m.unit || "");
+            if (lr.is_valid === 0) { reading += " (invalid)"; }
+            ts = esc(lr.timestamp_utc || "—");
+            var unit = String(m.unit || "").toLowerCase();
+            if (unit === "kwh" && m.interval_minutes > 0) {
+              avg = fmt(lr.value / (m.interval_minutes / 60.0), 2) + " kW";
+            } else if (unit === "kw") {
+              avg = fmt(lr.value, 2) + " kW";
+            }
+          }
+          rows.push("<tr><td>" + esc(m.id) + "</td><td>" +
+            esc(b.name || b.id) + "</td><td>" + reading + "</td><td>" +
+            ts + "</td><td>" +
+            (m.interval_minutes != null
+              ? esc(m.interval_minutes) + " min" : "—") +
+            "</td><td>" + avg + "</td></tr>");
+        });
+      });
+      tbody.innerHTML = rows.length ? rows.join("") :
+        "<tr><td colspan='6'>No meters</td></tr>";
+    })
+    .catch(function () {
+      var tbody = document.getElementById("lmf-current-readings-body");
+      if (tbody) {
+        tbody.innerHTML = "<tr><td colspan='6'>Unavailable</td></tr>";
+      }
+    });
+})();
+</script>
+
+<!-- LMF-08: separate Generate New Run / Re-analyse + run manifest -->
+<section id="lmf-demo-controls" aria-label="Demo data controls">
+  <h2>Demo Data</h2>
+  <button id="lmf-btn-generate" type="button">Generate New Run</button>
+  <button id="lmf-btn-reanalyze" type="button">Re-analyse</button>
+  <span id="lmf-demo-status" class="muted" role="status"></span>
+  <pre id="lmf-run-manifest" class="muted">Manifest not loaded.</pre>
+</section>
+<script id="lmf-demo-controls-js">
+(function () {
+  "use strict";
+  function el(id) { return document.getElementById(id); }
+  function say(msg) { el("lmf-demo-status").textContent = msg; }
+  async function loadManifest() {
+    try {
+      var r = await fetch("/api/v1/dashboard/run-manifest");
+      if (!r.ok) { throw new Error(String(r.status)); }
+      var m = await r.json();
+      el("lmf-run-manifest").textContent = JSON.stringify(m, null, 2);
+    } catch (err) {
+      el("lmf-run-manifest").textContent =
+        "Manifest unavailable: " + err.message;
+    }
+  }
+  async function run(kind, url) {
+    var btn = el(kind === "generate"
+      ? "lmf-btn-generate" : "lmf-btn-reanalyze");
+    var original = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Running…";
+    say("Running " + kind + "…");
+    try {
+      var r = await fetch(url, { method: "POST" });
+      var data = await r.json().catch(function () { return {}; });
+      if (!r.ok) {
+        throw new Error(data.detail ? JSON.stringify(data.detail)
+                                    : String(r.status));
+      }
+      say(kind + " finished.");
+      await loadManifest();
+      if (window.lmfRefreshIncidents) { window.lmfRefreshIncidents(); }
+    } catch (err) {
+      say(kind + " failed: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = original;
+    }
+  }
+  el("lmf-btn-generate").addEventListener("click", function () {
+    run("generate", "/api/v1/dashboard/generate-demo");
+  });
+  el("lmf-btn-reanalyze").addEventListener("click", function () {
+    run("reanalyze", "/api/v1/dashboard/reanalyze");
+  });
+  loadManifest();
+})();
+</script>
+</main>
 </div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 

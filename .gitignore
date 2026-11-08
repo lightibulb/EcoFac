@@ -35,3 +35,5 @@ evaluation_summary.md
 ecofac.txt
 b.sh
 tree.txt
+.lmf-backup-*/
+.lmf-tmp-*/

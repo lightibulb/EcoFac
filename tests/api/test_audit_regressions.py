@@ -109,7 +109,7 @@ def test_missing_incident_returns_404_and_body_is_optional(client):
     assert resp.json()["status"] == "UNDER_REVIEW"
     resp = client.post(f"/api/v1/incidents/{incident_id}/acknowledge")
     resp = client.post(f"/api/v1/incidents/{incident_id}/resolve", json={"reason": "   "})
-    assert resp.status_code == 400
+    assert resp.status_code == 422
 
 
 def test_chart_data_skips_invalid_readings(client):

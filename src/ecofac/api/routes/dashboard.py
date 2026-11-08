@@ -175,3 +175,73 @@ def generate_demo_data(
         "anomalies_detected": analysis.anomalies_detected,
         "incidents_created": analysis.incidents_created,
     }
+
+
+
+# --- LMF-08-APPLIED-V2: separate Re-analyse action + run manifest -----------
+@router.post(
+    "/dashboard/reanalyze", dependencies=[Depends(require_write_access)]
+)
+def reanalyze_endpoint(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> dict:
+    """Re-run anomaly analysis over existing readings (no new data)."""
+    result = analyze_all(conn)
+    summary = result[0] if isinstance(result, tuple) and result else result
+    conn.commit()
+    return {
+        "status": "reanalyzed",
+        "anomalies_detected": getattr(summary, "anomalies_detected", None),
+        "anomalies_gated": getattr(summary, "anomalies_gated", None),
+        "skipped": getattr(summary, "skipped", None),
+        "incidents_created": getattr(summary, "incidents_created", None),
+    }
+
+
+@router.get("/dashboard/run-manifest")
+def run_manifest_endpoint(
+    conn: Annotated[sqlite3.Connection, Depends(get_db)],
+) -> dict:
+    """Live manifest of the current run: what is in the database now."""
+    counts = {
+        "buildings": conn.execute(
+            "SELECT COUNT(*) AS n FROM buildings"
+        ).fetchone()["n"],
+        "meters": conn.execute(
+            "SELECT COUNT(*) AS n FROM meters"
+        ).fetchone()["n"],
+        "readings": conn.execute(
+            "SELECT COUNT(*) AS n FROM energy_readings"
+        ).fetchone()["n"],
+        "data_quality_issues": conn.execute(
+            "SELECT COUNT(*) AS n FROM data_quality_issues"
+        ).fetchone()["n"],
+        "anomalies": conn.execute(
+            "SELECT COUNT(*) AS n FROM anomalies"
+        ).fetchone()["n"],
+        "incidents": conn.execute(
+            "SELECT COUNT(*) AS n FROM incidents"
+        ).fetchone()["n"],
+        "decisions": conn.execute(
+            "SELECT COUNT(*) AS n FROM decisions"
+        ).fetchone()["n"],
+        "scenarios": conn.execute(
+            "SELECT COUNT(*) AS n FROM scenarios"
+        ).fetchone()["n"],
+    }
+    latest_reading = conn.execute(
+        "SELECT MAX(timestamp_utc) AS ts FROM energy_readings"
+    ).fetchone()["ts"]
+    latest_detection = conn.execute(
+        "SELECT MAX(detection_timestamp) AS ts FROM anomalies"
+    ).fetchone()["ts"]
+    latest_incident = conn.execute(
+        "SELECT MAX(created_at) AS ts FROM incidents"
+    ).fetchone()["ts"]
+    return {
+        "generated_at": now_z(),
+        "counts": counts,
+        "latest_reading_timestamp": latest_reading,
+        "latest_detection_timestamp": latest_detection,
+        "latest_incident_at": latest_incident,
+    }
